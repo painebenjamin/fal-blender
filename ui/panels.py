@@ -20,11 +20,11 @@ class FalSceneProperties(bpy.types.PropertyGroup):
         items=[
             ("TEXTURE", "Texture", "Text-to-Texture generation", "TEXTURE", 0),
             ("GEN3D", "3D", "3D model generation", "MESH_MONKEY", 1),
-            # ("VECTOR", "Vector", "Vector/Curve generation", "GREASEPENCIL", 2),
-            # ("RENDER", "Render", "Neural rendering", "RENDER_RESULT", 3),
-            # ("VIDEO", "Video", "AI video generation", "FILE_MOVIE", 4),
-            # ("UPSCALE", "Upscale", "AI upscaling", "FULLSCREEN_ENTER", 5),
-            # ("AUDIO", "Audio", "Audio generation", "SOUND", 6),
+            ("RENDER", "Render", "Neural rendering", "RENDER_RESULT", 2),
+            ("VIDEO", "Video", "AI video generation", "FILE_MOVIE", 3),
+            ("UPSCALE", "Upscale", "AI upscaling", "FULLSCREEN_ENTER", 4),
+            ("AUDIO", "Audio", "Audio generation", "SOUND", 5),
+            ("MESHOPS", "Mesh Ops", "3D-to-3D operations", "MOD_REMESH", 6),
         ],
         default="TEXTURE",
     )
@@ -197,6 +197,100 @@ class FAL_PT_neural_render_panel(bpy.types.Panel):
         row.operator("fal.neural_render", icon="RENDER_RESULT")
 
 # ---------------------------------------------------------------------------
+# Video Sub-Panel
+# ---------------------------------------------------------------------------
+class FAL_PT_video_panel(bpy.types.Panel):
+    bl_label = "AI Video"
+    bl_idname = "FAL_PT_video_panel"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "fal.ai"
+    bl_parent_id = "FAL_PT_main_panel"
+
+    @classmethod
+    def poll(cls, context: bpy.types.Context) -> bool:
+        return context.scene.fal.active_tab == "VIDEO"
+
+    def draw(self, context: bpy.types.Context) -> None:
+        layout = self.layout
+        props = context.scene.fal_video
+
+        layout.prop(props, "mode")
+
+        if props.mode == "TEXT":
+            layout.prop(props, "text_endpoint")
+            layout.prop(props, "prompt")
+        elif props.mode == "IMAGE":
+            layout.prop(props, "image_endpoint")
+            layout.prop(props, "prompt")
+            layout.prop(props, "image_source")
+            if props.image_source == "FILE":
+                layout.prop(props, "image_path")
+        else:  # DEPTH
+            layout.prop(props, "depth_endpoint")
+            layout.prop(props, "prompt")
+
+        layout.prop(props, "duration")
+
+        row = layout.row()
+        row.scale_y = 1.5
+        row.operator("fal.generate_video", icon="FILE_MOVIE")
+
+
+# ---------------------------------------------------------------------------
+# Audio Sub-Panel
+# ---------------------------------------------------------------------------
+class FAL_PT_audio_panel(bpy.types.Panel):
+    bl_label = "Audio"
+    bl_idname = "FAL_PT_audio_panel"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "fal.ai"
+    bl_parent_id = "FAL_PT_main_panel"
+
+    @classmethod
+    def poll(cls, context: bpy.types.Context) -> bool:
+        return context.scene.fal.active_tab == "AUDIO"
+
+    def draw(self, context: bpy.types.Context) -> None:
+        from ..operators.audio import _draw_audio_panel
+        props = context.scene.fal_audio
+        _draw_audio_panel(self.layout, props)
+
+
+# ---------------------------------------------------------------------------
+# Mesh Ops Sub-Panel
+# ---------------------------------------------------------------------------
+class FAL_PT_mesh_ops_panel(bpy.types.Panel):
+    bl_label = "Mesh Operations"
+    bl_idname = "FAL_PT_mesh_ops_panel"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "fal.ai"
+    bl_parent_id = "FAL_PT_main_panel"
+
+    @classmethod
+    def poll(cls, context: bpy.types.Context) -> bool:
+        return context.scene.fal.active_tab == "MESHOPS"
+
+    def draw(self, context: bpy.types.Context) -> None:
+        layout = self.layout
+        props = context.scene.fal_mesh_ops
+
+        layout.prop(props, "mode")
+
+        if props.mode == "RETEXTURE":
+            layout.prop(props, "retexture_endpoint")
+            layout.prop(props, "prompt")
+        else:
+            layout.prop(props, "remesh_endpoint")
+
+        row = layout.row()
+        row.scale_y = 1.5
+        row.operator("fal.mesh_ops", icon="MOD_REMESH")
+
+
+# ---------------------------------------------------------------------------
 # Jobs Panel (always visible)
 # ---------------------------------------------------------------------------
 class FAL_PT_jobs_panel(bpy.types.Panel):
@@ -247,6 +341,9 @@ _classes = (
     FAL_PT_gen3d_panel,
     FAL_PT_upscale_panel,
     FAL_PT_neural_render_panel,
+    FAL_PT_video_panel,
+    FAL_PT_audio_panel,
+    FAL_PT_mesh_ops_panel,
     FAL_PT_jobs_panel,
 )
 
