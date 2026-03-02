@@ -25,7 +25,7 @@ zip -r fal_ai-0.1.0.zip . \
 
 ### 2. Install in Blender
 
-1. Open Blender 4.2+ (or 4.3/5.0)
+1. Open Blender 4.5+
 2. Edit → Preferences → Add-ons
 3. Click "Install from Disk" (top right dropdown)
 4. Select `fal_ai-0.1.0.zip`
@@ -37,11 +37,11 @@ zip -r fal_ai-0.1.0.zip . \
 
 | Platform | Blender Version | GPU | Tester |
 |----------|-----------------|-----|--------|
-| Windows 11 | 4.2 LTS | NVIDIA | |
+| Windows 11 | 4.5 LTS | NVIDIA | |
 | Windows 11 | 4.3 | NVIDIA | |
-| Ubuntu 24.04 | 4.2 LTS | NVIDIA | |
-| macOS Sonoma (Intel) | 4.2 LTS | AMD | |
-| macOS Sonoma (M3) | 4.2 LTS | Apple Silicon | |
+| Ubuntu 24.04 | 4.5 LTS | NVIDIA | |
+| macOS Sonoma (Intel) | 4.5 LTS | AMD | |
+| macOS Sonoma (M3) | 4.5 LTS | Apple Silicon | |
 
 ---
 

@@ -44,7 +44,7 @@ AI-powered textures, 3D models, rendering, video and audio — directly inside B
 
 ## Requirements
 
-- Blender 4.2+
+- Blender 4.5+
 - A [fal.ai](https://fal.ai) API key
 
 ## Installation
@@ -66,7 +66,7 @@ cd fal-blender
 bash scripts/build_wheels.sh
 
 # Option A: Symlink into Blender's extensions directory
-ln -s $(pwd) ~/.config/blender/4.2/extensions/fal_ai
+ln -s $(pwd) ~/.config/blender/4.5/extensions/fal_ai
 
 # Option B: Zip and install
 zip -r fal_ai.zip . -x ".*" -x "__pycache__/*" -x "scripts/*" -x "tests/*"

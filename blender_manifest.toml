@@ -9,7 +9,7 @@ type = "add-on"
 website = "https://fal.ai"
 tags = ["3D View", "Material", "Mesh", "Import-Export", "Render"]
 
-blender_version_min = "4.2.0"
+blender_version_min = "4.5.0"
 
 license = [
   "SPDX:Apache-2.0",
