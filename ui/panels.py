@@ -119,6 +119,83 @@ class FAL_PT_gen3d_panel(bpy.types.Panel):
         row.operator("fal.generate_3d", icon="MESH_MONKEY")
 
 
+
+# ---------------------------------------------------------------------------
+# Upscale Sub-Panel
+# ---------------------------------------------------------------------------
+class FAL_PT_upscale_panel(bpy.types.Panel):
+    bl_label = "AI Upscale"
+    bl_idname = "FAL_PT_upscale_panel"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "fal.ai"
+    bl_parent_id = "FAL_PT_main_panel"
+
+    @classmethod
+    def poll(cls, context: bpy.types.Context) -> bool:
+        return context.scene.fal.active_tab == "UPSCALE"
+
+    def draw(self, context: bpy.types.Context) -> None:
+        layout = self.layout
+        props = context.scene.fal_upscale
+
+        layout.prop(props, "mode")
+
+        if props.mode == "IMAGE":
+            layout.prop(props, "image_endpoint")
+        else:
+            layout.prop(props, "video_endpoint")
+
+        layout.prop(props, "source")
+        if props.source == "FILE":
+            layout.prop(props, "image_path")
+        elif props.source == "TEXTURE":
+            layout.prop_search(props, "texture_name", bpy.data, "images")
+
+        row = layout.row()
+        row.scale_y = 1.5
+        row.operator("fal.upscale", icon="FULLSCREEN_ENTER")
+
+
+# ---------------------------------------------------------------------------
+# Neural Render Sub-Panel
+# ---------------------------------------------------------------------------
+class FAL_PT_neural_render_panel(bpy.types.Panel):
+    bl_label = "Neural Render"
+    bl_idname = "FAL_PT_neural_render_panel"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "fal.ai"
+    bl_parent_id = "FAL_PT_main_panel"
+
+    @classmethod
+    def poll(cls, context: bpy.types.Context) -> bool:
+        return context.scene.fal.active_tab == "RENDER"
+
+    def draw(self, context: bpy.types.Context) -> None:
+        layout = self.layout
+        props = context.scene.fal_neural_render
+
+        layout.prop(props, "mode")
+
+        if props.mode == "DEPTH":
+            layout.prop(props, "depth_endpoint")
+        else:
+            layout.prop(props, "sketch_endpoint")
+            layout.prop(props, "enable_labels")
+
+        layout.prop(props, "prompt")
+
+        row = layout.row(align=True)
+        row.prop(props, "width")
+        row.prop(props, "height")
+
+        layout.prop(props, "seed")
+
+        row = layout.row()
+        row.scale_y = 1.5
+        row.operator("fal.neural_render", icon="RENDER_RESULT")
+
 # ---------------------------------------------------------------------------
 # Jobs Panel (always visible)
 # ---------------------------------------------------------------------------
@@ -168,6 +245,8 @@ _classes = (
     FAL_PT_main_panel,
     FAL_PT_texture_panel,
     FAL_PT_gen3d_panel,
+    FAL_PT_upscale_panel,
+    FAL_PT_neural_render_panel,
     FAL_PT_jobs_panel,
 )
 

@@ -8,6 +8,8 @@ from .ui import panels  # noqa: F401
 from .operators import (  # noqa: F401
     texture,
     generate_3d,
+    upscale,
+    neural_render,
 )
 
 _modules = [
@@ -17,6 +19,8 @@ _modules = [
     panels,
     texture,
     generate_3d,
+    upscale,
+    neural_render,
 ]
 
 
