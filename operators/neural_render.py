@@ -275,37 +275,135 @@ class FAL_OT_neural_render(bpy.types.Operator):
     # ── Sketch Mode ────────────────────────────────────────────────────
 
     def _sketch_render(self, context, props) -> set[str]:
-        """Render scene, optionally add labels, upload, reimagine."""
+        """Render scene as clean line art via Freestyle, optionally add labels, upload."""
         scene = context.scene
         render_w, render_h = self._get_dimensions(context, props)
+        view_layer = context.view_layer
 
+        # ── Save current settings ──
+        old_engine = scene.render.engine
         old_res_x = scene.render.resolution_x
         old_res_y = scene.render.resolution_y
+        old_res_pct = scene.render.resolution_percentage
+        old_film_transparent = scene.render.film_transparent
+        old_use_compositing = scene.render.use_compositing
+        old_use_nodes = scene.use_nodes
+        old_use_freestyle = view_layer.use_freestyle
+        old_freestyle_use = scene.render.use_freestyle
+
+        # Save freestyle line set settings if they exist
+        old_linesets = []
+        if view_layer.use_freestyle and view_layer.freestyle_settings.linesets:
+            for ls in view_layer.freestyle_settings.linesets:
+                old_linesets.append({
+                    "name": ls.name,
+                    "show_render": ls.show_render,
+                })
 
         try:
+            # ── Configure for line art rendering ──
+            scene.render.engine = "BLENDER_EEVEE_NEXT"
             scene.render.resolution_x = render_w
             scene.render.resolution_y = render_h
+            scene.render.resolution_percentage = 100
+            scene.render.film_transparent = True  # transparent bg, only lines render
+            scene.render.use_freestyle = True
+            view_layer.use_freestyle = True
+
+            # Configure freestyle for clean sketch lines
+            freestyle = view_layer.freestyle_settings
+            freestyle.crease_angle = 2.356  # ~135 degrees
+            freestyle.as_render_pass = False
+
+            # Ensure at least one lineset exists with good defaults
+            if not freestyle.linesets:
+                ls = freestyle.linesets.new("Sketch Lines")
+            else:
+                ls = freestyle.linesets[0]
+
+            ls.show_render = True
+            ls.select_silhouette = True
+            ls.select_border = True
+            ls.select_crease = True
+            ls.select_edge_mark = True
+            ls.select_contour = True
+            ls.select_external_contour = True
+            # Disable material and suggestive contours (too noisy)
+            ls.select_material_boundary = False
+            ls.select_suggestive_contour = False
+
+            # Line style: clean black lines
+            linestyle = ls.linestyle
+            linestyle.color = (0.0, 0.0, 0.0)  # black
+            linestyle.thickness = 2.0
+            linestyle.alpha = 1.0
+
+            # ── Compositor: freestyle lines on white background ──
+            scene.use_nodes = True
+            scene.render.use_compositing = True
+            tree = scene.node_tree
+            _saved_nodes = _snapshot_compositor(tree)
+            for node in tree.nodes:
+                tree.nodes.remove(node)
+
+            # Build: Render Layers → Alpha Over (onto white) → Composite
+            rl_node = tree.nodes.new("CompositorNodeRLayers")
+            rl_node.location = (0, 0)
+
+            # White background
+            color_node = tree.nodes.new("CompositorNodeRGB")
+            color_node.location = (0, -200)
+            color_node.outputs[0].default_value = (1.0, 1.0, 1.0, 1.0)
+
+            alpha_over = tree.nodes.new("CompositorNodeAlphaOver")
+            alpha_over.location = (300, 0)
+
+            composite_node = tree.nodes.new("CompositorNodeComposite")
+            composite_node.location = (600, 0)
+
+            # White background as bottom, render (with lines) on top
+            tree.links.new(color_node.outputs[0], alpha_over.inputs[1])
+            tree.links.new(rl_node.outputs["Image"], alpha_over.inputs[2])
+            tree.links.new(alpha_over.outputs[0], composite_node.inputs["Image"])
+
+            # ── Render ──
             bpy.ops.render.render()
+
+            render_img = bpy.data.images.get("Render Result")
+            if not render_img:
+                self.report({"ERROR"}, "Sketch render failed — no result")
+                return {"CANCELLED"}
+
+            # Save sketch to temp
+            tmp = tempfile.NamedTemporaryFile(
+                suffix=".png", delete=False, prefix="fal_sketch_"
+            ).name
+            render_img.save_render(tmp)
+            print(f"fal.ai: Sketch saved to {tmp}")
+
         finally:
+            # ── Restore everything ──
+            if scene.node_tree:
+                for node in scene.node_tree.nodes:
+                    scene.node_tree.nodes.remove(node)
+                _restore_compositor(scene.node_tree, _saved_nodes)
+
+            scene.use_nodes = old_use_nodes
+            scene.render.use_compositing = old_use_compositing
+            scene.render.engine = old_engine
             scene.render.resolution_x = old_res_x
             scene.render.resolution_y = old_res_y
-
-        render_img = bpy.data.images.get("Render Result")
-        if not render_img:
-            self.report({"ERROR"}, "Render failed — no result")
-            return {"CANCELLED"}
-
-        # Save render to temp
-        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        tmp.close()
-        render_img.save_render(tmp.name)
+            scene.render.resolution_percentage = old_res_pct
+            scene.render.film_transparent = old_film_transparent
+            scene.render.use_freestyle = old_freestyle_use
+            view_layer.use_freestyle = old_use_freestyle
 
         # Overlay labels if enabled
         if props.enable_labels:
-            self._overlay_labels(context, tmp.name, render_w, render_h)
+            self._overlay_labels(context, tmp, render_w, render_h)
 
         # Upload
-        image_url = upload_image_file(tmp.name)
+        image_url = upload_image_file(tmp)
 
         # Build args using the unified helper
         seed = props.seed if props.seed >= 0 else None
