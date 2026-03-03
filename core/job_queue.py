@@ -53,22 +53,36 @@ class FalJob:
         self.downloaded_files: dict[str, str] = {}  # key → local path
         self.error: str | None = None
         self._future = None
+        self._api_key: str | None = None  # cached on main thread before submit
 
     # ── Lifecycle ──────────────────────────────────────────────────────
 
     def submit(self):
-        """Submit the job to the thread pool."""
+        """Submit the job to the thread pool.
+        
+        MUST be called from the main thread — caches the API key
+        before spawning the background thread.
+        """
+        # Cache API key on main thread (bpy.context only works here)
+        from ..preferences import ensure_api_key
+        self._api_key = ensure_api_key()
+        
         self.status = "running"
         self._future = _executor.submit(self._run)
 
     def _run(self):
         """Execute in background thread — no bpy calls allowed here!"""
-        import fal_client
+        try:
+            import fal_client
+        except ImportError as e:
+            self.error = f"fal_client not installed: {e}"
+            self.status = "error"
+            print(f"fal.ai: {self.error}")
+            return
 
-        # Ensure API key is set
-        from ..preferences import ensure_api_key
-
-        ensure_api_key()
+        # Set API key from cached value (no bpy access needed)
+        if self._api_key:
+            os.environ["FAL_KEY"] = self._api_key
 
         try:
 
@@ -79,6 +93,7 @@ class FalJob:
                         msg = last.get("message", "") if isinstance(last, dict) else str(last)
                         self.progress_message = msg[:80]
 
+            print(f"fal.ai: Calling {self.endpoint} with {list(self.arguments.keys())}")
             result = fal_client.subscribe(
                 self.endpoint,
                 arguments=self.arguments,
@@ -86,6 +101,7 @@ class FalJob:
                 on_queue_update=_on_queue_update,
             )
             self.result = result
+            print(f"fal.ai: {self.endpoint} returned: {list(result.keys()) if isinstance(result, dict) else type(result)}")
 
             # Download any URL fields to local temp files
             self._download_results(result)
@@ -95,6 +111,7 @@ class FalJob:
         except Exception as e:
             self.error = f"{type(e).__name__}: {e}"
             self.status = "error"
+            print(f"fal.ai: Job {self.job_id} failed: {self.error}")
             traceback.print_exc()
 
     def _download_results(self, result: dict[str, Any]):
@@ -175,7 +192,7 @@ class JobManager:
         cls._instance = None
 
     def submit(self, job: FalJob) -> FalJob:
-        """Submit a job for execution."""
+        """Submit a job for execution. Must be called from main thread."""
         self.jobs[job.job_id] = job
         job.submit()
         if not self._timer_running:
@@ -214,10 +231,13 @@ class JobManager:
 
         if self.jobs:
             # Redraw 3D viewports to update progress
-            for window in bpy.context.window_manager.windows:
-                for area in window.screen.areas:
-                    if area.type == "VIEW_3D":
-                        area.tag_redraw()
+            try:
+                for window in bpy.context.window_manager.windows:
+                    for area in window.screen.areas:
+                        if area.type == "VIEW_3D":
+                            area.tag_redraw()
+            except Exception:
+                pass  # context may not be fully available during timer
             return 0.5
         else:
             self._timer_running = False

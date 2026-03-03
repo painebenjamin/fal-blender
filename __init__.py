@@ -8,21 +8,31 @@ from .ui import panels  # noqa: F401
 from .operators import (  # noqa: F401
     texture,
     generate_3d,
+    upscale,
+    neural_render,
     video,
     audio,
     mesh_ops,
 )
 
+# Registration order matters!
+# 1. Preferences (API key)
+# 2. Endpoints (no bpy registration needed)
+# 3. Job queue core
+# 4. ALL operator modules (they register PropertyGroups on Scene)
+# 5. Panels LAST (they reference those PropertyGroups)
 _modules = [
     preferences,
     endpoints,
     job_queue,
-    panels,
     texture,
     generate_3d,
+    upscale,
+    neural_render,
     video,
     audio,
     mesh_ops,
+    panels,  # MUST be last — panels reference operator PropertyGroups
 ]
 
 
