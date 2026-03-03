@@ -24,7 +24,7 @@ pip download \
     fal-client httpx httpx-sse httpcore certifi idna sniffio anyio h11 websockets
 
 echo ""
-echo "=== Downloading platform-specific wheels (msgpack) ==="
+echo "=== Downloading platform-specific wheels (msgpack, Pillow) ==="
 for plat in "${PLATFORMS[@]}"; do
     echo "  → $plat"
     pip download \
@@ -33,7 +33,7 @@ for plat in "${PLATFORMS[@]}"; do
         --platform "$plat" \
         --python-version 3.11 \
         --no-deps \
-        msgpack || echo "    (skipped $plat)"
+        msgpack Pillow || echo "    (skipped $plat)"
 done
 
 echo ""

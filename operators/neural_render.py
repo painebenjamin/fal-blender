@@ -313,7 +313,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
             # Configure freestyle for clean sketch lines
             freestyle = view_layer.freestyle_settings
             freestyle.crease_angle = 2.356  # ~135 degrees
-            freestyle.as_render_pass = False
+            freestyle.as_render_pass = True  # Render as separate pass (lines only)
 
             # Ensure at least one lineset exists with good defaults
             if not freestyle.linesets:
@@ -346,7 +346,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
             for node in tree.nodes:
                 tree.nodes.remove(node)
 
-            # Build: Render Layers → Alpha Over (onto white) → Composite
+            # Build: Freestyle pass → Alpha Over (onto white) → Composite
             rl_node = tree.nodes.new("CompositorNodeRLayers")
             rl_node.location = (0, 0)
 
@@ -361,9 +361,17 @@ class FAL_OT_neural_render(bpy.types.Operator):
             composite_node = tree.nodes.new("CompositorNodeComposite")
             composite_node.location = (600, 0)
 
-            # White background as bottom, render (with lines) on top
+            # Use "Freestyle" pass output (lines only on transparent)
+            # instead of "Image" (which includes shaded geometry)
+            freestyle_output = rl_node.outputs.get("Freestyle")
+            if freestyle_output is None:
+                # Fallback: some versions may not have the pass yet until render
+                # Use Image with film_transparent as backup
+                freestyle_output = rl_node.outputs["Image"]
+                print("fal.ai: Freestyle pass not found, falling back to Image")
+
             tree.links.new(color_node.outputs[0], alpha_over.inputs[1])
-            tree.links.new(rl_node.outputs["Image"], alpha_over.inputs[2])
+            tree.links.new(freestyle_output, alpha_over.inputs[2])
             tree.links.new(alpha_over.outputs[0], composite_node.inputs["Image"])
 
             # ── Render ──
