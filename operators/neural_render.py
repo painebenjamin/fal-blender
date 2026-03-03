@@ -312,10 +312,10 @@ class FAL_OT_neural_render(bpy.types.Operator):
                     obj.data.materials.append(white_mat)
                     old_materials[obj.name].append((-1, None))
 
-        # Save world color
+        # Save world color (from node tree if using nodes)
         old_world_color = None
         if scene.world:
-            old_world_color = tuple(scene.world.color)
+            old_world_color = _get_world_color(scene.world)
 
         try:
             # ── Configure for sketch rendering ──
@@ -327,9 +327,9 @@ class FAL_OT_neural_render(bpy.types.Operator):
             scene.render.use_freestyle = True
             view_layer.use_freestyle = True
 
-            # White world background
+            # White world background (must update node tree if nodes are used)
             if scene.world:
-                scene.world.color = (1.0, 1.0, 1.0)
+                _set_world_color(scene.world, (1.0, 1.0, 1.0))
 
             # Configure freestyle for clean sketch lines
             freestyle = view_layer.freestyle_settings
@@ -349,6 +349,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
             ls.select_edge_mark = True
             ls.select_contour = True
             ls.select_external_contour = True
+            ls.select_intersection = True  # Lines where objects overlap
             ls.select_material_boundary = False
             ls.select_suggestive_contour = False
 
@@ -389,7 +390,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
 
             # Restore world
             if scene.world and old_world_color is not None:
-                scene.world.color = old_world_color
+                _set_world_color(scene.world, old_world_color)
 
             scene.render.engine = old_engine
             scene.render.resolution_x = old_res_x
@@ -505,7 +506,12 @@ class FAL_OT_neural_render(bpy.types.Operator):
 
         font = _load_label_font(base_font_size)
 
+        depsgraph = context.evaluated_depsgraph_get()
         for obj, label in labeled:
+            # Skip labels for objects hidden behind other geometry
+            if camera and _is_occluded(scene, depsgraph, camera, obj, width, height):
+                continue
+
             pos_2d = project_3d_to_2d(obj.matrix_world.translation)
             if pos_2d is None:
                 continue
@@ -568,6 +574,69 @@ class FAL_OT_neural_render(bpy.types.Operator):
         from ..core.importers import import_image_to_editor
         import_image_to_editor(local_path, name="fal_neural_render")
         self.report({"INFO"}, "Neural render complete!")
+
+
+# ---------------------------------------------------------------------------
+# World color helpers (handle node tree vs simple color)
+# ---------------------------------------------------------------------------
+def _get_world_color(world) -> tuple[float, float, float]:
+    """Get current world background color, from nodes or fallback."""
+    if world.use_nodes and world.node_tree:
+        for node in world.node_tree.nodes:
+            if node.type == "BACKGROUND":
+                c = node.inputs["Color"].default_value
+                return (c[0], c[1], c[2])
+    return tuple(world.color)
+
+
+def _set_world_color(world, color: tuple[float, float, float]):
+    """Set world background color, updating nodes if present."""
+    if world.use_nodes and world.node_tree:
+        for node in world.node_tree.nodes:
+            if node.type == "BACKGROUND":
+                node.inputs["Color"].default_value = (color[0], color[1], color[2], 1.0)
+                return
+    world.color = color
+
+
+# ---------------------------------------------------------------------------
+# Occlusion testing for labels
+# ---------------------------------------------------------------------------
+def _is_occluded(scene, depsgraph, camera, obj, width: int, height: int) -> bool:
+    """Check if an object's origin is occluded by another object from camera's view.
+
+    Casts a ray from the camera toward the object's origin. If it hits a
+    different object first, the target is occluded.
+    """
+    from mathutils import Vector  # type: ignore[import-not-found]
+
+    cam_loc = camera.matrix_world.translation
+    obj_loc = obj.matrix_world.translation
+
+    direction = (obj_loc - cam_loc).normalized()
+    distance = (obj_loc - cam_loc).length
+
+    # Ray cast from camera toward object
+    result, location, normal, index, hit_obj, matrix = scene.ray_cast(
+        depsgraph, cam_loc + direction * 0.01, direction, distance=distance + 0.01
+    )
+
+    if not result:
+        return False  # Nothing hit — object is visible (or not in ray path)
+
+    # Hit something — is it the target object or one of its children?
+    if hit_obj == obj:
+        return False  # Hit the object itself — it's visible
+    if hit_obj.parent == obj:
+        return False  # Hit a child of the target
+
+    # Something else is in the way — check distance
+    hit_dist = (location - cam_loc).length
+    obj_dist = distance
+    if hit_dist < obj_dist - 0.1:
+        return True  # Another object is closer → occluded
+
+    return False
 
 
 # ---------------------------------------------------------------------------
