@@ -235,6 +235,8 @@ class FAL_OT_neural_render(bpy.types.Operator):
                 _restore_compositor(scene.node_tree, _saved_nodes)
 
             scene.use_nodes = old_use_nodes
+            scene.view_settings.view_transform = old_view_transform
+            scene.view_settings.look = old_look
             scene.render.engine = old_engine
             scene.render.film_transparent = old_film_transparent
             scene.render.resolution_x = old_res_x
@@ -331,6 +333,12 @@ class FAL_OT_neural_render(bpy.types.Operator):
             if scene.world:
                 _set_world_color(scene.world, (1.0, 1.0, 1.0))
 
+            # Force Standard color management (Filmic dims 1.0 to gray)
+            old_view_transform = scene.view_settings.view_transform
+            old_look = scene.view_settings.look
+            scene.view_settings.view_transform = "Standard"
+            scene.view_settings.look = "None"
+
             # Configure freestyle for clean sketch lines
             freestyle = view_layer.freestyle_settings
             freestyle.crease_angle = 2.356  # ~135 degrees
@@ -391,6 +399,8 @@ class FAL_OT_neural_render(bpy.types.Operator):
             if scene.world and old_world_color is not None:
                 _set_world_color(scene.world, old_world_color)
 
+            scene.view_settings.view_transform = old_view_transform
+            scene.view_settings.look = old_look
             scene.render.engine = old_engine
             scene.render.resolution_x = old_res_x
             scene.render.resolution_y = old_res_y
@@ -507,11 +517,28 @@ class FAL_OT_neural_render(bpy.types.Operator):
 
         depsgraph = context.evaluated_depsgraph_get()
         for obj, label in labeled:
-            # Skip labels for objects hidden behind other geometry
-            if camera and _is_occluded(scene, depsgraph, camera, obj, width, height):
-                continue
+            pos_2d = None
 
-            pos_2d = project_3d_to_2d(obj.matrix_world.translation)
+            # Try object origin first
+            if not (camera and _is_occluded(scene, depsgraph, camera, obj, width, height)):
+                pos_2d = project_3d_to_2d(obj.matrix_world.translation)
+
+            # If origin is occluded or off-screen, try bounding box corners
+            if pos_2d is None and hasattr(obj, "bound_box"):
+                from mathutils import Vector  # type: ignore[import-not-found]
+                for corner in obj.bound_box:
+                    world_pt = obj.matrix_world @ Vector(corner)
+                    if camera and _is_occluded(
+                        scene, depsgraph, camera,
+                        obj, width, height,
+                        override_pos=world_pt,
+                    ):
+                        continue
+                    candidate = project_3d_to_2d(world_pt)
+                    if candidate is not None:
+                        pos_2d = candidate
+                        break
+
             if pos_2d is None:
                 continue
 
@@ -601,16 +628,17 @@ def _set_world_color(world, color: tuple[float, float, float]):
 # ---------------------------------------------------------------------------
 # Occlusion testing for labels
 # ---------------------------------------------------------------------------
-def _is_occluded(scene, depsgraph, camera, obj, width: int, height: int) -> bool:
-    """Check if an object's origin is occluded by another object from camera's view.
+def _is_occluded(scene, depsgraph, camera, obj, width: int, height: int,
+                 override_pos=None) -> bool:
+    """Check if a point (default: object origin) is occluded from camera's view.
 
-    Casts a ray from the camera toward the object's origin. If it hits a
-    different object first, the target is occluded.
+    Casts a ray from the camera toward the point. If it hits a different
+    object first, the point is occluded.
     """
     from mathutils import Vector  # type: ignore[import-not-found]
 
     cam_loc = camera.matrix_world.translation
-    obj_loc = obj.matrix_world.translation
+    obj_loc = override_pos if override_pos is not None else obj.matrix_world.translation
 
     direction = (obj_loc - cam_loc).normalized()
     distance = (obj_loc - cam_loc).length
