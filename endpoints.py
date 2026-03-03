@@ -79,7 +79,7 @@ DEPTH_CONTROL_ENDPOINTS: list[EndpointDef] = [
         "FLUX Depth ControlNet",
     ),
     EndpointDef(
-        "fal-ai/z-image/controlnet",
+        "fal-ai/z-image/turbo/controlnet",
         "z-image ControlNet",
         notes="Fast, good for iterative workflows",
     ),
