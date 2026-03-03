@@ -10,7 +10,7 @@ from ..endpoints import (
     TILING_ENDPOINTS,
     endpoint_items,
 )
-from ..core.api import build_image_gen_args
+from ..core.api import resolve_endpoint, build_image_gen_args
 from ..core.job_queue import FalJob, JobManager
 from ..core.importers import import_image_as_texture
 
@@ -142,7 +142,7 @@ class FAL_OT_generate_texture(bpy.types.Operator):
             self.report({"INFO"}, "Texture applied!")
 
         job = FalJob(
-            endpoint=props.endpoint,
+            endpoint=resolve_endpoint(props.endpoint, args),
             arguments=args,
             on_complete=on_complete,
             label=f"Texture: {props.prompt[:30]}",

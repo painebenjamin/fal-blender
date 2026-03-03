@@ -60,6 +60,30 @@ def build_image_gen_args(
     return args
 
 
+def resolve_endpoint(endpoint_id: str, args: dict[str, Any]) -> str:
+    """Resolve the correct endpoint path based on arguments.
+
+    Nano Banana models use /edit when image args are present, / (text-to-image)
+    when they are not.
+    """
+    has_image = any(
+        k in args
+        for k in ("image_url", "image_urls", "control_image_url")
+    )
+
+    if "nano-banana" in endpoint_id:
+        if has_image:
+            # Strip any existing sub-path and add /edit
+            base = endpoint_id.split("/")[0] + "/" + endpoint_id.split("/")[1]
+            return f"{base}/edit"
+        else:
+            # Pure text-to-image — root endpoint
+            base = endpoint_id.split("/")[0] + "/" + endpoint_id.split("/")[1]
+            return base
+
+    return endpoint_id
+
+
 def upload_image_file(filepath: str) -> str:
     """Upload a local image file to fal CDN, return URL."""
     import fal_client

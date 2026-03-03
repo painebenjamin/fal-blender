@@ -13,7 +13,7 @@ from ..endpoints import (
     IMAGE_GENERATION_ENDPOINTS,
     endpoint_items,
 )
-from ..core.api import build_image_gen_args, download_file, upload_image_file
+from ..core.api import build_image_gen_args, download_file, resolve_endpoint, upload_image_file
 from ..core.job_queue import FalJob, JobManager
 
 
@@ -263,7 +263,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
             self._handle_image_result(job)
 
         job = FalJob(
-            endpoint=props.depth_endpoint,
+            endpoint=resolve_endpoint(props.depth_endpoint, args),
             arguments=args,
             on_complete=on_complete,
             label=f"Neural Depth: {props.prompt[:30]}",
@@ -380,7 +380,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
             self._handle_image_result(job)
 
         job = FalJob(
-            endpoint=props.sketch_endpoint,
+            endpoint=resolve_endpoint(props.sketch_endpoint, args),
             arguments=args,
             on_complete=on_complete,
             label=f"Neural Sketch: {props.prompt[:30]}",
