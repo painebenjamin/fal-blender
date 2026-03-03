@@ -633,14 +633,40 @@ class FAL_OT_neural_render(bpy.types.Operator):
                         anchor = candidate
                         break
 
-            # If still no anchor, use unclamped projection to screen edge
+            # If still no anchor, object is fully occluded — place label at
+            # the nearest image margin with leader line toward the object
             if anchor is None:
                 raw = project_3d_to_2d_unclamped(obj.matrix_world.translation)
                 if raw is not None:
-                    # Clamp to image bounds with margin
-                    ax = max(margin, min(int(raw[0]), width - margin))
-                    ay = max(margin, min(int(raw[1]), height - margin))
-                    anchor = (ax, ay)
+                    proj_x, proj_y = raw
+                    cx, cy = width / 2, height / 2
+
+                    # Find which edge the object is closest to (or behind)
+                    # and place anchor at that margin
+                    edge_candidates = []
+                    # Push to nearest edge based on projected position
+                    if proj_x <= cx:
+                        edge_candidates.append((margin, max(margin, min(int(proj_y), height - margin))))
+                    else:
+                        edge_candidates.append((width - margin, max(margin, min(int(proj_y), height - margin))))
+                    if proj_y <= cy:
+                        edge_candidates.append((max(margin, min(int(proj_x), width - margin)), margin))
+                    else:
+                        edge_candidates.append((max(margin, min(int(proj_x), width - margin)), height - margin))
+
+                    # Pick the edge point farthest from center of the cube
+                    # (to avoid placing on top of other objects)
+                    best_edge = None
+                    best_dist = -1
+                    for ex, ey in edge_candidates:
+                        # Check this edge point isn't on top of another object
+                        d = ((ex - proj_x) ** 2 + (ey - proj_y) ** 2) ** 0.5
+                        if d > best_dist:
+                            best_dist = d
+                            best_edge = (ex, ey)
+
+                    if best_edge:
+                        anchor = best_edge
 
             if anchor is None:
                 continue
