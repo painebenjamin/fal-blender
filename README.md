@@ -2,7 +2,7 @@
 
 AI-powered textures, 3D models, rendering, video and audio — directly inside Blender.
 
-> **Status:** Core functionality implemented, ready for testing. Wheel bundling and Blender Extension Platform submission pending.
+**This is very much so a work-in-progress and not officially supported - many features likely do not work yet. If/when this is officially supported, the repository will be moved under fal's GitHub organization.**
 
 ## Features
 
