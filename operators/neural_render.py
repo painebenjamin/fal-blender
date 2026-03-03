@@ -256,7 +256,8 @@ class FAL_OT_neural_render(bpy.types.Operator):
                             obj.data.materials.pop()
                     elif slot_idx < len(obj.material_slots):
                         obj.material_slots[slot_idx].material = orig_mat
-            bpy.data.materials.remove(white_mat)
+            for mat in sketch_mats:
+                bpy.data.materials.remove(mat)
 
             # Restore lights
             for obj in hidden_lights:
@@ -326,28 +327,50 @@ class FAL_OT_neural_render(bpy.types.Operator):
                 obj.hide_render = True
                 hidden_lights.append(obj)
 
-        # Use emission material so objects are visible without lights
-        white_mat = bpy.data.materials.new("_fal_sketch_white")
-        white_mat.use_nodes = True
-        mat_nodes = white_mat.node_tree.nodes
-        mat_nodes.clear()
-        emission = mat_nodes.new("ShaderNodeEmission")
-        emission.inputs["Color"].default_value = (0.85, 0.85, 0.85, 1.0)  # Slight gray for edge contrast
-        emission.inputs["Strength"].default_value = 1.0
-        mat_output = mat_nodes.new("ShaderNodeOutputMaterial")
-        white_mat.node_tree.links.new(emission.outputs[0], mat_output.inputs[0])
-
+        # Assign each object a unique gray emission so edge detection can
+        # find boundaries between adjacent objects (same gray = no edge)
+        sketch_mats = []  # track for cleanup
         old_materials = {}
-        for obj in scene.objects:
-            if obj.type in {"MESH", "CURVE", "SURFACE", "META", "FONT"} and obj.visible_get():
-                old_materials[obj.name] = [
-                    (i, slot.material) for i, slot in enumerate(obj.material_slots)
-                ]
-                for slot in obj.material_slots:
-                    slot.material = white_mat
-                if not obj.material_slots:
-                    obj.data.materials.append(white_mat)
-                    old_materials[obj.name].append((-1, None))
+        visible_meshes = [
+            obj for obj in scene.objects
+            if obj.type in {"MESH", "CURVE", "SURFACE", "META", "FONT"}
+            and obj.visible_get()
+        ]
+
+        # Spread gray values across 0.3–0.9 range, alternating to maximize
+        # contrast between neighbors
+        n = max(len(visible_meshes), 1)
+        gray_values = []
+        for i in range(n):
+            # Interleave: even indices get light grays, odd get darker
+            if i % 2 == 0:
+                gray_values.append(0.9 - (i // 2) * (0.3 / max(n // 2, 1)))
+            else:
+                gray_values.append(0.4 + (i // 2) * (0.3 / max(n // 2, 1)))
+
+        for idx, obj in enumerate(visible_meshes):
+            old_materials[obj.name] = [
+                (i, slot.material) for i, slot in enumerate(obj.material_slots)
+            ]
+
+            # Create unique emission material for this object
+            g = max(0.3, min(0.95, gray_values[idx % len(gray_values)]))
+            mat = bpy.data.materials.new(f"_fal_sketch_{idx}")
+            mat.use_nodes = True
+            mat_nodes = mat.node_tree.nodes
+            mat_nodes.clear()
+            emission = mat_nodes.new("ShaderNodeEmission")
+            emission.inputs["Color"].default_value = (g, g, g, 1.0)
+            emission.inputs["Strength"].default_value = 1.0
+            mat_output = mat_nodes.new("ShaderNodeOutputMaterial")
+            mat.node_tree.links.new(emission.outputs[0], mat_output.inputs[0])
+            sketch_mats.append(mat)
+
+            for slot in obj.material_slots:
+                slot.material = mat
+            if not obj.material_slots:
+                obj.data.materials.append(mat)
+                old_materials[obj.name].append((-1, None))
 
         try:
             # ── Configure for sketch rendering ──
@@ -443,7 +466,8 @@ class FAL_OT_neural_render(bpy.types.Operator):
                             obj.data.materials.pop()
                     elif slot_idx < len(obj.material_slots):
                         obj.material_slots[slot_idx].material = orig_mat
-            bpy.data.materials.remove(white_mat)
+            for mat in sketch_mats:
+                bpy.data.materials.remove(mat)
 
             # Restore lights
             for obj in hidden_lights:
