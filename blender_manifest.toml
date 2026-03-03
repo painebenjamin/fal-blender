@@ -18,10 +18,10 @@ copyright = [
   "2026 Features and Labels, Inc.",
 ]
 
-# Python wheel dependencies — populated by scripts/build_wheels.sh
-# wheels = [
-#   "./wheels/fal_client-0.5.6-py3-none-any.whl",
-# ]
+# Python wheel dependencies
+wheels = [
+  "./wheels/pillow-12.1.1-cp311-cp311-macosx_11_0_arm64.whl",
+]
 
 [permissions]
 network = "Connect to fal.ai API for AI generation"

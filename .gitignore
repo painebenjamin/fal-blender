@@ -8,4 +8,4 @@ build/
 *.zip
 .venv/
 .env
-wheels/*.whl
+# Keep committed wheels, ignore downloaded temp ones
