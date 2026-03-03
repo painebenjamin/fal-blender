@@ -167,11 +167,20 @@ class FAL_OT_neural_render(bpy.types.Operator):
             # Enable Mist pass — gives 0-1 depth relative to camera
             view_layer.use_pass_mist = True
 
-            # Configure mist range from camera clip
+            # Configure mist range from actual scene depth bounds
             camera = scene.camera
-            if camera and camera.data:
-                cam_data = camera.data
-                if world:
+            if camera and world:
+                near, far = _calc_scene_depth_bounds(scene, camera)
+                if near is not None and far is not None:
+                    # Add small padding so objects at exact bounds aren't clipped
+                    padding = (far - near) * 0.05
+                    world.mist_settings.start = max(0.0, near - padding)
+                    world.mist_settings.depth = (far - near) + padding * 2
+                    world.mist_settings.falloff = "LINEAR"
+                    print(f"fal.ai: Depth range: {near:.2f} — {far:.2f}m from camera")
+                else:
+                    # Fallback to camera clip range
+                    cam_data = camera.data
                     world.mist_settings.start = cam_data.clip_start
                     world.mist_settings.depth = cam_data.clip_end - cam_data.clip_start
                     world.mist_settings.falloff = "LINEAR"
@@ -452,6 +461,50 @@ class FAL_OT_neural_render(bpy.types.Operator):
         from ..core.importers import import_image_to_editor
         import_image_to_editor(local_path, name="fal_neural_render")
         self.report({"INFO"}, "Neural render complete!")
+
+
+# ---------------------------------------------------------------------------
+# Scene depth analysis
+# ---------------------------------------------------------------------------
+def _calc_scene_depth_bounds(scene, camera) -> tuple[float | None, float | None]:
+    """Calculate the actual near/far depth of scene geometry from camera's perspective.
+
+    Returns (near_distance, far_distance) in camera-space units,
+    or (None, None) if no geometry found.
+    """
+    from mathutils import Vector  # type: ignore[import-not-found]
+
+    cam_loc = camera.matrix_world.translation
+    # Camera looks down its local -Z axis
+    cam_forward = camera.matrix_world.to_3x3() @ Vector((0, 0, -1))
+    cam_forward.normalize()
+
+    min_dist = float("inf")
+    max_dist = float("-inf")
+    found = False
+
+    for obj in scene.objects:
+        if obj.type not in {"MESH", "CURVE", "SURFACE", "META", "FONT"}:
+            continue
+        if not obj.visible_get():
+            continue
+
+        # Check all 8 corners of the object's bounding box
+        bbox = obj.bound_box
+        for corner in bbox:
+            world_point = obj.matrix_world @ Vector(corner)
+            # Project onto camera forward axis (signed distance)
+            to_point = world_point - cam_loc
+            dist = to_point.dot(cam_forward)
+            if dist > 0:  # Only count things in front of camera
+                min_dist = min(min_dist, dist)
+                max_dist = max(max_dist, dist)
+                found = True
+
+    if not found:
+        return (None, None)
+
+    return (min_dist, max_dist)
 
 
 # ---------------------------------------------------------------------------
