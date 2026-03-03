@@ -25,7 +25,7 @@ class FalPreferences(bpy.types.AddonPreferences):
         name="Output Directory",
         description="Where to save generated assets",
         subtype="DIR_PATH",
-        default="//fal_output/",
+        default="",
     )
 
     auto_import: bpy.props.BoolProperty(
