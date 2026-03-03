@@ -100,6 +100,7 @@ class FalJob:
         self.result: dict[str, Any] | None = None
         self.downloaded_files: dict[str, str] = {}  # key → local path
         self.error: str | None = None
+        self.request_id: str | None = None  # fal request ID for server-side debugging
         self._future = None
         self._api_key: str | None = None  # cached on main thread before submit
 
@@ -143,6 +144,10 @@ class FalJob:
                         )
                         self.progress_message = msg[:80]
 
+            def _on_enqueue(request_id: str):
+                self.request_id = request_id
+                print(f"fal.ai: {self.endpoint} enqueued as {request_id}")
+
             print(
                 f"fal.ai: Calling {self.endpoint} "
                 f"with {list(self.arguments.keys())}"
@@ -151,11 +156,12 @@ class FalJob:
                 self.endpoint,
                 arguments=self.arguments,
                 with_logs=True,
+                on_enqueue=_on_enqueue,
                 on_queue_update=_on_queue_update,
             )
             self.result = result
             print(
-                f"fal.ai: {self.endpoint} returned: "
+                f"fal.ai: {self.endpoint} [{self.request_id or '?'}] returned: "
                 f"{list(result.keys()) if isinstance(result, dict) else type(result)}"
             )
 
@@ -165,7 +171,9 @@ class FalJob:
         except Exception as e:
             self.error = _format_error(e)
             self.status = "error"
-            print(f"fal.ai: Job {self.job_id} failed: {self.error}")
+            if self.request_id:
+                self.error = f"[{self.request_id}] {self.error}"
+            print(f"fal.ai: Job {self.job_id} [{self.request_id or '?'}] failed: {self.error}")
             traceback.print_exc()
 
     def _download_results(self, result: dict[str, Any]):

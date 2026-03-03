@@ -319,6 +319,8 @@ class FAL_PT_jobs_panel(bpy.types.Panel):
             else:
                 row.label(text=job.label, icon="TIME")
                 row.label(text=job.status)
+            if job.request_id:
+                box.label(text=f"Request: {job.request_id}")
             if job.error:
                 _draw_error(box, job.error)
             elif job.progress_message:
@@ -333,6 +335,8 @@ class FAL_PT_jobs_panel(bpy.types.Panel):
                 row = box.row()
                 icon = "CHECKMARK" if job.status == "complete" else "ERROR"
                 row.label(text=job.label, icon=icon)
+                if job.request_id:
+                    box.label(text=f"Request: {job.request_id}")
                 if job.error:
                     _draw_error(box, job.error)
 
