@@ -286,38 +286,14 @@ class FAL_OT_neural_render(bpy.types.Operator):
         old_res_y = scene.render.resolution_y
         old_res_pct = scene.render.resolution_percentage
         old_film_transparent = scene.render.film_transparent
-        old_use_compositing = scene.render.use_compositing
-        old_use_nodes = scene.use_nodes
         old_use_freestyle = view_layer.use_freestyle
         old_freestyle_use = scene.render.use_freestyle
 
-        # Save and override materials — all objects become white
-        old_materials = {}  # obj_name -> list of (slot_index, material_or_None)
-        white_mat = bpy.data.materials.new("_fal_sketch_white")
-        white_mat.diffuse_color = (1.0, 1.0, 1.0, 1.0)
-        white_mat.use_nodes = False  # Simple flat white, no shader tree
-
-        for obj in scene.objects:
-            if obj.type in {"MESH", "CURVE", "SURFACE", "META", "FONT"} and obj.visible_get():
-                old_materials[obj.name] = [
-                    (i, slot.material) for i, slot in enumerate(obj.material_slots)
-                ]
-                # Override all slots to white
-                for slot in obj.material_slots:
-                    slot.material = white_mat
-                # If no slots, add one
-                if not obj.material_slots:
-                    obj.data.materials.append(white_mat)
-                    old_materials[obj.name].append((-1, None))  # marker: we added a slot
-
-        # Save world settings
-        old_world = scene.world
-        old_world_color = None
-        if scene.world:
-            old_world_color = scene.world.color[:]
-
         try:
             # ── Configure for sketch rendering ──
+            # Use EEVEE with Freestyle lines baked into the render.
+            # Objects render with their default shading (gray) which is fine —
+            # the model interprets the lines + labels, not the fill color.
             scene.render.engine = "BLENDER_EEVEE_NEXT"
             scene.render.resolution_x = render_w
             scene.render.resolution_y = render_h
@@ -326,14 +302,10 @@ class FAL_OT_neural_render(bpy.types.Operator):
             scene.render.use_freestyle = True
             view_layer.use_freestyle = True
 
-            # White world background
-            if scene.world:
-                scene.world.color = (1.0, 1.0, 1.0)
-
             # Configure freestyle for clean sketch lines
             freestyle = view_layer.freestyle_settings
             freestyle.crease_angle = 2.356  # ~135 degrees
-            freestyle.as_render_pass = False  # Bake lines into the image directly
+            freestyle.as_render_pass = False  # Bake lines into the image
 
             # Ensure at least one lineset exists
             if not freestyle.linesets:
@@ -353,12 +325,9 @@ class FAL_OT_neural_render(bpy.types.Operator):
 
             # Line style: clean black lines, scale with resolution
             linestyle = ls.linestyle
-            linestyle.color = (0.0, 0.0, 0.0)  # black
-            linestyle.thickness = max(2.0, render_w / 500.0)  # ~2px at 1024, ~4px at 2048
+            linestyle.color = (0.0, 0.0, 0.0)
+            linestyle.thickness = max(2.0, render_w / 500.0)
             linestyle.alpha = 1.0
-
-            # No compositor needed — white objects + white bg + black lines = sketch
-            scene.render.use_compositing = old_use_compositing
 
             # ── Render ──
             bpy.ops.render.render()
@@ -376,33 +345,11 @@ class FAL_OT_neural_render(bpy.types.Operator):
             print(f"fal.ai: Sketch saved to {tmp}")
 
         finally:
-            # ── Restore everything ──
-            # Restore materials
-            for obj_name, mat_list in old_materials.items():
-                obj = scene.objects.get(obj_name)
-                if not obj:
-                    continue
-                for slot_idx, orig_mat in mat_list:
-                    if slot_idx == -1:
-                        # We added a material slot — remove it
-                        if obj.data.materials:
-                            obj.data.materials.pop()
-                    elif slot_idx < len(obj.material_slots):
-                        obj.material_slots[slot_idx].material = orig_mat
-
-            # Clean up temp material
-            bpy.data.materials.remove(white_mat)
-
-            # Restore world
-            if scene.world and old_world_color is not None:
-                scene.world.color = old_world_color
-
             scene.render.engine = old_engine
             scene.render.resolution_x = old_res_x
             scene.render.resolution_y = old_res_y
             scene.render.resolution_percentage = old_res_pct
             scene.render.film_transparent = old_film_transparent
-            scene.render.use_compositing = old_use_compositing
             scene.render.use_freestyle = old_freestyle_use
             view_layer.use_freestyle = old_use_freestyle
 
