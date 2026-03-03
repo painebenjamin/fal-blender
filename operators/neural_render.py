@@ -349,7 +349,6 @@ class FAL_OT_neural_render(bpy.types.Operator):
             ls.select_edge_mark = True
             ls.select_contour = True
             ls.select_external_contour = True
-            ls.select_intersection = True  # Lines where objects overlap
             ls.select_material_boundary = False
             ls.select_suggestive_contour = False
 
