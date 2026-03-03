@@ -94,6 +94,14 @@ def upload_image_file(filepath: str) -> str:
     return fal_client.upload_file(filepath)
 
 
+def upload_video_file(filepath: str) -> str:
+    """Upload a video file to fal CDN and return the URL."""
+    import fal_client
+    url = fal_client.upload_file(filepath)
+    print(f"fal.ai: Uploaded video {filepath} -> {url}")
+    return url
+
+
 def upload_blender_image(image) -> str:
     """Save a Blender image to temp file and upload to fal CDN.
 

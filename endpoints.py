@@ -167,19 +167,14 @@ IMAGE_TO_VIDEO_ENDPOINTS: list[EndpointDef] = [
 
 DEPTH_VIDEO_ENDPOINTS: list[EndpointDef] = [
     EndpointDef(
-        "fal-ai/wan-vace-14b",
-        "Wan-VACE 14B",
+        "fal-ai/wan-vace-14b/depth",
+        "Wan-VACE 14B (Depth)",
         notes="Depth-conditioned video generation",
     ),
     EndpointDef(
-        "fal-ai/wan-fun-2.2-a14b",
-        "Wan-Fun 2.2 A14B",
+        "fal-ai/wan-22-vace-fun-a14b/depth",
+        "Wan-Fun 2.2 A14B (Depth)",
         notes="Depth-conditioned video generation",
-    ),
-    EndpointDef(
-        "fal-ai/ltx-2",
-        "LTX-2",
-        notes="Depth-conditioned video + audio",
     ),
 ]
 

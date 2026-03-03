@@ -241,8 +241,21 @@ class FAL_PT_video_panel(bpy.types.Panel):
         else:  # DEPTH
             layout.prop(props, "depth_endpoint")
             layout.prop(props, "prompt")
+            layout.prop(props, "use_scene_resolution")
 
-        layout.prop(props, "duration")
+        # Duration
+        layout.prop(props, "use_scene_duration")
+        if props.use_scene_duration:
+            scene = context.scene
+            fps = scene.render.fps / scene.render.fps_base
+            frames = scene.frame_end - scene.frame_start + 1
+            dur = frames / fps
+            layout.label(text=f"Scene: {dur:.1f}s ({frames} frames @ {fps:.0f} fps)")
+        else:
+            layout.prop(props, "duration")
+
+        if props.mode == "DEPTH" and not context.scene.camera:
+            layout.label(text="⚠ No camera in scene", icon="ERROR")
 
         row = layout.row()
         row.scale_y = 1.5
