@@ -182,7 +182,11 @@ class FAL_PT_neural_render_panel(bpy.types.Panel):
             layout.prop(props, "depth_endpoint")
         else:
             layout.prop(props, "sketch_endpoint")
-            layout.prop(props, "enable_labels")
+            row = layout.row()
+        row.prop(props, "enable_labels")
+        sub = row.row()
+        sub.enabled = props.enable_labels
+        sub.prop(props, "auto_label")
 
         layout.prop(props, "prompt")
 

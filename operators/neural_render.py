@@ -50,8 +50,15 @@ class FalNeuralRenderProperties(bpy.types.PropertyGroup):
 
     enable_labels: bpy.props.BoolProperty(
         name="Enable Labels",
-        description="Overlay text labels from objects with 'fal_ai_label' custom property",
+        description="Overlay text labels on the sketch to guide generation",
         default=False,
+    )
+
+    auto_label: bpy.props.BoolProperty(
+        name="Auto-label from Names",
+        description="Use Blender object names as labels (no custom property needed). "
+                    "Objects with 'fal_ai_label' custom property override their name",
+        default=True,
     )
 
     use_scene_resolution: bpy.props.BoolProperty(
@@ -536,11 +543,33 @@ class FAL_OT_neural_render(bpy.types.Operator):
             return
 
         # Collect labeled objects
+        # Priority: fal_ai_label custom property > object name (if auto_label)
+        props = scene.fal_neural_render
         labeled = []
+
+        # Skip objects that are just scene infrastructure
+        _skip_types = {"CAMERA", "LIGHT", "EMPTY", "ARMATURE"}
+        _skip_names = {"Camera", "Light", "Sun", "Point", "Spot", "Area"}
+
         for obj in scene.objects:
+            if obj.type in _skip_types:
+                continue
+            if not obj.visible_get():
+                continue
+
+            # Check for explicit label first
             label = obj.get("fal_ai_label")
             if label and isinstance(label, str):
                 labeled.append((obj, label))
+            elif props.auto_label:
+                # Use object name, skip generic Blender defaults
+                name = obj.name
+                if name in _skip_names:
+                    continue
+                # Strip trailing .001, .002 etc.
+                if len(name) > 4 and name[-4] == "." and name[-3:].isdigit():
+                    name = name[:-4]
+                labeled.append((obj, name))
 
         if not labeled:
             return
