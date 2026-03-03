@@ -109,10 +109,60 @@ class FalJob:
             self.status = "complete"
 
         except Exception as e:
-            self.error = f"{type(e).__name__}: {e}"
+            self.error = _format_error(e)
             self.status = "error"
             print(f"fal.ai: Job {self.job_id} failed: {self.error}")
             traceback.print_exc()
+
+
+def _format_error(e: Exception) -> str:
+    """Extract useful error details from fal_client exceptions."""
+    error_type = type(e).__name__
+    msg = str(e)
+
+    # Try to extract HTTP status and body from common exception patterns
+    status_code = getattr(e, "status_code", None) or getattr(e, "status", None)
+    body = getattr(e, "body", None) or getattr(e, "detail", None)
+
+    # httpx.HTTPStatusError has .response
+    response = getattr(e, "response", None)
+    if response is not None:
+        if status_code is None:
+            status_code = getattr(response, "status_code", None)
+        if body is None:
+            try:
+                body = response.json()
+            except Exception:
+                try:
+                    body = response.text[:500]
+                except Exception:
+                    pass
+
+    # Build readable message
+    parts = []
+    if status_code:
+        parts.append(f"HTTP {status_code}")
+    if body:
+        if isinstance(body, dict):
+            # Common fal error format: {"detail": "..."} or {"message": "..."}
+            detail = body.get("detail") or body.get("message") or body.get("error")
+            if isinstance(detail, str):
+                parts.append(detail)
+            elif isinstance(detail, list) and detail:
+                # FastAPI validation errors
+                parts.append("; ".join(
+                    d.get("msg", str(d)) for d in detail[:3]
+                ))
+            else:
+                parts.append(str(body)[:300])
+        else:
+            parts.append(str(body)[:300])
+    elif msg and msg != str(status_code):
+        parts.append(msg[:300])
+
+    if parts:
+        return f"{error_type}: {' — '.join(parts)}"
+    return f"{error_type}: {msg[:300]}"
 
     def _download_results(self, result: dict[str, Any]):
         """Download URLs from result dict to local temp files."""

@@ -324,11 +324,22 @@ class FAL_PT_jobs_panel(bpy.types.Panel):
             layout.separator()
             layout.label(text="Recent:", icon="TIME")
             for job in reversed(mgr.history[-5:]):
-                row = layout.row()
+                box = layout.box()
+                row = box.row()
                 icon = "CHECKMARK" if job.status == "complete" else "ERROR"
                 row.label(text=job.label, icon=icon)
                 if job.error:
-                    row.label(text=job.error[:40])
+                    # Word-wrap error into multiple lines for readability
+                    error_text = job.error
+                    # Split on " — " for structured errors
+                    parts = error_text.split(" — ")
+                    for part in parts:
+                        # Further wrap long lines
+                        while len(part) > 60:
+                            box.label(text=part[:60])
+                            part = part[60:]
+                        if part:
+                            box.label(text=part)
 
 
 # ---------------------------------------------------------------------------
