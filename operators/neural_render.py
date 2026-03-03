@@ -591,70 +591,132 @@ class FAL_OT_neural_render(bpy.types.Operator):
             py = (1.0 - (ndc_y * 0.5 + 0.5)) * height
             return (px, py)
 
-        # Draw labels
-        img = Image.open(image_path)
-        draw = ImageDraw.Draw(img, "RGBA")
+        # Draw annotation-style labels: black text, white pill, leader lines
+        img = Image.open(image_path).convert("RGB")
+        draw = ImageDraw.Draw(img)
 
-        # Scale font size relative to image dimensions (aim for ~3% of image height)
-        base_font_size = max(24, int(height * 0.035))
-
+        # Scale font size relative to image dimensions
+        base_font_size = max(20, int(height * 0.03))
         font = _load_label_font(base_font_size)
+        padding = 6
+        margin = int(height * 0.04)  # Label offset from anchor point
+        line_width = max(1, base_font_size // 12)
 
         depsgraph = context.evaluated_depsgraph_get()
+        placed_labels = []  # Track placed label rects to avoid overlaps
+
         for obj, label in labeled:
-            pos_2d = None
+            anchor = None  # Where the leader line points to
+            label_pos = None  # Where the text goes
 
             # Try object origin first
-            if not (camera and _is_occluded(scene, depsgraph, camera, obj, width, height)):
-                pos_2d = project_3d_to_2d(obj.matrix_world.translation)
+            origin_occluded = camera and _is_occluded(
+                scene, depsgraph, camera, obj, width, height
+            )
+            if not origin_occluded:
+                origin_2d = project_3d_to_2d(obj.matrix_world.translation)
+                if origin_2d:
+                    anchor = origin_2d
 
-            # If origin is occluded or off-screen, try bounding box corners
-            if pos_2d is None and hasattr(obj, "bound_box"):
+            # If origin is occluded/off-screen, try bbox corners
+            if anchor is None and hasattr(obj, "bound_box"):
                 from mathutils import Vector  # type: ignore[import-not-found]
                 for corner in obj.bound_box:
                     world_pt = obj.matrix_world @ Vector(corner)
                     if camera and _is_occluded(
-                        scene, depsgraph, camera,
-                        obj, width, height,
+                        scene, depsgraph, camera, obj, width, height,
                         override_pos=world_pt,
                     ):
                         continue
                     candidate = project_3d_to_2d(world_pt)
                     if candidate is not None:
-                        pos_2d = candidate
+                        anchor = candidate
                         break
 
-            if pos_2d is None:
-                # Object is fully occluded or off-screen — skip label
-                # rather than placing it at a misleading position
+            # If still no anchor, use unclamped projection to screen edge
+            if anchor is None:
+                raw = project_3d_to_2d_unclamped(obj.matrix_world.translation)
+                if raw is not None:
+                    # Clamp to image bounds with margin
+                    ax = max(margin, min(int(raw[0]), width - margin))
+                    ay = max(margin, min(int(raw[1]), height - margin))
+                    anchor = (ax, ay)
+
+            if anchor is None:
                 continue
 
-            px, py = pos_2d
+            ax, ay = anchor
+
+            # Calculate label text size
             bbox = draw.textbbox((0, 0), label, font=font)
             tw = bbox[2] - bbox[0]
             th = bbox[3] - bbox[1]
-            padding = 8
 
-            # Center the label on the projected point
-            lx = px - tw // 2
-            ly = py - th // 2
+            # Position label offset from anchor (prefer above-right)
+            # Try multiple positions to avoid overlapping other labels
+            candidates = [
+                (ax + margin, ay - margin - th),     # above-right
+                (ax + margin, ay + margin),           # below-right
+                (ax - margin - tw, ay - margin - th), # above-left
+                (ax - margin - tw, ay + margin),      # below-left
+                (ax - tw // 2, ay - margin * 2 - th), # directly above
+                (ax - tw // 2, ay + margin * 2),      # directly below
+            ]
 
-            # Clamp to image bounds
-            lx = max(padding, min(lx, width - tw - padding))
-            ly = max(padding, min(ly, height - th - padding))
+            best = None
+            for cx, cy in candidates:
+                # Clamp to image
+                cx = max(padding, min(cx, width - tw - padding * 2))
+                cy = max(padding, min(cy, height - th - padding * 2))
+                rect = (cx - padding, cy - padding,
+                        cx + tw + padding, cy + th + padding)
 
-            # Dark background pill for readability
+                # Check overlap with existing labels
+                overlaps = False
+                for pr in placed_labels:
+                    if (rect[0] < pr[2] and rect[2] > pr[0] and
+                            rect[1] < pr[3] and rect[3] > pr[1]):
+                        overlaps = True
+                        break
+                if not overlaps:
+                    best = (cx, cy, rect)
+                    break
+
+            if best is None:
+                # All positions overlap — use first candidate anyway
+                cx, cy = candidates[0]
+                cx = max(padding, min(cx, width - tw - padding * 2))
+                cy = max(padding, min(cy, height - th - padding * 2))
+                rect = (cx - padding, cy - padding,
+                        cx + tw + padding, cy + th + padding)
+                best = (cx, cy, rect)
+
+            lx, ly, label_rect = best
+            placed_labels.append(label_rect)
+
+            # Draw leader line from label to anchor
+            label_center_x = lx + tw // 2
+            label_center_y = ly + th // 2
+            # Only draw line if label isn't right on top of anchor
+            dist = ((label_center_x - ax) ** 2 + (label_center_y - ay) ** 2) ** 0.5
+            if dist > margin * 0.5:
+                draw.line(
+                    [(ax, ay), (label_center_x, label_center_y)],
+                    fill=(0, 0, 0), width=line_width,
+                )
+                # Small dot at anchor point
+                r = max(2, line_width + 1)
+                draw.ellipse([ax - r, ay - r, ax + r, ay + r], fill=(0, 0, 0))
+
+            # White background pill with thin black border
             draw.rectangle(
-                [
-                    lx - padding,
-                    ly - padding,
-                    lx + tw + padding,
-                    ly + th + padding,
-                ],
-                fill=(0, 0, 0, 200),
+                [label_rect[0], label_rect[1], label_rect[2], label_rect[3]],
+                fill=(255, 255, 255),
+                outline=(0, 0, 0),
+                width=line_width,
             )
-            # White text
-            draw.text((lx, ly), label, fill=(255, 255, 255, 255), font=font)
+            # Black text
+            draw.text((lx, ly), label, fill=(0, 0, 0), font=font)
 
         img.save(image_path)
 
