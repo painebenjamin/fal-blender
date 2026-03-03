@@ -237,6 +237,31 @@ class FAL_OT_neural_render(bpy.types.Operator):
             scene.use_nodes = old_use_nodes
             scene.view_settings.view_transform = old_view_transform
             scene.view_settings.look = old_look
+            # Restore view settings
+            scene.view_settings.view_transform = old_view_transform
+            scene.view_settings.look = old_look
+
+            # Restore world
+            if scene.world and old_world_color is not None:
+                _set_world_color(scene.world, old_world_color)
+
+            # Restore materials
+            for obj_name, mat_list in old_materials.items():
+                obj = scene.objects.get(obj_name)
+                if not obj:
+                    continue
+                for slot_idx, orig_mat in mat_list:
+                    if slot_idx == -1:
+                        if obj.data.materials:
+                            obj.data.materials.pop()
+                    elif slot_idx < len(obj.material_slots):
+                        obj.material_slots[slot_idx].material = orig_mat
+            bpy.data.materials.remove(white_mat)
+
+            # Restore lights
+            for obj in hidden_lights:
+                obj.hide_render = False
+
             scene.render.engine = old_engine
             scene.render.film_transparent = old_film_transparent
             scene.render.resolution_x = old_res_x
@@ -294,6 +319,36 @@ class FAL_OT_neural_render(bpy.types.Operator):
         # No material override — render with default shading so edge detection
         # can find surface boundaries and intersections from shading contrast
 
+        # Hide all lights to prevent shadow edges in sketch
+        hidden_lights = []
+        for obj in scene.objects:
+            if obj.type == "LIGHT" and not obj.hide_render:
+                obj.hide_render = True
+                hidden_lights.append(obj)
+
+        # Use emission material so objects are visible without lights
+        white_mat = bpy.data.materials.new("_fal_sketch_white")
+        white_mat.use_nodes = True
+        mat_nodes = white_mat.node_tree.nodes
+        mat_nodes.clear()
+        emission = mat_nodes.new("ShaderNodeEmission")
+        emission.inputs["Color"].default_value = (0.85, 0.85, 0.85, 1.0)  # Slight gray for edge contrast
+        emission.inputs["Strength"].default_value = 1.0
+        mat_output = mat_nodes.new("ShaderNodeOutputMaterial")
+        white_mat.node_tree.links.new(emission.outputs[0], mat_output.inputs[0])
+
+        old_materials = {}
+        for obj in scene.objects:
+            if obj.type in {"MESH", "CURVE", "SURFACE", "META", "FONT"} and obj.visible_get():
+                old_materials[obj.name] = [
+                    (i, slot.material) for i, slot in enumerate(obj.material_slots)
+                ]
+                for slot in obj.material_slots:
+                    slot.material = white_mat
+                if not obj.material_slots:
+                    obj.data.materials.append(white_mat)
+                    old_materials[obj.name].append((-1, None))
+
         try:
             # ── Configure for sketch rendering ──
             scene.render.engine = "BLENDER_EEVEE_NEXT"
@@ -305,6 +360,18 @@ class FAL_OT_neural_render(bpy.types.Operator):
             view_layer.use_freestyle = True
 
 
+
+            # Standard color management so emission renders as intended
+            old_view_transform = scene.view_settings.view_transform
+            old_look = scene.view_settings.look
+            scene.view_settings.view_transform = "Standard"
+            scene.view_settings.look = "None"
+
+            # White world background
+            old_world_color = None
+            if scene.world:
+                old_world_color = _get_world_color(scene.world)
+                _set_world_color(scene.world, (1.0, 1.0, 1.0))
 
             # Configure freestyle for clean sketch lines
             freestyle = view_layer.freestyle_settings
@@ -357,6 +424,31 @@ class FAL_OT_neural_render(bpy.types.Operator):
                 print(f"fal.ai: Sketch post-processing failed, using raw render: {e}")
 
         finally:
+            # Restore view settings
+            scene.view_settings.view_transform = old_view_transform
+            scene.view_settings.look = old_look
+
+            # Restore world
+            if scene.world and old_world_color is not None:
+                _set_world_color(scene.world, old_world_color)
+
+            # Restore materials
+            for obj_name, mat_list in old_materials.items():
+                obj = scene.objects.get(obj_name)
+                if not obj:
+                    continue
+                for slot_idx, orig_mat in mat_list:
+                    if slot_idx == -1:
+                        if obj.data.materials:
+                            obj.data.materials.pop()
+                    elif slot_idx < len(obj.material_slots):
+                        obj.material_slots[slot_idx].material = orig_mat
+            bpy.data.materials.remove(white_mat)
+
+            # Restore lights
+            for obj in hidden_lights:
+                obj.hide_render = False
+
             scene.render.engine = old_engine
             scene.render.resolution_x = old_res_x
             scene.render.resolution_y = old_res_y
@@ -509,14 +601,9 @@ class FAL_OT_neural_render(bpy.types.Operator):
                         break
 
             if pos_2d is None:
-                # Last resort: project origin to screen, clamp to edges
-                raw = project_3d_to_2d_unclamped(obj.matrix_world.translation)
-                if raw is not None:
-                    px = max(padding * 2, min(raw[0], width - padding * 2))
-                    py = max(padding * 2, min(raw[1], height - padding * 2))
-                    pos_2d = (int(px), int(py))
-                else:
-                    continue
+                # Object is fully occluded or off-screen — skip label
+                # rather than placing it at a misleading position
+                continue
 
             px, py = pos_2d
             bbox = draw.textbbox((0, 0), label, font=font)
