@@ -289,11 +289,36 @@ class FAL_OT_neural_render(bpy.types.Operator):
         old_use_freestyle = view_layer.use_freestyle
         old_freestyle_use = scene.render.use_freestyle
 
+        # Override all materials with flat white emission (ignores lighting)
+        old_materials = {}
+        white_mat = bpy.data.materials.new("_fal_sketch_white")
+        white_mat.use_nodes = True
+        nodes = white_mat.node_tree.nodes
+        nodes.clear()
+        emission = nodes.new("ShaderNodeEmission")
+        emission.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+        emission.inputs["Strength"].default_value = 1.0
+        output = nodes.new("ShaderNodeOutputMaterial")
+        white_mat.node_tree.links.new(emission.outputs[0], output.inputs[0])
+
+        for obj in scene.objects:
+            if obj.type in {"MESH", "CURVE", "SURFACE", "META", "FONT"} and obj.visible_get():
+                old_materials[obj.name] = [
+                    (i, slot.material) for i, slot in enumerate(obj.material_slots)
+                ]
+                for slot in obj.material_slots:
+                    slot.material = white_mat
+                if not obj.material_slots:
+                    obj.data.materials.append(white_mat)
+                    old_materials[obj.name].append((-1, None))
+
+        # Save world color
+        old_world_color = None
+        if scene.world:
+            old_world_color = tuple(scene.world.color)
+
         try:
             # ── Configure for sketch rendering ──
-            # Use EEVEE with Freestyle lines baked into the render.
-            # Objects render with their default shading (gray) which is fine —
-            # the model interprets the lines + labels, not the fill color.
             scene.render.engine = "BLENDER_EEVEE_NEXT"
             scene.render.resolution_x = render_w
             scene.render.resolution_y = render_h
@@ -301,6 +326,10 @@ class FAL_OT_neural_render(bpy.types.Operator):
             scene.render.film_transparent = False
             scene.render.use_freestyle = True
             view_layer.use_freestyle = True
+
+            # White world background
+            if scene.world:
+                scene.world.color = (1.0, 1.0, 1.0)
 
             # Configure freestyle for clean sketch lines
             freestyle = view_layer.freestyle_settings
@@ -345,6 +374,23 @@ class FAL_OT_neural_render(bpy.types.Operator):
             print(f"fal.ai: Sketch saved to {tmp}")
 
         finally:
+            # Restore materials
+            for obj_name, mat_list in old_materials.items():
+                obj = scene.objects.get(obj_name)
+                if not obj:
+                    continue
+                for slot_idx, orig_mat in mat_list:
+                    if slot_idx == -1:
+                        if obj.data.materials:
+                            obj.data.materials.pop()
+                    elif slot_idx < len(obj.material_slots):
+                        obj.material_slots[slot_idx].material = orig_mat
+            bpy.data.materials.remove(white_mat)
+
+            # Restore world
+            if scene.world and old_world_color is not None:
+                scene.world.color = old_world_color
+
             scene.render.engine = old_engine
             scene.render.resolution_x = old_res_x
             scene.render.resolution_y = old_res_y
