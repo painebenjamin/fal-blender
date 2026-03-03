@@ -291,31 +291,51 @@ class FAL_OT_neural_render(bpy.types.Operator):
         old_use_freestyle = view_layer.use_freestyle
         old_freestyle_use = scene.render.use_freestyle
 
-        # Save freestyle line set settings if they exist
-        old_linesets = []
-        if view_layer.use_freestyle and view_layer.freestyle_settings.linesets:
-            for ls in view_layer.freestyle_settings.linesets:
-                old_linesets.append({
-                    "name": ls.name,
-                    "show_render": ls.show_render,
-                })
+        # Save and override materials — all objects become white
+        old_materials = {}  # obj_name -> list of (slot_index, material_or_None)
+        white_mat = bpy.data.materials.new("_fal_sketch_white")
+        white_mat.diffuse_color = (1.0, 1.0, 1.0, 1.0)
+        white_mat.use_nodes = False  # Simple flat white, no shader tree
+
+        for obj in scene.objects:
+            if obj.type in {"MESH", "CURVE", "SURFACE", "META", "FONT"} and obj.visible_get():
+                old_materials[obj.name] = [
+                    (i, slot.material) for i, slot in enumerate(obj.material_slots)
+                ]
+                # Override all slots to white
+                for slot in obj.material_slots:
+                    slot.material = white_mat
+                # If no slots, add one
+                if not obj.material_slots:
+                    obj.data.materials.append(white_mat)
+                    old_materials[obj.name].append((-1, None))  # marker: we added a slot
+
+        # Save world settings
+        old_world = scene.world
+        old_world_color = None
+        if scene.world:
+            old_world_color = scene.world.color[:]
 
         try:
-            # ── Configure for line art rendering ──
+            # ── Configure for sketch rendering ──
             scene.render.engine = "BLENDER_EEVEE_NEXT"
             scene.render.resolution_x = render_w
             scene.render.resolution_y = render_h
             scene.render.resolution_percentage = 100
-            scene.render.film_transparent = True  # transparent bg, only lines render
+            scene.render.film_transparent = False
             scene.render.use_freestyle = True
             view_layer.use_freestyle = True
+
+            # White world background
+            if scene.world:
+                scene.world.color = (1.0, 1.0, 1.0)
 
             # Configure freestyle for clean sketch lines
             freestyle = view_layer.freestyle_settings
             freestyle.crease_angle = 2.356  # ~135 degrees
-            freestyle.as_render_pass = True  # Render as separate pass (lines only)
+            freestyle.as_render_pass = False  # Bake lines into the image directly
 
-            # Ensure at least one lineset exists with good defaults
+            # Ensure at least one lineset exists
             if not freestyle.linesets:
                 ls = freestyle.linesets.new("Sketch Lines")
             else:
@@ -328,51 +348,17 @@ class FAL_OT_neural_render(bpy.types.Operator):
             ls.select_edge_mark = True
             ls.select_contour = True
             ls.select_external_contour = True
-            # Disable material and suggestive contours (too noisy)
             ls.select_material_boundary = False
             ls.select_suggestive_contour = False
 
-            # Line style: clean black lines
+            # Line style: clean black lines, scale with resolution
             linestyle = ls.linestyle
             linestyle.color = (0.0, 0.0, 0.0)  # black
-            linestyle.thickness = 2.0
+            linestyle.thickness = max(2.0, render_w / 500.0)  # ~2px at 1024, ~4px at 2048
             linestyle.alpha = 1.0
 
-            # ── Compositor: freestyle lines on white background ──
-            scene.use_nodes = True
-            scene.render.use_compositing = True
-            tree = scene.node_tree
-            _saved_nodes = _snapshot_compositor(tree)
-            for node in tree.nodes:
-                tree.nodes.remove(node)
-
-            # Build: Freestyle pass → Alpha Over (onto white) → Composite
-            rl_node = tree.nodes.new("CompositorNodeRLayers")
-            rl_node.location = (0, 0)
-
-            # White background
-            color_node = tree.nodes.new("CompositorNodeRGB")
-            color_node.location = (0, -200)
-            color_node.outputs[0].default_value = (1.0, 1.0, 1.0, 1.0)
-
-            alpha_over = tree.nodes.new("CompositorNodeAlphaOver")
-            alpha_over.location = (300, 0)
-
-            composite_node = tree.nodes.new("CompositorNodeComposite")
-            composite_node.location = (600, 0)
-
-            # Use "Freestyle" pass output (lines only on transparent)
-            # instead of "Image" (which includes shaded geometry)
-            freestyle_output = rl_node.outputs.get("Freestyle")
-            if freestyle_output is None:
-                # Fallback: some versions may not have the pass yet until render
-                # Use Image with film_transparent as backup
-                freestyle_output = rl_node.outputs["Image"]
-                print("fal.ai: Freestyle pass not found, falling back to Image")
-
-            tree.links.new(color_node.outputs[0], alpha_over.inputs[1])
-            tree.links.new(freestyle_output, alpha_over.inputs[2])
-            tree.links.new(alpha_over.outputs[0], composite_node.inputs["Image"])
+            # No compositor needed — white objects + white bg + black lines = sketch
+            scene.render.use_compositing = old_use_compositing
 
             # ── Render ──
             bpy.ops.render.render()
@@ -391,18 +377,32 @@ class FAL_OT_neural_render(bpy.types.Operator):
 
         finally:
             # ── Restore everything ──
-            if scene.node_tree:
-                for node in scene.node_tree.nodes:
-                    scene.node_tree.nodes.remove(node)
-                _restore_compositor(scene.node_tree, _saved_nodes)
+            # Restore materials
+            for obj_name, mat_list in old_materials.items():
+                obj = scene.objects.get(obj_name)
+                if not obj:
+                    continue
+                for slot_idx, orig_mat in mat_list:
+                    if slot_idx == -1:
+                        # We added a material slot — remove it
+                        if obj.data.materials:
+                            obj.data.materials.pop()
+                    elif slot_idx < len(obj.material_slots):
+                        obj.material_slots[slot_idx].material = orig_mat
 
-            scene.use_nodes = old_use_nodes
-            scene.render.use_compositing = old_use_compositing
+            # Clean up temp material
+            bpy.data.materials.remove(white_mat)
+
+            # Restore world
+            if scene.world and old_world_color is not None:
+                scene.world.color = old_world_color
+
             scene.render.engine = old_engine
             scene.render.resolution_x = old_res_x
             scene.render.resolution_y = old_res_y
             scene.render.resolution_percentage = old_res_pct
             scene.render.film_transparent = old_film_transparent
+            scene.render.use_compositing = old_use_compositing
             scene.render.use_freestyle = old_freestyle_use
             view_layer.use_freestyle = old_use_freestyle
 
@@ -507,10 +507,10 @@ class FAL_OT_neural_render(bpy.types.Operator):
         img = Image.open(image_path)
         draw = ImageDraw.Draw(img, "RGBA")
 
-        try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
-        except (IOError, OSError):
-            font = ImageFont.load_default()
+        # Scale font size relative to image dimensions (aim for ~3% of image height)
+        base_font_size = max(24, int(height * 0.035))
+
+        font = _load_label_font(base_font_size)
 
         for obj, label in labeled:
             pos_2d = project_3d_to_2d(obj.matrix_world.translation)
@@ -521,20 +521,28 @@ class FAL_OT_neural_render(bpy.types.Operator):
             bbox = draw.textbbox((0, 0), label, font=font)
             tw = bbox[2] - bbox[0]
             th = bbox[3] - bbox[1]
-            padding = 4
+            padding = 8
 
-            # Dark semi-transparent background
+            # Center the label on the projected point
+            lx = px - tw // 2
+            ly = py - th // 2
+
+            # Clamp to image bounds
+            lx = max(padding, min(lx, width - tw - padding))
+            ly = max(padding, min(ly, height - th - padding))
+
+            # Dark background pill for readability
             draw.rectangle(
                 [
-                    px - padding,
-                    py - padding,
-                    px + tw + padding,
-                    py + th + padding,
+                    lx - padding,
+                    ly - padding,
+                    lx + tw + padding,
+                    ly + th + padding,
                 ],
-                fill=(0, 0, 0, 160),
+                fill=(0, 0, 0, 200),
             )
             # White text
-            draw.text((px, py), label, fill=(255, 255, 255, 255), font=font)
+            draw.text((lx, ly), label, fill=(255, 255, 255, 255), font=font)
 
         img.save(image_path)
 
@@ -567,6 +575,40 @@ class FAL_OT_neural_render(bpy.types.Operator):
         from ..core.importers import import_image_to_editor
         import_image_to_editor(local_path, name="fal_neural_render")
         self.report({"INFO"}, "Neural render complete!")
+
+
+# ---------------------------------------------------------------------------
+# Font loading for label overlay
+# ---------------------------------------------------------------------------
+def _load_label_font(size: int):
+    """Load a readable font cross-platform. Falls back gracefully."""
+    from PIL import ImageFont
+
+    # Try common system font paths across platforms
+    font_candidates = [
+        # macOS
+        "/System/Library/Fonts/Helvetica.ttc",
+        "/System/Library/Fonts/SFNSMono.ttf",
+        "/Library/Fonts/Arial.ttf",
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        # Linux
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+        # Windows
+        "C:/Windows/Fonts/arial.ttf",
+        "C:/Windows/Fonts/calibri.ttf",
+    ]
+
+    for path in font_candidates:
+        try:
+            return ImageFont.truetype(path, size)
+        except (IOError, OSError):
+            continue
+
+    # Last resort: Pillow's built-in default (small but works everywhere)
+    print("fal.ai: No system fonts found, using default (labels may be small)")
+    return ImageFont.load_default()
 
 
 # ---------------------------------------------------------------------------
