@@ -37,16 +37,24 @@ class FalPreferences(bpy.types.AddonPreferences):
     def draw(self, context: bpy.types.Context) -> None:
         layout = self.layout
         layout.prop(self, "api_key")
-        layout.prop(self, "output_dir")
-        layout.prop(self, "auto_import")
 
-        if not self.api_key and not os.environ.get("FAL_KEY"):
+        env_key = os.environ.get("FAL_KEY", "")
+        if not self.api_key and env_key:
+            box = layout.box()
+            box.label(
+                text=f"Using FAL_KEY from environment (…{env_key[-4:]})",
+                icon="CHECKMARK",
+            )
+        elif not self.api_key and not env_key:
             box = layout.box()
             box.label(text="No API key set!", icon="ERROR")
-            box.label(text="Get your key at: fal.ai/dashboard/keys")
+            box.label(text="Set above, or export FAL_KEY in your shell")
             box.operator(
-                "wm.url_open", text="Open fal.ai Dashboard"
+                "wm.url_open", text="Get a key at fal.ai"
             ).url = "https://fal.ai/dashboard/keys"
+
+        layout.prop(self, "output_dir")
+        layout.prop(self, "auto_import")
 
 
 def get_api_key() -> str | None:
