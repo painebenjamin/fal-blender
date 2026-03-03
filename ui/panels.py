@@ -314,9 +314,14 @@ class FAL_PT_jobs_panel(bpy.types.Panel):
         for job in mgr.active_jobs:
             box = layout.box()
             row = box.row()
-            row.label(text=job.label, icon="TIME")
-            row.label(text=job.status)
-            if job.progress_message:
+            if job.status == "error":
+                row.label(text=job.label, icon="ERROR")
+            else:
+                row.label(text=job.label, icon="TIME")
+                row.label(text=job.status)
+            if job.error:
+                _draw_error(box, job.error)
+            elif job.progress_message:
                 box.label(text=job.progress_message)
 
         # Recent history
@@ -329,17 +334,20 @@ class FAL_PT_jobs_panel(bpy.types.Panel):
                 icon = "CHECKMARK" if job.status == "complete" else "ERROR"
                 row.label(text=job.label, icon=icon)
                 if job.error:
-                    # Word-wrap error into multiple lines for readability
-                    error_text = job.error
-                    # Split on " — " for structured errors
-                    parts = error_text.split(" — ")
-                    for part in parts:
-                        # Further wrap long lines
-                        while len(part) > 60:
-                            box.label(text=part[:60])
-                            part = part[60:]
-                        if part:
-                            box.label(text=part)
+                    _draw_error(box, job.error)
+
+
+def _draw_error(layout, error_text: str):
+    """Draw a word-wrapped error message in the panel."""
+    col = layout.column(align=True)
+    # Split on structured delimiters
+    parts = error_text.split(" — ")
+    for part in parts:
+        while len(part) > 55:
+            col.label(text=part[:55], icon="BLANK1")
+            part = part[55:]
+        if part.strip():
+            col.label(text=part, icon="BLANK1")
 
 
 # ---------------------------------------------------------------------------
