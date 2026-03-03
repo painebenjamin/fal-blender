@@ -9,3 +9,7 @@ build/
 .venv/
 .env
 # Keep committed wheels, ignore downloaded temp ones
+
+# Vendored pip packages (installed locally, not committed)
+vendor/*
+!vendor/.gitkeep
