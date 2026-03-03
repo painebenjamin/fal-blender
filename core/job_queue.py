@@ -24,6 +24,54 @@ _executor = ThreadPoolExecutor(max_workers=3, thread_name_prefix="fal")
 
 
 # ---------------------------------------------------------------------------
+# Error formatting (module-level helper)
+# ---------------------------------------------------------------------------
+def _format_error(e: Exception) -> str:
+    """Extract useful error details from fal_client exceptions."""
+    error_type = type(e).__name__
+    msg = str(e)
+
+    status_code = getattr(e, "status_code", None) or getattr(e, "status", None)
+    body = getattr(e, "body", None) or getattr(e, "detail", None)
+
+    response = getattr(e, "response", None)
+    if response is not None:
+        if status_code is None:
+            status_code = getattr(response, "status_code", None)
+        if body is None:
+            try:
+                body = response.json()
+            except Exception:
+                try:
+                    body = response.text[:500]
+                except Exception:
+                    pass
+
+    parts = []
+    if status_code:
+        parts.append(f"HTTP {status_code}")
+    if body:
+        if isinstance(body, dict):
+            detail = body.get("detail") or body.get("message") or body.get("error")
+            if isinstance(detail, str):
+                parts.append(detail)
+            elif isinstance(detail, list) and detail:
+                parts.append("; ".join(
+                    d.get("msg", str(d)) for d in detail[:3]
+                ))
+            else:
+                parts.append(str(body)[:300])
+        else:
+            parts.append(str(body)[:300])
+    elif msg and msg != str(status_code):
+        parts.append(msg[:300])
+
+    if parts:
+        return f"{error_type}: {' — '.join(parts)}"
+    return f"{error_type}: {msg[:300]}"
+
+
+# ---------------------------------------------------------------------------
 # FalJob
 # ---------------------------------------------------------------------------
 class FalJob:
@@ -59,14 +107,13 @@ class FalJob:
 
     def submit(self):
         """Submit the job to the thread pool.
-        
+
         MUST be called from the main thread — caches the API key
         before spawning the background thread.
         """
-        # Cache API key on main thread (bpy.context only works here)
         from ..preferences import ensure_api_key
+
         self._api_key = ensure_api_key()
-        
         self.status = "running"
         self._future = _executor.submit(self._run)
 
@@ -80,7 +127,6 @@ class FalJob:
             print(f"fal.ai: {self.error}")
             return
 
-        # Set API key from cached value (no bpy access needed)
         if self._api_key:
             os.environ["FAL_KEY"] = self._api_key
 
@@ -90,10 +136,17 @@ class FalJob:
                 if isinstance(update, fal_client.InProgress):
                     if update.logs:
                         last = update.logs[-1]
-                        msg = last.get("message", "") if isinstance(last, dict) else str(last)
+                        msg = (
+                            last.get("message", "")
+                            if isinstance(last, dict)
+                            else str(last)
+                        )
                         self.progress_message = msg[:80]
 
-            print(f"fal.ai: Calling {self.endpoint} with {list(self.arguments.keys())}")
+            print(
+                f"fal.ai: Calling {self.endpoint} "
+                f"with {list(self.arguments.keys())}"
+            )
             result = fal_client.subscribe(
                 self.endpoint,
                 arguments=self.arguments,
@@ -101,11 +154,12 @@ class FalJob:
                 on_queue_update=_on_queue_update,
             )
             self.result = result
-            print(f"fal.ai: {self.endpoint} returned: {list(result.keys()) if isinstance(result, dict) else type(result)}")
+            print(
+                f"fal.ai: {self.endpoint} returned: "
+                f"{list(result.keys()) if isinstance(result, dict) else type(result)}"
+            )
 
-            # Download any URL fields to local temp files
             self._download_results(result)
-
             self.status = "complete"
 
         except Exception as e:
@@ -113,56 +167,6 @@ class FalJob:
             self.status = "error"
             print(f"fal.ai: Job {self.job_id} failed: {self.error}")
             traceback.print_exc()
-
-
-def _format_error(e: Exception) -> str:
-    """Extract useful error details from fal_client exceptions."""
-    error_type = type(e).__name__
-    msg = str(e)
-
-    # Try to extract HTTP status and body from common exception patterns
-    status_code = getattr(e, "status_code", None) or getattr(e, "status", None)
-    body = getattr(e, "body", None) or getattr(e, "detail", None)
-
-    # httpx.HTTPStatusError has .response
-    response = getattr(e, "response", None)
-    if response is not None:
-        if status_code is None:
-            status_code = getattr(response, "status_code", None)
-        if body is None:
-            try:
-                body = response.json()
-            except Exception:
-                try:
-                    body = response.text[:500]
-                except Exception:
-                    pass
-
-    # Build readable message
-    parts = []
-    if status_code:
-        parts.append(f"HTTP {status_code}")
-    if body:
-        if isinstance(body, dict):
-            # Common fal error format: {"detail": "..."} or {"message": "..."}
-            detail = body.get("detail") or body.get("message") or body.get("error")
-            if isinstance(detail, str):
-                parts.append(detail)
-            elif isinstance(detail, list) and detail:
-                # FastAPI validation errors
-                parts.append("; ".join(
-                    d.get("msg", str(d)) for d in detail[:3]
-                ))
-            else:
-                parts.append(str(body)[:300])
-        else:
-            parts.append(str(body)[:300])
-    elif msg and msg != str(status_code):
-        parts.append(msg[:300])
-
-    if parts:
-        return f"{error_type}: {' — '.join(parts)}"
-    return f"{error_type}: {msg[:300]}"
 
     def _download_results(self, result: dict[str, Any]):
         """Download URLs from result dict to local temp files."""
@@ -173,7 +177,6 @@ def _format_error(e: Exception) -> str:
             if not url:
                 continue
 
-            # Determine extension from URL
             ext = Path(url.split("?")[0]).suffix or ".bin"
             tmp = tempfile.NamedTemporaryFile(
                 prefix=f"fal_{self.job_id}_",
@@ -226,7 +229,7 @@ class JobManager:
 
     def __init__(self):
         self.jobs: dict[str, FalJob] = {}
-        self.history: list[FalJob] = []  # completed jobs (last N)
+        self.history: list[FalJob] = []
         self._timer_running = False
         self._max_history = 20
 
@@ -280,18 +283,17 @@ class JobManager:
             del self.jobs[jid]
 
         if self.jobs:
-            # Redraw 3D viewports to update progress
             try:
                 for window in bpy.context.window_manager.windows:
                     for area in window.screen.areas:
                         if area.type == "VIEW_3D":
                             area.tag_redraw()
             except Exception:
-                pass  # context may not be fully available during timer
+                pass
             return 0.5
         else:
             self._timer_running = False
-            return None  # stop timer
+            return None
 
     @property
     def active_count(self) -> int:
