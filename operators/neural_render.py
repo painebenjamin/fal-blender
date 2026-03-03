@@ -291,33 +291,8 @@ class FAL_OT_neural_render(bpy.types.Operator):
         old_use_freestyle = view_layer.use_freestyle
         old_freestyle_use = scene.render.use_freestyle
 
-        # Override all materials with flat white emission (ignores lighting)
-        old_materials = {}
-        white_mat = bpy.data.materials.new("_fal_sketch_white")
-        white_mat.use_nodes = True
-        nodes = white_mat.node_tree.nodes
-        nodes.clear()
-        emission = nodes.new("ShaderNodeEmission")
-        emission.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
-        emission.inputs["Strength"].default_value = 1.0
-        output = nodes.new("ShaderNodeOutputMaterial")
-        white_mat.node_tree.links.new(emission.outputs[0], output.inputs[0])
-
-        for obj in scene.objects:
-            if obj.type in {"MESH", "CURVE", "SURFACE", "META", "FONT"} and obj.visible_get():
-                old_materials[obj.name] = [
-                    (i, slot.material) for i, slot in enumerate(obj.material_slots)
-                ]
-                for slot in obj.material_slots:
-                    slot.material = white_mat
-                if not obj.material_slots:
-                    obj.data.materials.append(white_mat)
-                    old_materials[obj.name].append((-1, None))
-
-        # Save world color (from node tree if using nodes)
-        old_world_color = None
-        if scene.world:
-            old_world_color = _get_world_color(scene.world)
+        # No material override — render with default shading so edge detection
+        # can find surface boundaries and intersections from shading contrast
 
         try:
             # ── Configure for sketch rendering ──
@@ -329,15 +304,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
             scene.render.use_freestyle = True
             view_layer.use_freestyle = True
 
-            # White world background (must update node tree if nodes are used)
-            if scene.world:
-                _set_world_color(scene.world, (1.0, 1.0, 1.0))
 
-            # Force Standard color management (Filmic dims 1.0 to gray)
-            old_view_transform = scene.view_settings.view_transform
-            old_look = scene.view_settings.look
-            scene.view_settings.view_transform = "Standard"
-            scene.view_settings.look = "None"
 
             # Configure freestyle for clean sketch lines
             freestyle = view_layer.freestyle_settings
@@ -366,7 +333,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
             linestyle.thickness = max(2.0, render_w / 500.0)
             linestyle.alpha = 1.0
 
-            # ── Render ──
+            # ── Render (Freestyle + emission white) ──
             bpy.ops.render.render()
 
             render_img = bpy.data.images.get("Render Result")
@@ -374,33 +341,22 @@ class FAL_OT_neural_render(bpy.types.Operator):
                 self.report({"ERROR"}, "Sketch render failed — no result")
                 return {"CANCELLED"}
 
-            # Save sketch to temp
+            # Save freestyle render
             tmp = tempfile.NamedTemporaryFile(
                 suffix=".png", delete=False, prefix="fal_sketch_"
             ).name
             render_img.save_render(tmp)
-            print(f"fal.ai: Sketch saved to {tmp}")
+            print(f"fal.ai: Freestyle sketch saved to {tmp}")
+
+            # Post-process: convert shaded render to clean sketch
+            # Edge detection catches intersections and surfaces Freestyle misses
+            try:
+                _render_to_sketch(tmp, render_w, render_h)
+                print("fal.ai: Sketch post-processing complete")
+            except Exception as e:
+                print(f"fal.ai: Sketch post-processing failed, using raw render: {e}")
 
         finally:
-            # Restore materials
-            for obj_name, mat_list in old_materials.items():
-                obj = scene.objects.get(obj_name)
-                if not obj:
-                    continue
-                for slot_idx, orig_mat in mat_list:
-                    if slot_idx == -1:
-                        if obj.data.materials:
-                            obj.data.materials.pop()
-                    elif slot_idx < len(obj.material_slots):
-                        obj.material_slots[slot_idx].material = orig_mat
-            bpy.data.materials.remove(white_mat)
-
-            # Restore world
-            if scene.world and old_world_color is not None:
-                _set_world_color(scene.world, old_world_color)
-
-            scene.view_settings.view_transform = old_view_transform
-            scene.view_settings.look = old_look
             scene.render.engine = old_engine
             scene.render.resolution_x = old_res_x
             scene.render.resolution_y = old_res_y
@@ -506,6 +462,19 @@ class FAL_OT_neural_render(bpy.types.Operator):
                 return (px, py)
             return None
 
+        def project_3d_to_2d_unclamped(world_pos):
+            """Project 3D to 2D without bounds check (for edge-clamped labels)."""
+            co = projection_matrix @ view_matrix @ Vector(
+                (world_pos[0], world_pos[1], world_pos[2], 1.0)
+            )
+            if co.w <= 0:
+                return None
+            ndc_x = co.x / co.w
+            ndc_y = co.y / co.w
+            px = (ndc_x * 0.5 + 0.5) * width
+            py = (1.0 - (ndc_y * 0.5 + 0.5)) * height
+            return (px, py)
+
         # Draw labels
         img = Image.open(image_path)
         draw = ImageDraw.Draw(img, "RGBA")
@@ -540,7 +509,14 @@ class FAL_OT_neural_render(bpy.types.Operator):
                         break
 
             if pos_2d is None:
-                continue
+                # Last resort: project origin to screen, clamp to edges
+                raw = project_3d_to_2d_unclamped(obj.matrix_world.translation)
+                if raw is not None:
+                    px = max(padding * 2, min(raw[0], width - padding * 2))
+                    py = max(padding * 2, min(raw[1], height - padding * 2))
+                    pos_2d = (int(px), int(py))
+                else:
+                    continue
 
             px, py = pos_2d
             bbox = draw.textbbox((0, 0), label, font=font)
@@ -664,6 +640,53 @@ def _is_occluded(scene, depsgraph, camera, obj, width: int, height: int,
         return True  # Another object is closer → occluded
 
     return False
+
+
+# ---------------------------------------------------------------------------
+# Edge detection from render passes (PIL-based)
+# ---------------------------------------------------------------------------
+def _render_to_sketch(render_path: str, width: int, height: int):
+    """Convert a shaded render with freestyle lines into a clean sketch.
+
+    Process:
+    1. Edge-detect the rendered image to find ALL edges (surfaces, intersections)
+    2. Combine with the freestyle lines (which are already in the image)
+    3. Output: black lines on white background
+    """
+    from PIL import Image, ImageFilter, ImageChops, ImageOps
+
+    img = Image.open(render_path)
+    gray = img.convert("L")
+
+    # Edge detection on the full render — catches shading boundaries,
+    # object intersections, surface changes, everything
+    edges = gray.filter(ImageFilter.FIND_EDGES)
+
+    # Also run a second pass with a different kernel for more detail
+    edges2 = gray.filter(ImageFilter.Kernel(
+        size=(3, 3),
+        kernel=[-1, -1, -1, -1, 8, -1, -1, -1, -1],
+        scale=1,
+        offset=0,
+    ))
+
+    # Combine both edge passes (take the stronger edge at each pixel)
+    edges_combined = ImageChops.lighter(edges, edges2)
+
+    # Threshold: strong edges become black lines
+    threshold = 12
+    edge_lines = edges_combined.point(lambda p: 0 if p > threshold else 255)
+
+    # The freestyle lines in the original render are already black.
+    # Extract them: anything significantly darker than the average
+    # shading is a freestyle line
+    freestyle_mask = gray.point(lambda p: 0 if p < 40 else 255)
+
+    # Combine: multiply (black in either = black in result)
+    combined = ImageChops.multiply(edge_lines, freestyle_mask)
+
+    # Save as RGB
+    combined.convert("RGB").save(render_path)
 
 
 # ---------------------------------------------------------------------------
