@@ -186,9 +186,17 @@ class FAL_PT_neural_render_panel(bpy.types.Panel):
 
         layout.prop(props, "prompt")
 
-        row = layout.row(align=True)
-        row.prop(props, "width")
-        row.prop(props, "height")
+        layout.prop(props, "use_scene_resolution")
+        if not props.use_scene_resolution:
+            row = layout.row(align=True)
+            row.prop(props, "width")
+            row.prop(props, "height")
+        else:
+            scene = context.scene
+            scale = scene.render.resolution_percentage / 100.0
+            w = int(scene.render.resolution_x * scale)
+            h = int(scene.render.resolution_y * scale)
+            layout.label(text=f"Scene: {w} × {h} px")
 
         layout.prop(props, "seed")
 

@@ -54,9 +54,15 @@ class FalNeuralRenderProperties(bpy.types.PropertyGroup):
         default=False,
     )
 
+    use_scene_resolution: bpy.props.BoolProperty(
+        name="Use Scene Resolution",
+        description="Read dimensions from scene render settings (Output Properties)",
+        default=True,
+    )
+
     width: bpy.props.IntProperty(
         name="W",
-        description="Output width in pixels",
+        description="Output width in pixels (only when 'Use Scene Resolution' is off)",
         default=1024,
         min=64,
         max=4096,
@@ -65,7 +71,7 @@ class FalNeuralRenderProperties(bpy.types.PropertyGroup):
 
     height: bpy.props.IntProperty(
         name="H",
-        description="Output height in pixels",
+        description="Output height in pixels (only when 'Use Scene Resolution' is off)",
         default=1024,
         min=64,
         max=4096,
@@ -103,11 +109,24 @@ class FAL_OT_neural_render(bpy.types.Operator):
         else:
             return self._sketch_render(context, props)
 
+    @staticmethod
+    def _get_dimensions(context, props) -> tuple[int, int]:
+        """Get render dimensions — from scene settings or manual override."""
+        if props.use_scene_resolution:
+            scene = context.scene
+            scale = scene.render.resolution_percentage / 100.0
+            return (
+                int(scene.render.resolution_x * scale),
+                int(scene.render.resolution_y * scale),
+            )
+        return (props.width, props.height)
+
     # ── Depth Mode ─────────────────────────────────────────────────────
 
     def _depth_render(self, context, props) -> set[str]:
         """Render depth pass, upload, run depth ControlNet endpoint."""
         scene = context.scene
+        render_w, render_h = self._get_dimensions(context, props)
 
         # Save current settings
         old_engine = scene.render.engine
@@ -119,8 +138,8 @@ class FAL_OT_neural_render(bpy.types.Operator):
         try:
             # Configure for depth rendering
             scene.render.engine = "BLENDER_EEVEE_NEXT"
-            scene.render.resolution_x = props.width
-            scene.render.resolution_y = props.height
+            scene.render.resolution_x = render_w
+            scene.render.resolution_y = render_h
             scene.render.film_transparent = False
             scene.render.use_compositing = False
 
@@ -139,7 +158,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
                 return {"CANCELLED"}
 
             # Save the render as a depth-normalized image
-            depth_path = self._save_depth_normalized(render_img, props.width, props.height)
+            depth_path = self._save_depth_normalized(render_img, render_w, render_h)
 
             # Restore
             view_layer.use_pass_z = old_use_pass_z
@@ -189,13 +208,14 @@ class FAL_OT_neural_render(bpy.types.Operator):
     def _sketch_render(self, context, props) -> set[str]:
         """Render scene, optionally add labels, upload, reimagine."""
         scene = context.scene
+        render_w, render_h = self._get_dimensions(context, props)
 
         old_res_x = scene.render.resolution_x
         old_res_y = scene.render.resolution_y
 
         try:
-            scene.render.resolution_x = props.width
-            scene.render.resolution_y = props.height
+            scene.render.resolution_x = render_w
+            scene.render.resolution_y = render_h
             bpy.ops.render.render()
         finally:
             scene.render.resolution_x = old_res_x
@@ -213,20 +233,25 @@ class FAL_OT_neural_render(bpy.types.Operator):
 
         # Overlay labels if enabled
         if props.enable_labels:
-            self._overlay_labels(context, tmp.name, props.width, props.height)
+            self._overlay_labels(context, tmp.name, render_w, render_h)
 
         # Upload
         image_url = upload_image_file(tmp.name)
 
         # Build args using the unified helper
         seed = props.seed if props.seed >= 0 else None
+        # NBP uses image_urls (list), other endpoints use image_url (singular)
+        # Send both for maximum compatibility
         args = build_image_gen_args(
             endpoint_id=props.sketch_endpoint,
             prompt=props.prompt,
-            width=props.width,
-            height=props.height,
+            width=render_w,
+            height=render_h,
             seed=seed,
-            extra={"image_url": image_url},
+            extra={
+                "image_url": image_url,
+                "image_urls": [image_url],
+            },
         )
 
         def on_complete(job: FalJob):
