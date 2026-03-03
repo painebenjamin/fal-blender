@@ -6,9 +6,13 @@ from __future__ import annotations
 import bpy  # type: ignore[import-not-found]
 import os
 
+# For extensions, __package__ is "bl_ext.user_default.fal_ai" (or similar).
+# AddonPreferences.bl_idname MUST match this, not a hardcoded string.
+_addon_package = __package__
+
 
 class FalPreferences(bpy.types.AddonPreferences):
-    bl_idname = "fal_ai"
+    bl_idname = _addon_package
 
     api_key: bpy.props.StringProperty(
         name="API Key",
@@ -48,7 +52,7 @@ class FalPreferences(bpy.types.AddonPreferences):
 def get_api_key() -> str | None:
     """Get the fal API key from preferences or environment."""
     try:
-        prefs = bpy.context.preferences.addons["fal_ai"].preferences
+        prefs = bpy.context.preferences.addons[_addon_package].preferences
         key = prefs.api_key
     except (KeyError, AttributeError):
         key = ""
