@@ -120,18 +120,10 @@ fal-blender/
 └── wheels/                  # Bundled Python dependencies
 ```
 
-## Contributing
-
-PRs welcome! Please follow the existing code patterns:
-- Every operator uses `FalJob` + `JobManager` for async execution
-- Every feature has its own `PropertyGroup` on `bpy.types.Scene`
-- Endpoint dropdowns use `endpoint_items()` from `endpoints.py`
-- Image generation uses `build_image_gen_args()` for resolution handling
-
 ## License
 
 Apache 2.0 — Copyright 2026 Features and Labels, Inc.
 
 ---
 
-Built with ❤️ by [fal.ai](https://fal.ai)
+Built with ❤️ by Benjamin Paine for [fal.ai](https://fal.ai)
