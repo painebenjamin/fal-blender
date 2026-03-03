@@ -124,52 +124,121 @@ class FAL_OT_neural_render(bpy.types.Operator):
     # ── Depth Mode ─────────────────────────────────────────────────────
 
     def _depth_render(self, context, props) -> set[str]:
-        """Render depth pass, upload, run depth ControlNet endpoint."""
+        """Render a proper depth map via compositor, upload, run depth ControlNet."""
         scene = context.scene
         render_w, render_h = self._get_dimensions(context, props)
 
-        # Save current settings
+        # ── Save ALL current settings we'll touch ──
         old_engine = scene.render.engine
         old_film_transparent = scene.render.film_transparent
         old_res_x = scene.render.resolution_x
         old_res_y = scene.render.resolution_y
+        old_res_pct = scene.render.resolution_percentage
         old_use_compositing = scene.render.use_compositing
+        old_use_nodes = scene.use_nodes
+
+        view_layer = context.view_layer
+        old_use_pass_mist = view_layer.use_pass_mist
+
+        # Save world mist settings
+        world = scene.world
+        old_mist_start = 0.0
+        old_mist_depth = 100.0
+        if world:
+            old_mist_start = world.mist_settings.start
+            old_mist_depth = world.mist_settings.depth
+
+        # Save existing compositor tree
+        old_tree_links = []
+        old_tree_nodes = []
+        if scene.use_nodes and scene.node_tree:
+            # We'll rebuild it after, so snapshot the state
+            pass
 
         try:
-            # Configure for depth rendering
+            # ── Configure render ──
             scene.render.engine = "BLENDER_EEVEE_NEXT"
             scene.render.resolution_x = render_w
             scene.render.resolution_y = render_h
+            scene.render.resolution_percentage = 100
             scene.render.film_transparent = False
-            scene.render.use_compositing = False
+            scene.render.use_compositing = True
 
-            # Enable Z pass on the view layer
-            view_layer = context.view_layer
-            old_use_pass_z = view_layer.use_pass_z
-            view_layer.use_pass_z = True
+            # Enable Mist pass — gives 0-1 depth relative to camera
+            view_layer.use_pass_mist = True
 
-            # Render
+            # Configure mist range from camera clip
+            camera = scene.camera
+            if camera and camera.data:
+                cam_data = camera.data
+                if world:
+                    world.mist_settings.start = cam_data.clip_start
+                    world.mist_settings.depth = cam_data.clip_end - cam_data.clip_start
+                    world.mist_settings.falloff = "LINEAR"
+
+            # ── Build compositor for depth output ──
+            # Mist pass → Invert (so close=white, far=black, MiDaS convention)
+            # → Composite
+            scene.use_nodes = True
+            tree = scene.node_tree
+
+            # Clear existing nodes
+            _saved_nodes = _snapshot_compositor(tree)
+            for node in tree.nodes:
+                tree.nodes.remove(node)
+
+            # Create depth pipeline
+            rl_node = tree.nodes.new("CompositorNodeRLayers")
+            rl_node.location = (0, 0)
+
+            invert_node = tree.nodes.new("CompositorNodeInvert")
+            invert_node.location = (300, 0)
+
+            composite_node = tree.nodes.new("CompositorNodeComposite")
+            composite_node.location = (600, 0)
+
+            # Connect: Mist → Invert → Composite
+            tree.links.new(rl_node.outputs["Mist"], invert_node.inputs["Color"])
+            tree.links.new(invert_node.outputs["Color"], composite_node.inputs["Image"])
+
+            # ── Render ──
             bpy.ops.render.render()
 
-            # Get depth data from Render Result
+            # Get result
             render_img = bpy.data.images.get("Render Result")
             if not render_img:
-                self.report({"ERROR"}, "Render failed — no result")
+                self.report({"ERROR"}, "Depth render failed — no result")
                 return {"CANCELLED"}
 
-            # Save the render as a depth-normalized image
-            depth_path = self._save_depth_normalized(render_img, render_w, render_h)
+            # Save depth map
+            depth_path = tempfile.NamedTemporaryFile(
+                suffix=".png", delete=False, prefix="fal_depth_"
+            ).name
+            render_img.save_render(depth_path)
+            print(f"fal.ai: Depth map saved to {depth_path}")
 
-            # Restore
-            view_layer.use_pass_z = old_use_pass_z
         finally:
+            # ── Restore everything ──
+            # Restore compositor
+            if scene.node_tree:
+                for node in scene.node_tree.nodes:
+                    scene.node_tree.nodes.remove(node)
+                _restore_compositor(scene.node_tree, _saved_nodes)
+
+            scene.use_nodes = old_use_nodes
             scene.render.engine = old_engine
             scene.render.film_transparent = old_film_transparent
             scene.render.resolution_x = old_res_x
             scene.render.resolution_y = old_res_y
+            scene.render.resolution_percentage = old_res_pct
             scene.render.use_compositing = old_use_compositing
+            view_layer.use_pass_mist = old_use_pass_mist
 
-        # Upload and submit
+            if world:
+                world.mist_settings.start = old_mist_start
+                world.mist_settings.depth = old_mist_depth
+
+        # ── Upload and submit ──
         image_url = upload_image_file(depth_path)
 
         args = {
@@ -193,15 +262,6 @@ class FAL_OT_neural_render(bpy.types.Operator):
         JobManager.get().submit(job)
         self.report({"INFO"}, "Rendering depth + generating...")
         return {"FINISHED"}
-
-    @staticmethod
-    def _save_depth_normalized(render_img, width: int, height: int) -> str:
-        """Save render result as a normalized grayscale depth image."""
-        tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-        tmp.close()
-        # Just save the render result directly — the depth visual pass
-        render_img.save_render(tmp.name)
-        return tmp.name
 
     # ── Sketch Mode ────────────────────────────────────────────────────
 
@@ -392,6 +452,62 @@ class FAL_OT_neural_render(bpy.types.Operator):
         from ..core.importers import import_image_to_editor
         import_image_to_editor(local_path, name="fal_neural_render")
         self.report({"INFO"}, "Neural render complete!")
+
+
+# ---------------------------------------------------------------------------
+# Compositor snapshot/restore helpers
+# ---------------------------------------------------------------------------
+def _snapshot_compositor(tree) -> list[dict]:
+    """Snapshot compositor node tree for later restoration."""
+    import json
+    snapshot = []
+    for node in tree.nodes:
+        info = {
+            "type": node.bl_idname,
+            "name": node.name,
+            "location": (node.location.x, node.location.y),
+        }
+        snapshot.append(info)
+    # Snapshot links
+    links = []
+    for link in tree.links:
+        links.append({
+            "from_node": link.from_node.name,
+            "from_socket": link.from_socket.name,
+            "to_node": link.to_node.name,
+            "to_socket": link.to_socket.name,
+        })
+    return [{"nodes": snapshot, "links": links}]
+
+
+def _restore_compositor(tree, saved: list[dict]):
+    """Restore compositor node tree from snapshot."""
+    if not saved or not saved[0].get("nodes"):
+        return
+
+    data = saved[0]
+    node_map = {}
+
+    for info in data["nodes"]:
+        try:
+            node = tree.nodes.new(info["type"])
+            node.name = info["name"]
+            node.location = info["location"]
+            node_map[info["name"]] = node
+        except Exception as e:
+            print(f"fal.ai: Could not restore compositor node {info['name']}: {e}")
+
+    for link_info in data.get("links", []):
+        try:
+            from_node = node_map.get(link_info["from_node"])
+            to_node = node_map.get(link_info["to_node"])
+            if from_node and to_node:
+                from_sock = from_node.outputs.get(link_info["from_socket"])
+                to_sock = to_node.inputs.get(link_info["to_socket"])
+                if from_sock and to_sock:
+                    tree.links.new(from_sock, to_sock)
+        except Exception as e:
+            print(f"fal.ai: Could not restore compositor link: {e}")
 
 
 # ---------------------------------------------------------------------------
