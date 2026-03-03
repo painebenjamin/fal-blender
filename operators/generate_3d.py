@@ -153,9 +153,12 @@ class FAL_OT_generate_3d(bpy.types.Operator):
         result = job.result or {}
 
         # Find GLB/model URL in result
+        # Meshy v6 format: {"model_glb": {"url": "..."}, "model_urls": {"fbx": {"url": "..."}, ...}}
         model_url = None
+
+        # Check top-level keys that contain {"url": "..."} objects
         for key in [
-            "model_mesh", "model", "output", "mesh", "glb",
+            "model_glb", "model_mesh", "model", "output", "mesh", "glb",
         ]:
             val = result.get(key)
             if isinstance(val, dict) and "url" in val:
@@ -165,16 +168,22 @@ class FAL_OT_generate_3d(bpy.types.Operator):
                 model_url = val
                 break
 
-        # Also check nested patterns
+        # Check model_urls dict — Meshy nests format objects: {"glb": {"url": "..."}, "fbx": {"url": "..."}}
         if not model_url and "model_urls" in result:
             urls = result["model_urls"]
             if isinstance(urls, dict):
-                model_url = urls.get("glb") or urls.get("obj")
-            elif isinstance(urls, list) and urls:
-                model_url = urls[0]
+                for fmt in ("glb", "obj", "fbx", "usdz"):
+                    fmt_val = urls.get(fmt)
+                    if isinstance(fmt_val, dict) and "url" in fmt_val:
+                        model_url = fmt_val["url"]
+                        break
+                    elif isinstance(fmt_val, str) and fmt_val.startswith("http"):
+                        model_url = fmt_val
+                        break
 
         if not model_url:
-            self.report({"ERROR"}, "No 3D model in response")
+            print(f"fal.ai ERROR: No 3D model URL found in response keys: {list(result.keys())}")
+            print(f"fal.ai ERROR: Full response: {result}")
             return
 
         # Download GLB
