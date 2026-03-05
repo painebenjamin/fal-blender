@@ -47,7 +47,7 @@ class FAL_PT_main_panel(bpy.types.Panel):
 
         # Tab row
         row = layout.row(align=True)
-        row.prop(fal, "active_tab", expand=True)
+        row.prop(fal, "active_tab")
 
 
 # ---------------------------------------------------------------------------
