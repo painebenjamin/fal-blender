@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Neural Rendering operators — depth-controlled and sketch-based generation."""
+"""Neural Rendering operators — depth-controlled and sketch-based generation.
+
+Uses modal operators with render handlers so Blender's UI stays responsive
+during the internal render pass (depth map or Freestyle sketch).
+"""
 
 from __future__ import annotations
 
@@ -103,18 +107,15 @@ class FAL_OT_neural_render(bpy.types.Operator):
     bl_description = "Render scene data and generate AI image via fal.ai"
     bl_options = {"REGISTER", "UNDO"}
 
+    # Guard against overlapping renders
+    _rendering: bool = False
+
     @classmethod
     def poll(cls, context: bpy.types.Context) -> bool:
+        if cls._rendering:
+            return False
         props = context.scene.fal_neural_render
         return bool(props.prompt.strip()) and context.scene.camera is not None
-
-    def execute(self, context: bpy.types.Context) -> set[str]:
-        props = context.scene.fal_neural_render
-
-        if props.mode == "DEPTH":
-            return self._depth_render(context, props)
-        else:
-            return self._sketch_render(context, props)
 
     @staticmethod
     def _get_dimensions(context, props) -> tuple[int, int]:
@@ -128,211 +129,263 @@ class FAL_OT_neural_render(bpy.types.Operator):
             )
         return (props.width, props.height)
 
-    # ── Depth Mode ─────────────────────────────────────────────────────
+    # ── Modal entry point ──────────────────────────────────────────────
 
-    def _depth_render(self, context, props) -> set[str]:
-        """Render a proper depth map via compositor, upload, run depth ControlNet."""
-        scene = context.scene
-        render_w, render_h = self._get_dimensions(context, props)
+    def invoke(self, context: bpy.types.Context, event) -> set[str]:
+        props = context.scene.fal_neural_render
 
-        # ── Save ALL current settings we'll touch ──
-        old_engine = scene.render.engine
-        old_film_transparent = scene.render.film_transparent
-        old_res_x = scene.render.resolution_x
-        old_res_y = scene.render.resolution_y
-        old_res_pct = scene.render.resolution_percentage
-        old_use_compositing = scene.render.use_compositing
-        old_use_nodes = scene.use_nodes
+        # Cache everything we need — context may not be fully usable
+        # from inside render handlers.
+        self._mode = props.mode
+        self._prompt = props.prompt
+        self._seed = props.seed
+        self._endpoint = (
+            props.depth_endpoint if self._mode == "DEPTH" else props.sketch_endpoint
+        )
+        self._enable_labels = props.enable_labels
+        self._auto_label = props.auto_label
+        self._render_w, self._render_h = self._get_dimensions(context, props)
 
-        view_layer = context.view_layer
-        old_use_pass_mist = view_layer.use_pass_mist
+        # Reset modal state
+        self._render_done = False
+        self._render_cancelled = False
+        self._timer = None
+        self._saved = {}
+        self._sketch_mats = []
+        self._old_materials = {}
+        self._hidden_lights = []
+        self._saved_compositor = []
 
-        # Save world mist settings
-        world = scene.world
-        old_mist_start = 0.0
-        old_mist_depth = 100.0
-        if world:
-            old_mist_start = world.mist_settings.start
-            old_mist_depth = world.mist_settings.depth
-
-        # Save existing compositor tree
-        old_tree_links = []
-        old_tree_nodes = []
-        if scene.use_nodes and scene.node_tree:
-            # We'll rebuild it after, so snapshot the state
-            pass
-
+        # Setup scene for the render
         try:
-            # ── Configure render ──
-            scene.render.engine = "BLENDER_EEVEE_NEXT"
-            scene.render.resolution_x = render_w
-            scene.render.resolution_y = render_h
-            scene.render.resolution_percentage = 100
-            scene.render.film_transparent = False
-            scene.render.use_compositing = True
+            if self._mode == "DEPTH":
+                self._setup_depth(context)
+            else:
+                self._setup_sketch(context)
+        except Exception as e:
+            self._restore_state(context)
+            self.report({"ERROR"}, f"Render setup failed: {e}")
+            return {"CANCELLED"}
 
-            # Enable Mist pass — gives 0-1 depth relative to camera
-            view_layer.use_pass_mist = True
+        FAL_OT_neural_render._rendering = True
 
-            # Configure mist range from actual scene depth bounds
-            camera = scene.camera
-            if camera and world:
-                near, far = _calc_scene_depth_bounds(scene, camera)
-                if near is not None and far is not None:
-                    # Add small padding so objects at exact bounds aren't clipped
-                    padding = (far - near) * 0.05
-                    world.mist_settings.start = max(0.0, near - padding)
-                    world.mist_settings.depth = (far - near) + padding * 2
-                    world.mist_settings.falloff = "LINEAR"
-                    print(f"fal.ai: Depth range: {near:.2f} — {far:.2f}m from camera")
-                else:
-                    # Fallback to camera clip range
-                    cam_data = camera.data
-                    world.mist_settings.start = cam_data.clip_start
-                    world.mist_settings.depth = cam_data.clip_end - cam_data.clip_start
-                    world.mist_settings.falloff = "LINEAR"
+        # Register render completion handlers — store refs for clean removal
+        self._handler_complete = self._on_complete
+        self._handler_cancel = self._on_cancel
+        bpy.app.handlers.render_complete.append(self._handler_complete)
+        bpy.app.handlers.render_cancel.append(self._handler_cancel)
 
-            # ── Build compositor for depth output ──
-            # Mist pass → Invert (so close=white, far=black, MiDaS convention)
-            # → Composite
-            scene.use_nodes = True
-            tree = scene.node_tree
+        # Start non-blocking render (shows Blender's render progress bar)
+        bpy.ops.render.render("INVOKE_DEFAULT")
 
-            # Clear existing nodes
-            _saved_nodes = _snapshot_compositor(tree)
-            for node in tree.nodes:
-                tree.nodes.remove(node)
+        # Enter modal loop
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(0.25, window=context.window)
+        wm.modal_handler_add(self)
+        self.report({"INFO"}, "Rendering...")
+        return {"RUNNING_MODAL"}
 
-            # Create depth pipeline
-            rl_node = tree.nodes.new("CompositorNodeRLayers")
-            rl_node.location = (0, 0)
+    def modal(self, context: bpy.types.Context, event) -> set[str]:
+        if event.type != "TIMER":
+            return {"PASS_THROUGH"}
 
-            invert_node = tree.nodes.new("CompositorNodeInvert")
-            invert_node.location = (300, 0)
+        if not (self._render_done or self._render_cancelled):
+            return {"PASS_THROUGH"}
 
-            composite_node = tree.nodes.new("CompositorNodeComposite")
-            composite_node.location = (600, 0)
+        # Render finished or was cancelled — clean up modal infrastructure
+        self._cleanup_modal(context)
 
-            # Connect: Mist → Invert → Composite
-            tree.links.new(rl_node.outputs["Mist"], invert_node.inputs["Color"])
-            tree.links.new(invert_node.outputs["Color"], composite_node.inputs["Image"])
+        if self._render_cancelled:
+            self._restore_state(context)
+            self.report({"WARNING"}, "Render cancelled")
+            return {"CANCELLED"}
 
-            # ── Render ──
-            bpy.ops.render.render()
+        # Render succeeded — save result, restore scene, upload & submit
+        if self._mode == "DEPTH":
+            self._finish_depth(context)
+        else:
+            self._finish_sketch(context)
 
-            # Get result
-            render_img = bpy.data.images.get("Render Result")
-            if not render_img:
-                self.report({"ERROR"}, "Depth render failed — no result")
-                return {"CANCELLED"}
+        return {"FINISHED"}
 
-            # Save depth map
-            depth_path = tempfile.NamedTemporaryFile(
-                suffix=".png", delete=False, prefix="fal_depth_"
-            ).name
-            render_img.save_render(depth_path)
-            print(f"fal.ai: Depth map saved to {depth_path}")
+    # ── Render handlers (called by Blender's render system) ────────────
 
-        finally:
-            # ── Restore everything ──
-            # Restore compositor
-            if scene.node_tree:
-                for node in scene.node_tree.nodes:
-                    scene.node_tree.nodes.remove(node)
-                _restore_compositor(scene.node_tree, _saved_nodes)
+    def _on_complete(self, *_args):
+        self._render_done = True
 
-            scene.use_nodes = old_use_nodes
-            scene.render.engine = old_engine
-            scene.render.film_transparent = old_film_transparent
-            scene.render.resolution_x = old_res_x
-            scene.render.resolution_y = old_res_y
-            scene.render.resolution_percentage = old_res_pct
-            scene.render.use_compositing = old_use_compositing
-            view_layer.use_pass_mist = old_use_pass_mist
+    def _on_cancel(self, *_args):
+        self._render_cancelled = True
 
-            if world:
-                world.mist_settings.start = old_mist_start
-                world.mist_settings.depth = old_mist_depth
+    def _cleanup_modal(self, context):
+        """Remove timer and render handlers."""
+        FAL_OT_neural_render._rendering = False
+        if self._timer is not None:
+            context.window_manager.event_timer_remove(self._timer)
+            self._timer = None
+        for ref, handler_list in [
+            (self._handler_complete, bpy.app.handlers.render_complete),
+            (self._handler_cancel, bpy.app.handlers.render_cancel),
+        ]:
+            try:
+                handler_list.remove(ref)
+            except (ValueError, AttributeError):
+                pass
 
-        # ── Upload and submit ──
+    # ── Depth Mode — setup / finish ────────────────────────────────────
+
+    def _setup_depth(self, context):
+        """Configure scene for depth map render via Mist pass + compositor."""
+        scene = context.scene
+        view_layer = context.view_layer
+        world = scene.world
+
+        # Save current settings
+        self._saved.update({
+            "engine": scene.render.engine,
+            "film_transparent": scene.render.film_transparent,
+            "res_x": scene.render.resolution_x,
+            "res_y": scene.render.resolution_y,
+            "res_pct": scene.render.resolution_percentage,
+            "use_compositing": scene.render.use_compositing,
+            "use_nodes": scene.use_nodes,
+            "use_pass_mist": view_layer.use_pass_mist,
+        })
+        if world:
+            self._saved["mist_start"] = world.mist_settings.start
+            self._saved["mist_depth"] = world.mist_settings.depth
+
+        # Configure render
+        scene.render.engine = "BLENDER_EEVEE_NEXT"
+        scene.render.resolution_x = self._render_w
+        scene.render.resolution_y = self._render_h
+        scene.render.resolution_percentage = 100
+        scene.render.film_transparent = False
+        scene.render.use_compositing = True
+        view_layer.use_pass_mist = True
+
+        # Mist range from actual scene depth bounds
+        camera = scene.camera
+        if camera and world:
+            near, far = _calc_scene_depth_bounds(scene, camera)
+            if near is not None and far is not None:
+                padding = (far - near) * 0.05
+                world.mist_settings.start = max(0.0, near - padding)
+                world.mist_settings.depth = (far - near) + padding * 2
+                world.mist_settings.falloff = "LINEAR"
+                print(f"fal.ai: Depth range: {near:.2f} — {far:.2f}m from camera")
+            else:
+                cam_data = camera.data
+                world.mist_settings.start = cam_data.clip_start
+                world.mist_settings.depth = cam_data.clip_end - cam_data.clip_start
+                world.mist_settings.falloff = "LINEAR"
+
+        # Build compositor: Mist → Invert → Composite
+        scene.use_nodes = True
+        tree = scene.node_tree
+        self._saved_compositor = _snapshot_compositor(tree)
+        for node in tree.nodes:
+            tree.nodes.remove(node)
+
+        rl_node = tree.nodes.new("CompositorNodeRLayers")
+        rl_node.location = (0, 0)
+        invert_node = tree.nodes.new("CompositorNodeInvert")
+        invert_node.location = (300, 0)
+        composite_node = tree.nodes.new("CompositorNodeComposite")
+        composite_node.location = (600, 0)
+        tree.links.new(rl_node.outputs["Mist"], invert_node.inputs["Color"])
+        tree.links.new(invert_node.outputs["Color"], composite_node.inputs["Image"])
+
+    def _finish_depth(self, context):
+        """Save depth render result, restore scene, upload and submit API job."""
+        render_img = bpy.data.images.get("Render Result")
+        if not render_img:
+            self._restore_state(context)
+            self.report({"ERROR"}, "Depth render failed — no result")
+            return
+
+        depth_path = tempfile.NamedTemporaryFile(
+            suffix=".png", delete=False, prefix="fal_depth_"
+        ).name
+        render_img.save_render(depth_path)
+        print(f"fal.ai: Depth map saved to {depth_path}")
+
+        # Restore scene state before doing network I/O
+        self._restore_state(context)
+
+        # Upload and submit
         image_url = upload_image_file(depth_path)
-
         args = {
             "control_image_url": image_url,
             "image_url": image_url,
-            "prompt": props.prompt,
+            "prompt": self._prompt,
         }
-        seed = props.seed if props.seed >= 0 else None
-        if seed is not None:
-            args["seed"] = seed
+        if self._seed >= 0:
+            args["seed"] = self._seed
 
         def on_complete(job: FalJob):
             self._handle_image_result(job)
 
         job = FalJob(
-            endpoint=resolve_endpoint(props.depth_endpoint, args),
+            endpoint=resolve_endpoint(self._endpoint, args),
             arguments=args,
             on_complete=on_complete,
-            label=f"Neural Depth: {props.prompt[:30]}",
+            label=f"Neural Depth: {self._prompt[:30]}",
         )
         JobManager.get().submit(job)
-        self.report({"INFO"}, "Rendering depth + generating...")
-        return {"FINISHED"}
+        self.report({"INFO"}, "Depth rendered — generating image...")
 
-    # ── Sketch Mode ────────────────────────────────────────────────────
+    # ── Sketch Mode — setup / finish ───────────────────────────────────
 
-    def _sketch_render(self, context, props) -> set[str]:
-        """Render scene as clean line art via Freestyle, optionally add labels, upload."""
+    def _setup_sketch(self, context):
+        """Configure scene for Freestyle sketch render with emission materials."""
         scene = context.scene
-        render_w, render_h = self._get_dimensions(context, props)
         view_layer = context.view_layer
+        world = scene.world
 
-        # ── Save current settings ──
-        old_engine = scene.render.engine
-        old_res_x = scene.render.resolution_x
-        old_res_y = scene.render.resolution_y
-        old_res_pct = scene.render.resolution_percentage
-        old_film_transparent = scene.render.film_transparent
-        old_use_freestyle = view_layer.use_freestyle
-        old_freestyle_use = scene.render.use_freestyle
+        # Save render settings
+        self._saved.update({
+            "engine": scene.render.engine,
+            "res_x": scene.render.resolution_x,
+            "res_y": scene.render.resolution_y,
+            "res_pct": scene.render.resolution_percentage,
+            "film_transparent": scene.render.film_transparent,
+            "use_freestyle": scene.render.use_freestyle,
+            "vl_use_freestyle": view_layer.use_freestyle,
+            "view_transform": scene.view_settings.view_transform,
+            "look": scene.view_settings.look,
+        })
+        if world:
+            self._saved["world_color"] = _get_world_color(world)
 
-        # No material override — render with default shading so edge detection
-        # can find surface boundaries and intersections from shading contrast
-
-        # Hide all lights to prevent shadow edges in sketch
-        hidden_lights = []
+        # Hide all lights
+        self._hidden_lights = []
         for obj in scene.objects:
             if obj.type == "LIGHT" and not obj.hide_render:
                 obj.hide_render = True
-                hidden_lights.append(obj)
+                self._hidden_lights.append(obj)
 
-        # Assign each object a unique gray emission so edge detection can
-        # find boundaries between adjacent objects (same gray = no edge)
-        sketch_mats = []  # track for cleanup
-        old_materials = {}
+        # Assign each object a unique gray emission material
+        self._sketch_mats = []
+        self._old_materials = {}
         visible_meshes = [
             obj for obj in scene.objects
             if obj.type in {"MESH", "CURVE", "SURFACE", "META", "FONT"}
             and obj.visible_get()
         ]
 
-        # Spread gray values across 0.3–0.9 range, alternating to maximize
-        # contrast between neighbors
         n = max(len(visible_meshes), 1)
         gray_values = []
         for i in range(n):
-            # Interleave: even indices get light grays, odd get darker
             if i % 2 == 0:
                 gray_values.append(0.9 - (i // 2) * (0.3 / max(n // 2, 1)))
             else:
                 gray_values.append(0.4 + (i // 2) * (0.3 / max(n // 2, 1)))
 
         for idx, obj in enumerate(visible_meshes):
-            old_materials[obj.name] = [
+            self._old_materials[obj.name] = [
                 (i, slot.material) for i, slot in enumerate(obj.material_slots)
             ]
 
-            # Create unique emission material for this object
             g = max(0.3, min(0.95, gray_values[idx % len(gray_values)]))
             mat = bpy.data.materials.new(f"_fal_sketch_{idx}")
             mat.use_nodes = True
@@ -343,139 +396,92 @@ class FAL_OT_neural_render(bpy.types.Operator):
             emission.inputs["Strength"].default_value = 1.0
             mat_output = mat_nodes.new("ShaderNodeOutputMaterial")
             mat.node_tree.links.new(emission.outputs[0], mat_output.inputs[0])
-            sketch_mats.append(mat)
+            self._sketch_mats.append(mat)
 
             for slot in obj.material_slots:
                 slot.material = mat
             if not obj.material_slots:
                 obj.data.materials.append(mat)
-                old_materials[obj.name].append((-1, None))
+                self._old_materials[obj.name].append((-1, None))
 
+        # Configure render
+        scene.render.engine = "BLENDER_EEVEE_NEXT"
+        scene.render.resolution_x = self._render_w
+        scene.render.resolution_y = self._render_h
+        scene.render.resolution_percentage = 100
+        scene.render.film_transparent = False
+        scene.render.use_freestyle = True
+        view_layer.use_freestyle = True
+
+        # Standard color management (no Filmic dimming)
+        scene.view_settings.view_transform = "Standard"
+        scene.view_settings.look = "None"
+
+        # White world background
+        if world:
+            _set_world_color(world, (1.0, 1.0, 1.0))
+
+        # Configure Freestyle
+        freestyle = view_layer.freestyle_settings
+        freestyle.crease_angle = 2.356  # ~135 degrees
+        freestyle.as_render_pass = False
+
+        if not freestyle.linesets:
+            ls = freestyle.linesets.new("Sketch Lines")
+        else:
+            ls = freestyle.linesets[0]
+
+        ls.show_render = True
+        ls.select_silhouette = True
+        ls.select_border = True
+        ls.select_crease = True
+        ls.select_edge_mark = True
+        ls.select_contour = True
+        ls.select_external_contour = True
+        ls.select_material_boundary = False
+        ls.select_suggestive_contour = False
+
+        linestyle = ls.linestyle
+        linestyle.color = (0.0, 0.0, 0.0)
+        linestyle.thickness = max(2.0, self._render_w / 500.0)
+        linestyle.alpha = 1.0
+
+    def _finish_sketch(self, context):
+        """Save sketch render, post-process, restore scene, add labels, submit."""
+        render_img = bpy.data.images.get("Render Result")
+        if not render_img:
+            self._restore_state(context)
+            self.report({"ERROR"}, "Sketch render failed — no result")
+            return
+
+        tmp = tempfile.NamedTemporaryFile(
+            suffix=".png", delete=False, prefix="fal_sketch_"
+        ).name
+        render_img.save_render(tmp)
+        print(f"fal.ai: Freestyle sketch saved to {tmp}")
+
+        # Edge detection post-processing (before restore — just PIL work)
         try:
-            # ── Configure for sketch rendering ──
-            scene.render.engine = "BLENDER_EEVEE_NEXT"
-            scene.render.resolution_x = render_w
-            scene.render.resolution_y = render_h
-            scene.render.resolution_percentage = 100
-            scene.render.film_transparent = False
-            scene.render.use_freestyle = True
-            view_layer.use_freestyle = True
+            _render_to_sketch(tmp, self._render_w, self._render_h)
+            print("fal.ai: Sketch post-processing complete")
+        except Exception as e:
+            print(f"fal.ai: Sketch post-processing failed, using raw render: {e}")
 
+        # Restore scene state
+        self._restore_state(context)
 
+        # Overlay labels (after restore — uses camera projection + geometry)
+        if self._enable_labels:
+            self._overlay_labels(context, tmp, self._render_w, self._render_h)
 
-            # Standard color management so emission renders as intended
-            old_view_transform = scene.view_settings.view_transform
-            old_look = scene.view_settings.look
-            scene.view_settings.view_transform = "Standard"
-            scene.view_settings.look = "None"
-
-            # White world background
-            old_world_color = None
-            if scene.world:
-                old_world_color = _get_world_color(scene.world)
-                _set_world_color(scene.world, (1.0, 1.0, 1.0))
-
-            # Configure freestyle for clean sketch lines
-            freestyle = view_layer.freestyle_settings
-            freestyle.crease_angle = 2.356  # ~135 degrees
-            freestyle.as_render_pass = False  # Bake lines into the image
-
-            # Ensure at least one lineset exists
-            if not freestyle.linesets:
-                ls = freestyle.linesets.new("Sketch Lines")
-            else:
-                ls = freestyle.linesets[0]
-
-            ls.show_render = True
-            ls.select_silhouette = True
-            ls.select_border = True
-            ls.select_crease = True
-            ls.select_edge_mark = True
-            ls.select_contour = True
-            ls.select_external_contour = True
-            ls.select_material_boundary = False
-            ls.select_suggestive_contour = False
-
-            # Line style: clean black lines, scale with resolution
-            linestyle = ls.linestyle
-            linestyle.color = (0.0, 0.0, 0.0)
-            linestyle.thickness = max(2.0, render_w / 500.0)
-            linestyle.alpha = 1.0
-
-            # ── Render (Freestyle + emission white) ──
-            bpy.ops.render.render()
-
-            render_img = bpy.data.images.get("Render Result")
-            if not render_img:
-                self.report({"ERROR"}, "Sketch render failed — no result")
-                return {"CANCELLED"}
-
-            # Save freestyle render
-            tmp = tempfile.NamedTemporaryFile(
-                suffix=".png", delete=False, prefix="fal_sketch_"
-            ).name
-            render_img.save_render(tmp)
-            print(f"fal.ai: Freestyle sketch saved to {tmp}")
-
-            # Post-process: convert shaded render to clean sketch
-            # Edge detection catches intersections and surfaces Freestyle misses
-            try:
-                _render_to_sketch(tmp, render_w, render_h)
-                print("fal.ai: Sketch post-processing complete")
-            except Exception as e:
-                print(f"fal.ai: Sketch post-processing failed, using raw render: {e}")
-
-        finally:
-            # Restore view settings
-            scene.view_settings.view_transform = old_view_transform
-            scene.view_settings.look = old_look
-
-            # Restore world
-            if scene.world and old_world_color is not None:
-                _set_world_color(scene.world, old_world_color)
-
-            # Restore materials
-            for obj_name, mat_list in old_materials.items():
-                obj = scene.objects.get(obj_name)
-                if not obj:
-                    continue
-                for slot_idx, orig_mat in mat_list:
-                    if slot_idx == -1:
-                        if obj.data.materials:
-                            obj.data.materials.pop()
-                    elif slot_idx < len(obj.material_slots):
-                        obj.material_slots[slot_idx].material = orig_mat
-            for mat in sketch_mats:
-                bpy.data.materials.remove(mat)
-
-            # Restore lights
-            for obj in hidden_lights:
-                obj.hide_render = False
-
-            scene.render.engine = old_engine
-            scene.render.resolution_x = old_res_x
-            scene.render.resolution_y = old_res_y
-            scene.render.resolution_percentage = old_res_pct
-            scene.render.film_transparent = old_film_transparent
-            scene.render.use_freestyle = old_freestyle_use
-            view_layer.use_freestyle = old_use_freestyle
-
-        # Overlay labels if enabled
-        if props.enable_labels:
-            self._overlay_labels(context, tmp, render_w, render_h)
-
-        # Upload
+        # Upload and submit
         image_url = upload_image_file(tmp)
-
-        # Build args using the unified helper
-        seed = props.seed if props.seed >= 0 else None
-        # NBP uses image_urls (list), other endpoints use image_url (singular)
-        # Send both for maximum compatibility
+        seed = self._seed if self._seed >= 0 else None
         args = build_image_gen_args(
-            endpoint_id=props.sketch_endpoint,
-            prompt=props.prompt,
-            width=render_w,
-            height=render_h,
+            endpoint_id=self._endpoint,
+            prompt=self._prompt,
+            width=self._render_w,
+            height=self._render_h,
             seed=seed,
             extra={
                 "image_url": image_url,
@@ -487,14 +493,92 @@ class FAL_OT_neural_render(bpy.types.Operator):
             self._handle_image_result(job)
 
         job = FalJob(
-            endpoint=resolve_endpoint(props.sketch_endpoint, args),
+            endpoint=resolve_endpoint(self._endpoint, args),
             arguments=args,
             on_complete=on_complete,
-            label=f"Neural Sketch: {props.prompt[:30]}",
+            label=f"Neural Sketch: {self._prompt[:30]}",
         )
         JobManager.get().submit(job)
-        self.report({"INFO"}, "Rendering sketch + generating...")
-        return {"FINISHED"}
+        self.report({"INFO"}, "Sketch rendered — generating image...")
+
+    # ── Unified state restoration ──────────────────────────────────────
+
+    def _restore_state(self, context):
+        """Restore all saved scene state (works for both depth and sketch)."""
+        scene = context.scene
+        view_layer = context.view_layer
+        world = scene.world
+        s = self._saved
+
+        # Restore compositor
+        if self._saved_compositor and scene.node_tree:
+            for node in scene.node_tree.nodes:
+                scene.node_tree.nodes.remove(node)
+            _restore_compositor(scene.node_tree, self._saved_compositor)
+            self._saved_compositor = []
+
+        # Restore render settings
+        if "engine" in s:
+            scene.render.engine = s["engine"]
+        if "film_transparent" in s:
+            scene.render.film_transparent = s["film_transparent"]
+        if "res_x" in s:
+            scene.render.resolution_x = s["res_x"]
+        if "res_y" in s:
+            scene.render.resolution_y = s["res_y"]
+        if "res_pct" in s:
+            scene.render.resolution_percentage = s["res_pct"]
+        if "use_compositing" in s:
+            scene.render.use_compositing = s["use_compositing"]
+        if "use_nodes" in s:
+            scene.use_nodes = s["use_nodes"]
+        if "use_pass_mist" in s:
+            view_layer.use_pass_mist = s["use_pass_mist"]
+
+        # Mist settings
+        if world:
+            if "mist_start" in s:
+                world.mist_settings.start = s["mist_start"]
+            if "mist_depth" in s:
+                world.mist_settings.depth = s["mist_depth"]
+
+        # Sketch-specific: view settings
+        if "view_transform" in s:
+            scene.view_settings.view_transform = s["view_transform"]
+        if "look" in s:
+            scene.view_settings.look = s["look"]
+        if "world_color" in s and world:
+            _set_world_color(world, s["world_color"])
+        if "use_freestyle" in s:
+            scene.render.use_freestyle = s["use_freestyle"]
+        if "vl_use_freestyle" in s:
+            view_layer.use_freestyle = s["vl_use_freestyle"]
+
+        # Sketch-specific: restore materials
+        for obj_name, mat_list in self._old_materials.items():
+            obj = scene.objects.get(obj_name)
+            if not obj:
+                continue
+            for slot_idx, orig_mat in mat_list:
+                if slot_idx == -1:
+                    if obj.data.materials:
+                        obj.data.materials.pop()
+                elif slot_idx < len(obj.material_slots):
+                    obj.material_slots[slot_idx].material = orig_mat
+        self._old_materials.clear()
+
+        for mat in self._sketch_mats:
+            bpy.data.materials.remove(mat)
+        self._sketch_mats.clear()
+
+        # Restore lights
+        for obj in self._hidden_lights:
+            obj.hide_render = False
+        self._hidden_lights.clear()
+
+        self._saved.clear()
+
+    # ── Label overlay (unchanged) ──────────────────────────────────────
 
     @staticmethod
     def _overlay_labels(context, image_path: str, width: int, height: int):
@@ -515,11 +599,9 @@ class FAL_OT_neural_render(bpy.types.Operator):
             return
 
         # Collect labeled objects
-        # Priority: fal_ai_label custom property > object name (if auto_label)
         props = scene.fal_neural_render
         labeled = []
 
-        # Skip objects that are just scene infrastructure
         _skip_types = {"CAMERA", "LIGHT", "EMPTY", "ARMATURE"}
         _skip_names = {"Camera", "Light", "Sun", "Point", "Spot", "Area"}
 
@@ -529,16 +611,13 @@ class FAL_OT_neural_render(bpy.types.Operator):
             if not obj.visible_get():
                 continue
 
-            # Check for explicit label first
             label = obj.get("fal_ai_label")
             if label and isinstance(label, str):
                 labeled.append((obj, label))
             elif props.auto_label:
-                # Use object name, skip generic Blender defaults
                 name = obj.name
                 if name in _skip_names:
                     continue
-                # Strip trailing .001, .002 etc.
                 if len(name) > 4 and name[-4] == "." and name[-3:].isdigit():
                     name = name[:-4]
                 labeled.append((obj, name))
@@ -546,31 +625,23 @@ class FAL_OT_neural_render(bpy.types.Operator):
         if not labeled:
             return
 
-        # Camera matrices for projection
         from mathutils import Vector  # type: ignore[import-not-found]
 
         depsgraph = context.evaluated_depsgraph_get()
         cam_obj = camera.evaluated_get(depsgraph)
         cam_data = cam_obj.data
 
-        # Model-view-projection
         view_matrix = cam_obj.matrix_world.normalized().inverted()
-        if cam_data.type == "PERSP":
-            projection_matrix = cam_obj.calc_matrix_camera(
-                depsgraph, x=width, y=height
-            )
-        else:
-            projection_matrix = cam_obj.calc_matrix_camera(
-                depsgraph, x=width, y=height
-            )
+        projection_matrix = cam_obj.calc_matrix_camera(
+            depsgraph, x=width, y=height
+        )
 
         def project_3d_to_2d(world_pos):
-            """Project a 3D world position to 2D pixel coordinates."""
             co = projection_matrix @ view_matrix @ Vector(
                 (world_pos[0], world_pos[1], world_pos[2], 1.0)
             )
             if co.w <= 0:
-                return None  # Behind camera
+                return None
             ndc_x = co.x / co.w
             ndc_y = co.y / co.w
             px = int((ndc_x * 0.5 + 0.5) * width)
@@ -580,7 +651,6 @@ class FAL_OT_neural_render(bpy.types.Operator):
             return None
 
         def project_3d_to_2d_unclamped(world_pos):
-            """Project 3D to 2D without bounds check (for edge-clamped labels)."""
             co = projection_matrix @ view_matrix @ Vector(
                 (world_pos[0], world_pos[1], world_pos[2], 1.0)
             )
@@ -592,25 +662,22 @@ class FAL_OT_neural_render(bpy.types.Operator):
             py = (1.0 - (ndc_y * 0.5 + 0.5)) * height
             return (px, py)
 
-        # Draw annotation-style labels: black text, white pill, leader lines
         img = Image.open(image_path).convert("RGB")
         draw = ImageDraw.Draw(img)
 
-        # Scale font size relative to image dimensions
         base_font_size = max(20, int(height * 0.03))
         font = _load_label_font(base_font_size)
         padding = 6
-        margin = int(height * 0.04)  # Label offset from anchor point
+        margin = int(height * 0.04)
         line_width = max(1, base_font_size // 12)
 
         depsgraph = context.evaluated_depsgraph_get()
-        placed_labels = []  # Track placed label rects to avoid overlaps
+        placed_labels = []
 
         for obj, label in labeled:
-            anchor = None  # Where the leader line points to
-            label_pos = None  # Where the text goes
+            anchor = None
+            label_pos = None
 
-            # Try object origin first
             origin_occluded = camera and _is_occluded(
                 scene, depsgraph, camera, obj, width, height
             )
@@ -619,7 +686,6 @@ class FAL_OT_neural_render(bpy.types.Operator):
                 if origin_2d:
                     anchor = origin_2d
 
-            # If origin is occluded/off-screen, try bbox corners
             if anchor is None and hasattr(obj, "bound_box"):
                 from mathutils import Vector  # type: ignore[import-not-found]
                 for corner in obj.bound_box:
@@ -634,25 +700,13 @@ class FAL_OT_neural_render(bpy.types.Operator):
                         anchor = candidate
                         break
 
-            # If still no anchor, object is fully occluded — place label at
-            # the image margin closest to the object's projected position,
-            # with leader line pointing TOWARD where the object is
             if anchor is None:
                 raw = project_3d_to_2d_unclamped(obj.matrix_world.translation)
                 if raw is not None:
                     proj_x, proj_y = int(raw[0]), int(raw[1])
-
-                    # Clamp the projected position to just inside the image
-                    # This is where the leader line POINTS TO
                     target_x = max(margin, min(proj_x, width - margin))
                     target_y = max(margin, min(proj_y, height - margin))
 
-                    # Place anchor at the nearest edge, offset from the target
-                    # so the label sits at the margin and line points inward
-                    dx = target_x - width / 2
-                    dy = target_y - height / 2
-
-                    # Choose the edge closest to the target
                     dist_left = target_x
                     dist_right = width - target_x
                     dist_top = target_y
@@ -673,31 +727,26 @@ class FAL_OT_neural_render(bpy.types.Operator):
 
             ax, ay = anchor
 
-            # Calculate label text size
             bbox = draw.textbbox((0, 0), label, font=font)
             tw = bbox[2] - bbox[0]
             th = bbox[3] - bbox[1]
 
-            # Position label offset from anchor (prefer above-right)
-            # Try multiple positions to avoid overlapping other labels
             candidates = [
-                (ax + margin, ay - margin - th),     # above-right
-                (ax + margin, ay + margin),           # below-right
-                (ax - margin - tw, ay - margin - th), # above-left
-                (ax - margin - tw, ay + margin),      # below-left
-                (ax - tw // 2, ay - margin * 2 - th), # directly above
-                (ax - tw // 2, ay + margin * 2),      # directly below
+                (ax + margin, ay - margin - th),
+                (ax + margin, ay + margin),
+                (ax - margin - tw, ay - margin - th),
+                (ax - margin - tw, ay + margin),
+                (ax - tw // 2, ay - margin * 2 - th),
+                (ax - tw // 2, ay + margin * 2),
             ]
 
             best = None
             for cx, cy in candidates:
-                # Clamp to image
                 cx = max(padding, min(cx, width - tw - padding * 2))
                 cy = max(padding, min(cy, height - th - padding * 2))
                 rect = (cx - padding, cy - padding,
                         cx + tw + padding, cy + th + padding)
 
-                # Check overlap with existing labels
                 overlaps = False
                 for pr in placed_labels:
                     if (rect[0] < pr[2] and rect[2] > pr[0] and
@@ -709,7 +758,6 @@ class FAL_OT_neural_render(bpy.types.Operator):
                     break
 
             if best is None:
-                # All positions overlap — use first candidate anyway
                 cx, cy = candidates[0]
                 cx = max(padding, min(cx, width - tw - padding * 2))
                 cy = max(padding, min(cy, height - th - padding * 2))
@@ -720,28 +768,23 @@ class FAL_OT_neural_render(bpy.types.Operator):
             lx, ly, label_rect = best
             placed_labels.append(label_rect)
 
-            # Draw leader line from label to anchor
             label_center_x = lx + tw // 2
             label_center_y = ly + th // 2
-            # Only draw line if label isn't right on top of anchor
             dist = ((label_center_x - ax) ** 2 + (label_center_y - ay) ** 2) ** 0.5
             if dist > margin * 0.5:
                 draw.line(
                     [(ax, ay), (label_center_x, label_center_y)],
                     fill=(0, 0, 0), width=line_width,
                 )
-                # Small dot at anchor point
                 r = max(2, line_width + 1)
                 draw.ellipse([ax - r, ay - r, ax + r, ay + r], fill=(0, 0, 0))
 
-            # White background pill with thin black border
             draw.rectangle(
                 [label_rect[0], label_rect[1], label_rect[2], label_rect[3]],
                 fill=(255, 255, 255),
                 outline=(0, 0, 0),
                 width=line_width,
             )
-            # Black text
             draw.text((lx, ly), label, fill=(0, 0, 0), font=font)
 
         img.save(image_path)
@@ -805,11 +848,7 @@ def _set_world_color(world, color: tuple[float, float, float]):
 # ---------------------------------------------------------------------------
 def _is_occluded(scene, depsgraph, camera, obj, width: int, height: int,
                  override_pos=None) -> bool:
-    """Check if a point (default: object origin) is occluded from camera's view.
-
-    Casts a ray from the camera toward the point. If it hits a different
-    object first, the point is occluded.
-    """
+    """Check if a point (default: object origin) is occluded from camera's view."""
     from mathutils import Vector  # type: ignore[import-not-found]
 
     cam_loc = camera.matrix_world.translation
@@ -818,25 +857,21 @@ def _is_occluded(scene, depsgraph, camera, obj, width: int, height: int,
     direction = (obj_loc - cam_loc).normalized()
     distance = (obj_loc - cam_loc).length
 
-    # Ray cast from camera toward object
     result, location, normal, index, hit_obj, matrix = scene.ray_cast(
         depsgraph, cam_loc + direction * 0.01, direction, distance=distance + 0.01
     )
 
     if not result:
-        return False  # Nothing hit — object is visible (or not in ray path)
-
-    # Hit something — is it the target object or one of its children?
+        return False
     if hit_obj == obj:
-        return False  # Hit the object itself — it's visible
+        return False
     if hit_obj.parent == obj:
-        return False  # Hit a child of the target
+        return False
 
-    # Something else is in the way — check distance
     hit_dist = (location - cam_loc).length
     obj_dist = distance
     if hit_dist < obj_dist - 0.1:
-        return True  # Another object is closer → occluded
+        return True
 
     return False
 
@@ -845,23 +880,14 @@ def _is_occluded(scene, depsgraph, camera, obj, width: int, height: int,
 # Edge detection from render passes (PIL-based)
 # ---------------------------------------------------------------------------
 def _render_to_sketch(render_path: str, width: int, height: int):
-    """Convert a shaded render with freestyle lines into a clean sketch.
-
-    Process:
-    1. Edge-detect the rendered image to find ALL edges (surfaces, intersections)
-    2. Combine with the freestyle lines (which are already in the image)
-    3. Output: black lines on white background
-    """
+    """Convert a shaded render with freestyle lines into a clean sketch."""
     from PIL import Image, ImageFilter, ImageChops, ImageOps
 
     img = Image.open(render_path)
     gray = img.convert("L")
 
-    # Edge detection on the full render — catches shading boundaries,
-    # object intersections, surface changes, everything
     edges = gray.filter(ImageFilter.FIND_EDGES)
 
-    # Also run a second pass with a different kernel for more detail
     edges2 = gray.filter(ImageFilter.Kernel(
         size=(3, 3),
         kernel=[-1, -1, -1, -1, 8, -1, -1, -1, -1],
@@ -869,22 +895,15 @@ def _render_to_sketch(render_path: str, width: int, height: int):
         offset=0,
     ))
 
-    # Combine both edge passes (take the stronger edge at each pixel)
     edges_combined = ImageChops.lighter(edges, edges2)
 
-    # Threshold: strong edges become black lines
     threshold = 12
     edge_lines = edges_combined.point(lambda p: 0 if p > threshold else 255)
 
-    # The freestyle lines in the original render are already black.
-    # Extract them: anything significantly darker than the average
-    # shading is a freestyle line
     freestyle_mask = gray.point(lambda p: 0 if p < 40 else 255)
 
-    # Combine: multiply (black in either = black in result)
     combined = ImageChops.multiply(edge_lines, freestyle_mask)
 
-    # Save as RGB
     combined.convert("RGB").save(render_path)
 
 
@@ -895,18 +914,14 @@ def _load_label_font(size: int):
     """Load a readable font cross-platform. Falls back gracefully."""
     from PIL import ImageFont
 
-    # Try common system font paths across platforms
     font_candidates = [
-        # macOS
         "/System/Library/Fonts/Helvetica.ttc",
         "/System/Library/Fonts/SFNSMono.ttf",
         "/Library/Fonts/Arial.ttf",
         "/System/Library/Fonts/Supplemental/Arial.ttf",
-        # Linux
         "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
         "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
-        # Windows
         "C:/Windows/Fonts/arial.ttf",
         "C:/Windows/Fonts/calibri.ttf",
     ]
@@ -917,7 +932,6 @@ def _load_label_font(size: int):
         except (IOError, OSError):
             continue
 
-    # Last resort: Pillow's built-in default (small but works everywhere)
     print("fal.ai: No system fonts found, using default (labels may be small)")
     return ImageFont.load_default()
 
@@ -926,15 +940,10 @@ def _load_label_font(size: int):
 # Scene depth analysis
 # ---------------------------------------------------------------------------
 def _calc_scene_depth_bounds(scene, camera) -> tuple[float | None, float | None]:
-    """Calculate the actual near/far depth of scene geometry from camera's perspective.
-
-    Returns (near_distance, far_distance) in camera-space units,
-    or (None, None) if no geometry found.
-    """
+    """Calculate the actual near/far depth of scene geometry from camera."""
     from mathutils import Vector  # type: ignore[import-not-found]
 
     cam_loc = camera.matrix_world.translation
-    # Camera looks down its local -Z axis
     cam_forward = camera.matrix_world.to_3x3() @ Vector((0, 0, -1))
     cam_forward.normalize()
 
@@ -948,14 +957,12 @@ def _calc_scene_depth_bounds(scene, camera) -> tuple[float | None, float | None]
         if not obj.visible_get():
             continue
 
-        # Check all 8 corners of the object's bounding box
         bbox = obj.bound_box
         for corner in bbox:
             world_point = obj.matrix_world @ Vector(corner)
-            # Project onto camera forward axis (signed distance)
             to_point = world_point - cam_loc
             dist = to_point.dot(cam_forward)
-            if dist > 0:  # Only count things in front of camera
+            if dist > 0:
                 min_dist = min(min_dist, dist)
                 max_dist = max(max_dist, dist)
                 found = True
@@ -971,7 +978,6 @@ def _calc_scene_depth_bounds(scene, camera) -> tuple[float | None, float | None]
 # ---------------------------------------------------------------------------
 def _snapshot_compositor(tree) -> list[dict]:
     """Snapshot compositor node tree for later restoration."""
-    import json
     snapshot = []
     for node in tree.nodes:
         info = {
@@ -980,7 +986,6 @@ def _snapshot_compositor(tree) -> list[dict]:
             "location": (node.location.x, node.location.y),
         }
         snapshot.append(info)
-    # Snapshot links
     links = []
     for link in tree.links:
         links.append({

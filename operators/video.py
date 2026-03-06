@@ -1,5 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
-"""AI Video generation operators — text-to-video, image-to-video, depth video."""
+"""AI Video generation operators — text-to-video, image-to-video, depth video.
+
+Depth video uses modal operators with render handlers so Blender's UI stays
+responsive during the internal depth animation render.
+"""
 
 from __future__ import annotations
 
@@ -13,6 +17,7 @@ from ..endpoints import (
     IMAGE_TO_VIDEO_ENDPOINTS,
     DEPTH_VIDEO_ENDPOINTS,
     endpoint_items,
+    get_endpoint,
 )
 from ..core.job_queue import FalJob, JobManager
 from ..core.api import download_file, upload_image_file, upload_video_file
@@ -240,56 +245,225 @@ def _restore_compositor(tree, saved: list[dict]):
             print(f"fal.ai: Could not restore compositor link: {e}")
 
 
-def _render_depth_animation(context) -> str:
-    """Render the scene's animation as a depth video (Mist pass).
+# ---------------------------------------------------------------------------
+# Operator
+# ---------------------------------------------------------------------------
+class FAL_OT_generate_video(bpy.types.Operator):
+    bl_idname = "fal.generate_video"
+    bl_label = "Generate Video"
+    bl_description = "Generate a video using fal.ai"
+    bl_options = {"REGISTER"}
 
-    Returns path to the rendered MP4 file.
-    Uses the same Mist + Invert compositor pipeline as neural render depth.
-    """
-    scene = context.scene
-    view_layer = context.view_layer
-    camera = scene.camera
+    # Guard against overlapping depth renders
+    _rendering: bool = False
 
-    # Save ALL settings we'll touch
-    old_engine = scene.render.engine
-    old_film_transparent = scene.render.film_transparent
-    old_use_compositing = scene.render.use_compositing
-    old_use_nodes = scene.use_nodes
-    old_use_pass_mist = view_layer.use_pass_mist
-    old_view_transform = scene.view_settings.view_transform
-    old_look = scene.view_settings.look
-    old_file_format = scene.render.image_settings.file_format
-    old_codec = getattr(scene.render.ffmpeg, "codec", "H264")
-    old_format = getattr(scene.render.ffmpeg, "format", "MPEG4")
-    old_output_path = scene.render.filepath
-    old_color_mode = scene.render.image_settings.color_mode
+    @classmethod
+    def poll(cls, context: bpy.types.Context) -> bool:
+        props = context.scene.fal_video
+        if props.mode == "DEPTH" and cls._rendering:
+            return False
+        if props.mode == "TEXT":
+            return bool(props.prompt.strip())
+        elif props.mode == "IMAGE":
+            return bool(
+                props.image_path.strip() or props.image_source == "RENDER"
+            )
+        else:  # DEPTH
+            return bool(props.prompt.strip()) and context.scene.camera is not None
 
-    # Save world mist settings
-    world = scene.world
-    old_mist_start = 0.0
-    old_mist_depth = 100.0
-    if world:
-        old_mist_start = world.mist_settings.start
-        old_mist_depth = world.mist_settings.depth
+    def invoke(self, context: bpy.types.Context, event) -> set[str]:
+        props = context.scene.fal_video
 
-    # Create temp output path
-    tmp_dir = tempfile.mkdtemp(prefix="fal_depth_video_")
-    output_path = os.path.join(tmp_dir, "depth")
+        # TEXT and IMAGE modes are simple API calls — no rendering needed
+        if props.mode == "TEXT":
+            return self._text_to_video(context, props)
+        elif props.mode == "IMAGE":
+            return self._image_to_video(context, props)
 
-    try:
+        # DEPTH mode — render animation in modal
+        return self._invoke_depth(context, props)
+
+    def execute(self, context: bpy.types.Context) -> set[str]:
+        # Fallback for non-invoke calls (shouldn't happen from UI)
+        props = context.scene.fal_video
+        if props.mode == "TEXT":
+            return self._text_to_video(context, props)
+        elif props.mode == "IMAGE":
+            return self._image_to_video(context, props)
+        else:
+            self.report({"ERROR"}, "Depth video must be invoked from UI")
+            return {"CANCELLED"}
+
+    # ── DEPTH mode: modal entry point ──────────────────────────────────
+
+    def _invoke_depth(self, context, props) -> set[str]:
+        """Set up depth animation render and enter modal loop."""
+        scene = context.scene
+
+        if not scene.camera:
+            self.report({"ERROR"}, "No camera in scene")
+            return {"CANCELLED"}
+
+        # Cache properties we'll need after render
+        self._prompt = props.prompt
+        self._endpoint = props.depth_endpoint
+        self._use_scene_resolution = props.use_scene_resolution
+        self._use_first_frame = props.depth_use_first_frame
+        self._first_frame_source = props.depth_image_source
+        self._first_frame_path = props.depth_image_path
+        self._first_frame_texture = props.depth_texture_name
+
+        # Calculate duration and frame count
+        if props.use_scene_duration:
+            self._duration = max(1, int(round(_get_scene_duration(scene))))
+        else:
+            self._duration = int(props.duration)
+
+        fps = scene.render.fps / scene.render.fps_base
+        self._num_frames = max(17, int(self._duration * min(fps, 16)))
+
+        if self._use_scene_resolution:
+            w, h = _get_scene_dimensions(scene)
+            if max(w, h) >= 1280:
+                self._resolution = "720p"
+            elif max(w, h) >= 580:
+                self._resolution = "580p"
+            else:
+                self._resolution = "480p"
+        else:
+            self._resolution = None
+
+        # Modal state
+        self._render_done = False
+        self._render_cancelled = False
+        self._timer = None
+        self._saved = {}
+        self._saved_compositor = []
+        self._tmp_dir = None
+        self._output_path = None
+
+        # Set up scene for depth animation render
+        try:
+            self._setup_depth_animation(context)
+        except Exception as e:
+            self._restore_state(context)
+            self.report({"ERROR"}, f"Depth render setup failed: {e}")
+            return {"CANCELLED"}
+
+        FAL_OT_generate_video._rendering = True
+
+        # Register render handlers
+        self._handler_complete = self._on_complete
+        self._handler_cancel = self._on_cancel
+        bpy.app.handlers.render_complete.append(self._handler_complete)
+        bpy.app.handlers.render_cancel.append(self._handler_cancel)
+
+        # Start non-blocking animation render
+        bpy.ops.render.render("INVOKE_DEFAULT", animation=True)
+
+        # Enter modal loop
+        wm = context.window_manager
+        self._timer = wm.event_timer_add(0.5, window=context.window)
+        wm.modal_handler_add(self)
+
+        scene_dur = _get_scene_duration(scene)
+        self.report(
+            {"INFO"},
+            f"Rendering depth animation ({scene_dur:.1f}s, {self._num_frames} frames)...",
+        )
+        return {"RUNNING_MODAL"}
+
+    def modal(self, context: bpy.types.Context, event) -> set[str]:
+        if event.type != "TIMER":
+            return {"PASS_THROUGH"}
+
+        if not (self._render_done or self._render_cancelled):
+            return {"PASS_THROUGH"}
+
+        # Render finished — clean up modal
+        self._cleanup_modal(context)
+
+        if self._render_cancelled:
+            self._restore_state(context)
+            self.report({"WARNING"}, "Depth render cancelled")
+            return {"CANCELLED"}
+
+        # Render succeeded — finalize
+        self._finish_depth_animation(context)
+        return {"FINISHED"}
+
+    def _on_complete(self, *_args):
+        self._render_done = True
+
+    def _on_cancel(self, *_args):
+        self._render_cancelled = True
+
+    def _cleanup_modal(self, context):
+        """Remove timer and render handlers."""
+        FAL_OT_generate_video._rendering = False
+        if self._timer is not None:
+            context.window_manager.event_timer_remove(self._timer)
+            self._timer = None
+        for ref, handler_list in [
+            (self._handler_complete, bpy.app.handlers.render_complete),
+            (self._handler_cancel, bpy.app.handlers.render_cancel),
+        ]:
+            try:
+                handler_list.remove(ref)
+            except (ValueError, AttributeError):
+                pass
+
+    # ── DEPTH animation setup / finish ─────────────────────────────────
+
+    def _setup_depth_animation(self, context):
+        """Configure scene for depth video render (Mist pass, FFMPEG output)."""
+        scene = context.scene
+        view_layer = context.view_layer
+        world = scene.world
+        camera = scene.camera
+
+        # Save ALL settings we'll touch
+        self._saved.update({
+            "engine": scene.render.engine,
+            "film_transparent": scene.render.film_transparent,
+            "use_compositing": scene.render.use_compositing,
+            "use_nodes": scene.use_nodes,
+            "use_pass_mist": view_layer.use_pass_mist,
+            "view_transform": scene.view_settings.view_transform,
+            "look": scene.view_settings.look,
+            "file_format": scene.render.image_settings.file_format,
+            "color_mode": scene.render.image_settings.color_mode,
+            "filepath": scene.render.filepath,
+        })
+
+        # FFMPEG settings (may not exist depending on Blender build)
+        try:
+            self._saved["ffmpeg_codec"] = scene.render.ffmpeg.codec
+            self._saved["ffmpeg_format"] = scene.render.ffmpeg.format
+        except AttributeError:
+            pass
+
+        if world:
+            self._saved["mist_start"] = world.mist_settings.start
+            self._saved["mist_depth"] = world.mist_settings.depth
+
+        # Create temp output path
+        self._tmp_dir = tempfile.mkdtemp(prefix="fal_depth_video_")
+        self._output_path = os.path.join(self._tmp_dir, "depth")
+
         # Configure render
         scene.render.engine = "BLENDER_EEVEE_NEXT"
         scene.render.film_transparent = False
         scene.render.use_compositing = True
 
-        # Standard color management (no Filmic dimming)
+        # Standard color management
         scene.view_settings.view_transform = "Standard"
         scene.view_settings.look = "None"
 
         # Enable Mist pass
         view_layer.use_pass_mist = True
 
-        # Configure mist range from actual scene depth
+        # Configure mist range
         if camera and world:
             near, far = _calc_scene_depth_bounds(scene, camera)
             if near is not None and far is not None:
@@ -304,22 +478,19 @@ def _render_depth_animation(context) -> str:
                 world.mist_settings.depth = cam_data.clip_end - cam_data.clip_start
                 world.mist_settings.falloff = "LINEAR"
 
-        # Build compositor: Mist → Invert → Composite (close=white, far=black)
+        # Build compositor: Mist → Invert → Composite
         scene.use_nodes = True
         tree = scene.node_tree
-        saved_nodes = _snapshot_compositor(tree)
+        self._saved_compositor = _snapshot_compositor(tree)
         for node in tree.nodes:
             tree.nodes.remove(node)
 
         rl_node = tree.nodes.new("CompositorNodeRLayers")
         rl_node.location = (0, 0)
-
         invert_node = tree.nodes.new("CompositorNodeInvert")
         invert_node.location = (300, 0)
-
         composite_node = tree.nodes.new("CompositorNodeComposite")
         composite_node.location = (600, 0)
-
         tree.links.new(rl_node.outputs["Mist"], invert_node.inputs["Color"])
         tree.links.new(invert_node.outputs["Color"], composite_node.inputs["Image"])
 
@@ -328,97 +499,148 @@ def _render_depth_animation(context) -> str:
         scene.render.ffmpeg.format = "MPEG4"
         scene.render.ffmpeg.codec = "H264"
         scene.render.image_settings.color_mode = "BW"
-        scene.render.filepath = output_path
+        scene.render.filepath = self._output_path
 
-        # Render the full animation
-        print(f"fal.ai: Rendering depth video (frames {scene.frame_start}-{scene.frame_end})...")
-        bpy.ops.render.render(animation=True)
-        print("fal.ai: Depth video render complete")
-
-        # Find the output file — Blender appends frame range to filename
-        result_path = output_path + ".mp4"
-        if not os.path.exists(result_path):
-            # Try with frame numbers
-            for f in os.listdir(tmp_dir):
+    def _finish_depth_animation(self, context):
+        """Find rendered video, restore scene, upload and submit API job."""
+        # Find output file
+        result_path = self._output_path + ".mp4"
+        if not os.path.exists(result_path) and self._tmp_dir:
+            for f in os.listdir(self._tmp_dir):
                 if f.endswith(".mp4"):
-                    result_path = os.path.join(tmp_dir, f)
+                    result_path = os.path.join(self._tmp_dir, f)
                     break
 
         if not os.path.exists(result_path):
-            raise RuntimeError(f"Depth video not found at {result_path}")
+            self._restore_state(context)
+            self.report({"ERROR"}, f"Depth video not found at {result_path}")
+            return
 
         print(f"fal.ai: Depth video saved to {result_path}")
-        return result_path
 
-    finally:
-        # Restore everything
-        if scene.node_tree:
+        # Restore scene state
+        self._restore_state(context)
+
+        # Upload and submit
+        video_url = upload_video_file(result_path)
+
+        args = {
+            "prompt": self._prompt,
+            "video_url": video_url,
+            "num_frames": self._num_frames,
+        }
+
+        # Merge endpoint default_params (e.g. ic_lora for LTX-2 depth)
+        ep = get_endpoint(DEPTH_VIDEO_ENDPOINTS, self._endpoint)
+        if ep and ep.default_params:
+            for k, v in ep.default_params.items():
+                args.setdefault(k, v)
+
+        # Optional first-frame image
+        if self._use_first_frame:
+            image_url = self._get_depth_first_frame_url()
+            if image_url:
+                args["image_url"] = image_url
+
+        # Resolution
+        if self._resolution:
+            args["resolution"] = self._resolution
+
+        def on_complete(job: FalJob):
+            self._handle_video_result(job)
+
+        job = FalJob(
+            endpoint=self._endpoint,
+            arguments=args,
+            on_complete=on_complete,
+            label=f"Depth Video: {self._prompt[:30]}",
+        )
+        JobManager.get().submit(job)
+        self.report({"INFO"}, "Depth rendered — generating video...")
+
+    def _restore_state(self, context):
+        """Restore all saved scene state."""
+        scene = context.scene
+        view_layer = context.view_layer
+        world = scene.world
+        s = self._saved
+
+        # Restore compositor
+        if self._saved_compositor and scene.node_tree:
             for node in scene.node_tree.nodes:
                 scene.node_tree.nodes.remove(node)
-            _restore_compositor(scene.node_tree, saved_nodes)
+            _restore_compositor(scene.node_tree, self._saved_compositor)
+            self._saved_compositor = []
 
-        scene.use_nodes = old_use_nodes
-        scene.render.engine = old_engine
-        scene.render.film_transparent = old_film_transparent
-        scene.render.use_compositing = old_use_compositing
-        view_layer.use_pass_mist = old_use_pass_mist
-        scene.view_settings.view_transform = old_view_transform
-        scene.view_settings.look = old_look
-        scene.render.image_settings.file_format = old_file_format
-        scene.render.ffmpeg.format = old_format
-        scene.render.ffmpeg.codec = old_codec
-        scene.render.filepath = old_output_path
-        scene.render.image_settings.color_mode = old_color_mode
+        # Restore render settings
+        if "engine" in s:
+            scene.render.engine = s["engine"]
+        if "film_transparent" in s:
+            scene.render.film_transparent = s["film_transparent"]
+        if "use_compositing" in s:
+            scene.render.use_compositing = s["use_compositing"]
+        if "use_nodes" in s:
+            scene.use_nodes = s["use_nodes"]
+        if "use_pass_mist" in s:
+            view_layer.use_pass_mist = s["use_pass_mist"]
+        if "view_transform" in s:
+            scene.view_settings.view_transform = s["view_transform"]
+        if "look" in s:
+            scene.view_settings.look = s["look"]
+        if "file_format" in s:
+            scene.render.image_settings.file_format = s["file_format"]
+        if "color_mode" in s:
+            scene.render.image_settings.color_mode = s["color_mode"]
+        if "filepath" in s:
+            scene.render.filepath = s["filepath"]
+
+        try:
+            if "ffmpeg_codec" in s:
+                scene.render.ffmpeg.codec = s["ffmpeg_codec"]
+            if "ffmpeg_format" in s:
+                scene.render.ffmpeg.format = s["ffmpeg_format"]
+        except AttributeError:
+            pass
 
         if world:
-            world.mist_settings.start = old_mist_start
-            world.mist_settings.depth = old_mist_depth
+            if "mist_start" in s:
+                world.mist_settings.start = s["mist_start"]
+            if "mist_depth" in s:
+                world.mist_settings.depth = s["mist_depth"]
 
+        self._saved.clear()
 
-# ---------------------------------------------------------------------------
-# Operator
-# ---------------------------------------------------------------------------
-class FAL_OT_generate_video(bpy.types.Operator):
-    bl_idname = "fal.generate_video"
-    bl_label = "Generate Video"
-    bl_description = "Generate a video using fal.ai"
-    bl_options = {"REGISTER"}
+    def _get_depth_first_frame_url(self) -> str | None:
+        """Upload the first-frame image for depth video and return its URL."""
+        try:
+            if self._first_frame_source == "FILE":
+                if not self._first_frame_path.strip():
+                    return None
+                return upload_image_file(self._first_frame_path)
+            elif self._first_frame_source == "TEXTURE":
+                img = bpy.data.images.get(self._first_frame_texture)
+                if not img:
+                    return None
+                from ..core.api import upload_blender_image
+                return upload_blender_image(img)
+            else:  # RENDER
+                render_img = bpy.data.images.get("Render Result")
+                if not render_img:
+                    print("fal.ai: No render result available for first frame")
+                    return None
+                from ..core.api import upload_blender_image
+                return upload_blender_image(render_img)
+        except Exception as e:
+            print(f"fal.ai: Failed to upload first frame: {e}")
+            return None
 
-    @classmethod
-    def poll(cls, context: bpy.types.Context) -> bool:
-        props = context.scene.fal_video
-        if props.mode == "TEXT":
-            return bool(props.prompt.strip())
-        elif props.mode == "IMAGE":
-            return bool(
-                props.image_path.strip() or props.image_source == "RENDER"
-            )
-        else:  # DEPTH
-            return bool(props.prompt.strip()) and context.scene.camera is not None
-
-    def execute(self, context: bpy.types.Context) -> set[str]:
-        props = context.scene.fal_video
-
-        if props.mode == "TEXT":
-            return self._text_to_video(context, props)
-        elif props.mode == "IMAGE":
-            return self._image_to_video(context, props)
-        else:
-            return self._depth_video(context, props)
+    # ── TEXT and IMAGE modes (simple, non-modal) ───────────────────────
 
     def _get_duration(self, context, props) -> int:
         """Get video duration — from scene or manual override."""
         if props.use_scene_duration:
             return max(1, int(round(_get_scene_duration(context.scene))))
         return int(props.duration)
-
-    def _get_num_frames(self, context, props) -> int:
-        """Get number of frames for depth video from scene."""
-        scene = context.scene
-        fps = scene.render.fps / scene.render.fps_base
-        duration = self._get_duration(context, props)
-        # 16 fps is standard for wan-vace, but use scene fps if available
-        return max(17, int(duration * min(fps, 16)))
 
     def _text_to_video(self, context, props) -> set[str]:
         duration = self._get_duration(context, props)
@@ -476,98 +698,7 @@ class FAL_OT_generate_video(bpy.types.Operator):
         self.report({"INFO"}, f"Generating {duration}s video from image...")
         return {"FINISHED"}
 
-    def _get_depth_first_frame_url(self, props) -> str | None:
-        """Upload the first-frame image for depth video and return its URL."""
-        try:
-            if props.depth_image_source == "FILE":
-                if not props.depth_image_path.strip():
-                    return None
-                return upload_image_file(props.depth_image_path)
-            elif props.depth_image_source == "TEXTURE":
-                img = bpy.data.images.get(props.depth_texture_name)
-                if not img:
-                    return None
-                from ..core.api import upload_blender_image
-                return upload_blender_image(img)
-            else:  # RENDER
-                render_img = bpy.data.images.get("Render Result")
-                if not render_img:
-                    self.report({"WARNING"}, "No render result available for first frame")
-                    return None
-                from ..core.api import upload_blender_image
-                return upload_blender_image(render_img)
-        except Exception as e:
-            self.report({"WARNING"}, f"Failed to upload first frame: {e}")
-            return None
-
-    def _depth_video(self, context, props) -> set[str]:
-        """Render depth animation, upload as video, submit to depth endpoint."""
-        scene = context.scene
-
-        if not scene.camera:
-            self.report({"ERROR"}, "No camera in scene")
-            return {"CANCELLED"}
-
-        # Render the depth animation as MP4
-        try:
-            depth_video_path = _render_depth_animation(context)
-        except Exception as e:
-            self.report({"ERROR"}, f"Depth render failed: {e}")
-            return {"CANCELLED"}
-
-        # Upload the depth video
-        video_url = upload_video_file(depth_video_path)
-
-        # Build args for the depth video endpoint
-        duration = self._get_duration(context, props)
-        num_frames = self._get_num_frames(context, props)
-
-        args = {
-            "prompt": props.prompt,
-            "video_url": video_url,
-            "num_frames": num_frames,
-        }
-
-        # Merge endpoint default_params (e.g. ic_lora for LTX-2 depth)
-        from ..endpoints import DEPTH_VIDEO_ENDPOINTS, get_endpoint
-        ep = get_endpoint(DEPTH_VIDEO_ENDPOINTS, props.depth_endpoint)
-        if ep and ep.default_params:
-            for k, v in ep.default_params.items():
-                args.setdefault(k, v)
-
-        # Optional first-frame image
-        if props.depth_use_first_frame:
-            image_url = self._get_depth_first_frame_url(props)
-            if image_url:
-                args["image_url"] = image_url
-
-        # Add resolution if using scene settings
-        if props.use_scene_resolution:
-            w, h = _get_scene_dimensions(scene)
-            # Map to closest supported resolution
-            if max(w, h) >= 1280:
-                args["resolution"] = "720p"
-            elif max(w, h) >= 580:
-                args["resolution"] = "580p"
-            else:
-                args["resolution"] = "480p"
-
-        def on_complete(job: FalJob):
-            self._handle_video_result(job)
-
-        job = FalJob(
-            endpoint=props.depth_endpoint,
-            arguments=args,
-            on_complete=on_complete,
-            label=f"Depth Video: {props.prompt[:30]}",
-        )
-        JobManager.get().submit(job)
-        scene_dur = _get_scene_duration(scene)
-        self.report(
-            {"INFO"},
-            f"Rendering depth video ({scene_dur:.1f}s, {num_frames} frames)...",
-        )
-        return {"FINISHED"}
+    # ── Result handling ────────────────────────────────────────────────
 
     def _handle_video_result(self, job: FalJob):
         """Download video result and import to VSE."""
@@ -577,7 +708,6 @@ class FAL_OT_generate_video(bpy.types.Operator):
 
         result = job.result or {}
 
-        # Find video URL in result
         video_url = None
         for key in ["video", "output", "video_url"]:
             val = result.get(key)
