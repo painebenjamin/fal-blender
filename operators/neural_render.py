@@ -103,6 +103,12 @@ class FalNeuralRenderProperties(bpy.types.PropertyGroup):
         description="Describe what to generate from the rendered input",
         default="",
     )
+    enable_prompt_expansion: bpy.props.BoolProperty(
+        name="Prompt Expansion",
+        description="Let the AI model expand and enhance your prompt for better results",
+        default=True,
+    )
+
 
     enable_labels: bpy.props.BoolProperty(
         name="Enable Labels",
@@ -198,6 +204,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
         else:
             self._endpoint = props.refine_endpoint
         self._refine_strength = props.refine_strength
+        self._expand_prompt = props.enable_prompt_expansion
         self._enable_labels = props.enable_labels
         self._auto_label = props.auto_label
         self._render_w, self._render_h = self._get_dimensions(context, props)
@@ -385,6 +392,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
             "control_image_url": image_url,
             "image_url": image_url,
             "prompt": self._prompt,
+            "expand_prompt": self._expand_prompt,
         }
         if self._seed >= 0:
             args["seed"] = self._seed
@@ -551,6 +559,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
             width=self._render_w,
             height=self._render_h,
             seed=seed,
+            expand_prompt=self._expand_prompt,
             extra={
                 "image_url": image_url,
                 "image_urls": [image_url],
@@ -612,6 +621,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
             "prompt": self._prompt,
             "image_url": image_url,
             "strength": self._refine_strength,
+            "expand_prompt": self._expand_prompt,
         }
         if self._seed >= 0:
             args["seed"] = self._seed

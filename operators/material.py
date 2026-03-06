@@ -57,6 +57,12 @@ class FalMaterialProperties(bpy.types.PropertyGroup):
         description="Describe the material to generate",
         default="",
     )
+    enable_prompt_expansion: bpy.props.BoolProperty(
+        name="Prompt Expansion",
+        description="Let the AI model expand and enhance your prompt for better results",
+        default=True,
+    )
+
 
     width: bpy.props.IntProperty(
         name="W", default=1024, min=512, max=2048, step=16,
@@ -240,7 +246,8 @@ class FAL_OT_generate_material(bpy.types.Operator):
             width=props.width,
             height=props.height,
             seed=seed,
-            extra={"output_format": props.output_format},
+            extra={"output_format": props.output_format},,
+            expand_prompt=props.enable_prompt_expansion
         )
 
         prompt_short = props.prompt[:20]
@@ -341,6 +348,7 @@ class FAL_OT_generate_material(bpy.types.Operator):
             width=props.width,
             height=props.height,
             seed=seed,
+            expand_prompt=props.enable_prompt_expansion,
             extra={"output_format": props.output_format},
         )
 

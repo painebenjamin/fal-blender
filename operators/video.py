@@ -108,6 +108,12 @@ class FalVideoProperties(bpy.types.PropertyGroup):
         description="Describe the video you want to generate",
         default="",
     )
+    enable_prompt_expansion: bpy.props.BoolProperty(
+        name="Prompt Expansion",
+        description="Let the AI model expand and enhance your prompt for better results",
+        default=True,
+    )
+
 
     use_scene_duration: bpy.props.BoolProperty(
         name="Use Scene Duration",
@@ -354,6 +360,7 @@ class FAL_OT_generate_video(bpy.types.Operator):
 
         # Cache properties we'll need after render
         self._prompt = props.prompt
+        self._expand_prompt = props.enable_prompt_expansion
         self._endpoint = props.depth_endpoint
         self._use_scene_resolution = props.use_scene_resolution
         self._use_first_frame = props.depth_use_first_frame
@@ -580,6 +587,7 @@ class FAL_OT_generate_video(bpy.types.Operator):
 
         args = {
             "prompt": self._prompt,
+            "expand_prompt": self._expand_prompt,
             "video_url": video_url,
             "num_frames": self._num_frames,
         }
@@ -732,6 +740,7 @@ class FAL_OT_generate_video(bpy.types.Operator):
         duration = self._get_duration(context, props)
         args = {
             "prompt": props.prompt,
+                "expand_prompt": props.enable_prompt_expansion,
             "duration": duration,
         }
 
@@ -767,6 +776,7 @@ class FAL_OT_generate_video(bpy.types.Operator):
         duration = self._get_duration(context, props)
         args = {
             "prompt": props.prompt,
+                "expand_prompt": props.enable_prompt_expansion,
             "image_url": image_url,
             "duration": duration,
         }

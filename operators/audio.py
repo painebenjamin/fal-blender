@@ -84,7 +84,13 @@ class FalAudioProperties(bpy.types.PropertyGroup):
 
     music_prompt: bpy.props.StringProperty(
         name="Music Prompt",
-        description="Describe the music (genre, mood, instruments)",
+        description="Describe the music (genre, mood, instruments)
+    enable_prompt_expansion: bpy.props.BoolProperty(
+        name="Prompt Expansion",
+        description="Let the AI model expand and enhance your prompt for better results",
+        default=True,
+    )
+",
         default="",
     )
 
@@ -188,6 +194,7 @@ class FAL_OT_generate_audio(bpy.types.Operator):
     def _sfx(self, context, props) -> set[str]:
         args = {
             "prompt": props.sfx_prompt,
+            "expand_prompt": props.enable_prompt_expansion,
             "duration": props.duration,
         }
 
@@ -207,6 +214,7 @@ class FAL_OT_generate_audio(bpy.types.Operator):
     def _music(self, context, props) -> set[str]:
         args = {
             "prompt": props.music_prompt,
+            "expand_prompt": props.enable_prompt_expansion,
             "duration": props.duration,
         }
 
@@ -242,10 +250,12 @@ def _draw_audio_panel(layout, props):
     elif props.mode == "SFX":
         layout.prop(props, "sfx_endpoint")
         layout.prop(props, "sfx_prompt")
+        layout.prop(props, "enable_prompt_expansion")
         layout.prop(props, "duration")
     else:  # MUSIC
         layout.prop(props, "music_endpoint")
         layout.prop(props, "music_prompt")
+        layout.prop(props, "enable_prompt_expansion")
         layout.prop(props, "duration")
 
     row = layout.row()

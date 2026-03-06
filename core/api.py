@@ -18,6 +18,7 @@ def build_image_gen_args(
     height: int,
     seed: int | None = None,
     extra: dict[str, Any] | None = None,
+    expand_prompt: bool = True,
 ) -> dict[str, Any]:
     """Build arguments for an image generation endpoint,
     handling resolution mode translation."""
@@ -34,7 +35,7 @@ def build_image_gen_args(
     if ep is None:
         ep = get_endpoint(TILING_ENDPOINTS, endpoint_id)
 
-    args: dict[str, Any] = {"prompt": prompt}
+    args: dict[str, Any] = {"prompt": prompt, "expand_prompt": expand_prompt}
 
     if ep and ep.resolution_mode == ResolutionMode.ASPECT_RESOLUTION:
         aspect, resolution = pixels_to_aspect_resolution(width, height)

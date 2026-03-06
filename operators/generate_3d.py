@@ -45,6 +45,12 @@ class FalGen3DProperties(bpy.types.PropertyGroup):
         description="Describe the 3D model you want to generate",
         default="",
     )
+    enable_prompt_expansion: bpy.props.BoolProperty(
+        name="Prompt Expansion",
+        description="Let the AI model expand and enhance your prompt for better results",
+        default=True,
+    )
+
 
     image_source: bpy.props.EnumProperty(
         name="Image Source",
@@ -135,7 +141,7 @@ class FAL_OT_generate_3d(bpy.types.Operator):
             return self._image_to_3d(context, props)
 
     def _text_to_3d(self, context, props) -> set[str]:
-        args = {"prompt": props.prompt}
+        args = {"prompt": props.prompt, "expand_prompt": props.enable_prompt_expansion}
         label = f"3D: {props.prompt[:30]}"
 
         name = props.prompt[:30]

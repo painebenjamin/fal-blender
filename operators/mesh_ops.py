@@ -42,7 +42,13 @@ class FalMeshOpsProperties(bpy.types.PropertyGroup):
 
     prompt: bpy.props.StringProperty(
         name="Prompt",
-        description="Describe the desired texture/style (retexture only)",
+        description="Describe the desired texture/style (retexture only)
+    enable_prompt_expansion: bpy.props.BoolProperty(
+        name="Prompt Expansion",
+        description="Let the AI model expand and enhance your prompt for better results",
+        default=True,
+    )
+",
         default="",
     )
 
@@ -116,6 +122,7 @@ class FAL_OT_mesh_ops(bpy.types.Operator):
             args = {
                 "model_url": mesh_url,
                 "prompt": props.prompt,
+                "expand_prompt": props.enable_prompt_expansion,
             }
             label = f"Retexture: {props.prompt[:30]}"
         else:

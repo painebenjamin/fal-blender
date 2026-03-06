@@ -72,6 +72,7 @@ class FAL_PT_texture_panel(bpy.types.Panel):
 
         layout.prop(props, "endpoint")
         layout.prop(props, "prompt")
+        layout.prop(props, "enable_prompt_expansion")
 
         row = layout.row(align=True)
         row.prop(props, "width")
@@ -109,6 +110,7 @@ class FAL_PT_gen3d_panel(bpy.types.Panel):
         if props.mode == "TEXT":
             layout.prop(props, "text_endpoint")
             layout.prop(props, "prompt")
+        layout.prop(props, "enable_prompt_expansion")
         else:
             layout.prop(props, "image_endpoint")
             layout.prop(props, "image_source")
@@ -193,6 +195,7 @@ class FAL_PT_neural_render_panel(bpy.types.Panel):
             layout.prop(props, "refine_strength", slider=True)
 
         layout.prop(props, "prompt")
+        layout.prop(props, "enable_prompt_expansion")
 
         layout.prop(props, "use_scene_resolution")
         if not props.use_scene_resolution:
@@ -236,15 +239,18 @@ class FAL_PT_video_panel(bpy.types.Panel):
         if props.mode == "TEXT":
             layout.prop(props, "text_endpoint")
             layout.prop(props, "prompt")
+        layout.prop(props, "enable_prompt_expansion")
         elif props.mode == "IMAGE":
             layout.prop(props, "image_endpoint")
             layout.prop(props, "prompt")
+        layout.prop(props, "enable_prompt_expansion")
             layout.prop(props, "image_source")
             if props.image_source == "FILE":
                 layout.prop(props, "image_path")
         else:  # DEPTH
             layout.prop(props, "depth_endpoint")
             layout.prop(props, "prompt")
+        layout.prop(props, "enable_prompt_expansion")
             layout.prop(props, "use_scene_resolution")
 
             # Optional first-frame image
@@ -323,6 +329,7 @@ class FAL_PT_mesh_ops_panel(bpy.types.Panel):
         if props.mode == "RETEXTURE":
             layout.prop(props, "retexture_endpoint")
             layout.prop(props, "prompt")
+        layout.prop(props, "enable_prompt_expansion")
         else:
             layout.prop(props, "remesh_endpoint")
 
@@ -358,6 +365,7 @@ class FAL_PT_material_panel(bpy.types.Panel):
             layout.prop(props, "pbr_endpoint")
             layout.separator()
             layout.prop(props, "prompt")
+        layout.prop(props, "enable_prompt_expansion")
 
             row = layout.row(align=True)
             row.prop(props, "width")
@@ -379,6 +387,7 @@ class FAL_PT_material_panel(bpy.types.Panel):
             layout.prop(props, "tiling_endpoint")
             layout.separator()
             layout.prop(props, "prompt")
+        layout.prop(props, "enable_prompt_expansion")
 
             row = layout.row(align=True)
             row.prop(props, "width")

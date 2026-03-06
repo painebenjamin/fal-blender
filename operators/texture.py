@@ -30,6 +30,12 @@ class FalTextureProperties(bpy.types.PropertyGroup):
         description="Describe the texture you want to generate",
         default="",
     )
+    enable_prompt_expansion: bpy.props.BoolProperty(
+        name="Prompt Expansion",
+        description="Let the AI model expand and enhance your prompt for better results",
+        default=True,
+    )
+
 
     width: bpy.props.IntProperty(
         name="W",
