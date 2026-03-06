@@ -64,6 +64,49 @@ class FalGen3DProperties(bpy.types.PropertyGroup):
 
 
 # ---------------------------------------------------------------------------
+# Result handler (module-level — must not reference operator self)
+# ---------------------------------------------------------------------------
+def _handle_3d_result(job: FalJob, name: str):
+    """Process 3D generation result — download GLB and import."""
+    if job.status == "error":
+        print(f"fal.ai: 3D generation failed: {job.error}")
+        return
+
+    result = job.result or {}
+    model_url = None
+
+    for key in ["model_glb", "model_mesh", "model", "output", "mesh", "glb"]:
+        val = result.get(key)
+        if isinstance(val, dict) and "url" in val:
+            model_url = val["url"]
+            break
+        elif isinstance(val, str) and val.startswith("http"):
+            model_url = val
+            break
+
+    if not model_url and "model_urls" in result:
+        urls = result["model_urls"]
+        if isinstance(urls, dict):
+            for fmt in ("glb", "obj", "fbx", "usdz"):
+                fmt_val = urls.get(fmt)
+                if isinstance(fmt_val, dict) and "url" in fmt_val:
+                    model_url = fmt_val["url"]
+                    break
+                elif isinstance(fmt_val, str) and fmt_val.startswith("http"):
+                    model_url = fmt_val
+                    break
+
+    if not model_url:
+        print(f"fal.ai: No 3D model URL found in response keys: {list(result.keys())}")
+        return
+
+    local_path = download_file(model_url, suffix=".glb")
+    cursor_loc = tuple(bpy.context.scene.cursor.location)
+    objects = import_glb(local_path, name=f"fal_{name}", location=cursor_loc)
+    print(f"fal.ai: Imported {len(objects)} object(s) from 3D generation")
+
+
+# ---------------------------------------------------------------------------
 # Operator
 # ---------------------------------------------------------------------------
 class FAL_OT_generate_3d(bpy.types.Operator):
@@ -97,7 +140,7 @@ class FAL_OT_generate_3d(bpy.types.Operator):
 
         name = props.prompt[:30]
         def on_complete(job: FalJob):
-            FAL_OT_generate_3d._handle_3d_result(job, name)
+            _handle_3d_result(job, name)
 
         job = FalJob(
             endpoint=props.text_endpoint,
@@ -133,7 +176,7 @@ class FAL_OT_generate_3d(bpy.types.Operator):
         label = "3D from image"
 
         def on_complete(job: FalJob):
-            FAL_OT_generate_3d._handle_3d_result(job, "image_model")
+            _handle_3d_result(job, "image_model")
 
         job = FalJob(
             endpoint=props.image_endpoint,
@@ -145,60 +188,6 @@ class FAL_OT_generate_3d(bpy.types.Operator):
         self.report({"INFO"}, "Generating 3D model from image...")
         return {"FINISHED"}
 
-    @staticmethod
-    def _handle_3d_result(job: FalJob, name: str):
-        """Process 3D generation result — download GLB and import."""
-        if job.status == "error":
-            print(f"fal.ai: 3D generation failed: {job.error}")
-            return
-
-        result = job.result or {}
-
-        # Find GLB/model URL in result
-        # Meshy v6 format: {"model_glb": {"url": "..."}, "model_urls": {"fbx": {"url": "..."}, ...}}
-        model_url = None
-
-        # Check top-level keys that contain {"url": "..."} objects
-        for key in [
-            "model_glb", "model_mesh", "model", "output", "mesh", "glb",
-        ]:
-            val = result.get(key)
-            if isinstance(val, dict) and "url" in val:
-                model_url = val["url"]
-                break
-            elif isinstance(val, str) and val.startswith("http"):
-                model_url = val
-                break
-
-        # Check model_urls dict — Meshy nests format objects: {"glb": {"url": "..."}, "fbx": {"url": "..."}}
-        if not model_url and "model_urls" in result:
-            urls = result["model_urls"]
-            if isinstance(urls, dict):
-                for fmt in ("glb", "obj", "fbx", "usdz"):
-                    fmt_val = urls.get(fmt)
-                    if isinstance(fmt_val, dict) and "url" in fmt_val:
-                        model_url = fmt_val["url"]
-                        break
-                    elif isinstance(fmt_val, str) and fmt_val.startswith("http"):
-                        model_url = fmt_val
-                        break
-
-        if not model_url:
-            print(f"fal.ai: No 3D model URL found in response keys: {list(result.keys())}")
-            print(f"fal.ai: Full response: {result}")
-            return
-
-        # Download GLB
-        local_path = download_file(model_url, suffix=".glb")
-
-        # Import into scene
-        cursor_loc = tuple(bpy.context.scene.cursor.location)
-        objects = import_glb(
-            local_path,
-            name=f"fal_{name}",
-            location=cursor_loc,
-        )
-        print(f"fal.ai: Imported {len(objects)} object(s) from 3D generation")
 
 
 # ---------------------------------------------------------------------------

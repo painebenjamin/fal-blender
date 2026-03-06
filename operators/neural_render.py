@@ -19,6 +19,40 @@ from ..endpoints import (
 )
 from ..core.api import build_image_gen_args, download_file, resolve_endpoint, upload_image_file
 from ..core.job_queue import FalJob, JobManager
+from ..core.importers import import_image_to_editor, resize_image_to_target
+
+
+# ---------------------------------------------------------------------------
+# Result handler (module-level — must not reference operator self)
+# ---------------------------------------------------------------------------
+def _handle_neural_image_result(job: FalJob, render_w: int = 0, render_h: int = 0):
+    """Download generated image and load into Blender."""
+    if job.status == "error":
+        print(f"fal.ai: Neural render failed: {job.error}")
+        return
+
+    result = job.result or {}
+    image_url = None
+
+    if "images" in result and result["images"]:
+        image_url = result["images"][0].get("url")
+    elif "image" in result:
+        img = result["image"]
+        image_url = img.get("url") if isinstance(img, dict) else img
+    elif "output" in result:
+        out = result["output"]
+        if isinstance(out, dict) and "url" in out:
+            image_url = out["url"]
+
+    if not image_url:
+        print("fal.ai: No image in response")
+        return
+
+    local_path = download_file(image_url, suffix=".png")
+    if render_w > 0 and render_h > 0:
+        resize_image_to_target(local_path, render_w, render_h)
+    import_image_to_editor(local_path, name="fal_neural_render")
+    print("fal.ai: Neural render complete!")
 
 
 # ---------------------------------------------------------------------------
@@ -324,7 +358,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
 
         rw, rh = self._render_w, self._render_h
         def on_complete(job: FalJob):
-            FAL_OT_neural_render._handle_image_result(job, rw, rh)
+            _handle_neural_image_result(job, rw, rh)
 
         job = FalJob(
             endpoint=resolve_endpoint(self._endpoint, args),
@@ -492,7 +526,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
 
         rw, rh = self._render_w, self._render_h
         def on_complete(job: FalJob):
-            FAL_OT_neural_render._handle_image_result(job, rw, rh)
+            _handle_neural_image_result(job, rw, rh)
 
         job = FalJob(
             endpoint=resolve_endpoint(self._endpoint, args),
@@ -792,37 +826,6 @@ class FAL_OT_neural_render(bpy.types.Operator):
         img.save(image_path)
 
     # ── Result handling ────────────────────────────────────────────────
-
-    @staticmethod
-    def _handle_image_result(job: FalJob, render_w: int = 0, render_h: int = 0):
-        """Download generated image and load into Blender."""
-        if job.status == "error":
-            print(f"fal.ai: Neural render failed: {job.error}")
-            return
-
-        result = job.result or {}
-        image_url = None
-
-        if "images" in result and result["images"]:
-            image_url = result["images"][0].get("url")
-        elif "image" in result:
-            img = result["image"]
-            image_url = img.get("url") if isinstance(img, dict) else img
-        elif "output" in result:
-            out = result["output"]
-            if isinstance(out, dict) and "url" in out:
-                image_url = out["url"]
-
-        if not image_url:
-            print("fal.ai: No image in response")
-            return
-
-        local_path = download_file(image_url, suffix=".png")
-        from ..core.importers import import_image_to_editor, resize_image_to_target
-        if render_w > 0 and render_h > 0:
-            resize_image_to_target(local_path, render_w, render_h)
-        import_image_to_editor(local_path, name="fal_neural_render")
-        print("fal.ai: Neural render complete!")
 
 
 # ---------------------------------------------------------------------------

@@ -24,6 +24,54 @@ from ..core.api import download_file, upload_image_file, upload_video_file
 
 
 # ---------------------------------------------------------------------------
+# Result handler (module-level — must not reference operator self)
+# ---------------------------------------------------------------------------
+def _handle_video_result(job: FalJob):
+    """Download video result and import to VSE."""
+    if job.status == "error":
+        print(f"fal.ai: Video generation failed: {job.error}")
+        return
+
+    result = job.result or {}
+    video_url = None
+    for key in ["video", "output", "video_url"]:
+        val = result.get(key)
+        if isinstance(val, dict) and "url" in val:
+            video_url = val["url"]
+            break
+        elif isinstance(val, str) and val.startswith("http"):
+            video_url = val
+            break
+
+    if not video_url:
+        print("fal.ai: No video in response")
+        return
+
+    local_path = download_file(video_url, suffix=".mp4")
+    scene = bpy.context.scene
+    if not scene.sequence_editor:
+        scene.sequence_editor_create()
+
+    se = scene.sequence_editor
+    channel = 1
+    used_channels = (
+        {s.channel for s in se.sequences_all}
+        if se.sequences_all
+        else set()
+    )
+    while channel in used_channels:
+        channel += 1
+
+    se.sequences.new_movie(
+        name="fal_video",
+        filepath=local_path,
+        channel=channel,
+        frame_start=scene.frame_current,
+    )
+    print("fal.ai: Video imported to VSE!")
+
+
+# ---------------------------------------------------------------------------
 # Scene properties for video generation
 # ---------------------------------------------------------------------------
 class FalVideoProperties(bpy.types.PropertyGroup):
@@ -551,7 +599,7 @@ class FAL_OT_generate_video(bpy.types.Operator):
             args["resolution"] = self._resolution
 
         def on_complete(job: FalJob):
-            FAL_OT_generate_video._handle_video_result(job)
+            _handle_video_result(job)
 
         job = FalJob(
             endpoint=self._endpoint,
@@ -688,7 +736,7 @@ class FAL_OT_generate_video(bpy.types.Operator):
         }
 
         def on_complete(job: FalJob):
-            FAL_OT_generate_video._handle_video_result(job)
+            _handle_video_result(job)
 
         job = FalJob(
             endpoint=props.text_endpoint,
@@ -724,7 +772,7 @@ class FAL_OT_generate_video(bpy.types.Operator):
         }
 
         def on_complete(job: FalJob):
-            FAL_OT_generate_video._handle_video_result(job)
+            _handle_video_result(job)
 
         job = FalJob(
             endpoint=props.image_endpoint,

@@ -98,6 +98,35 @@ class FalAudioProperties(bpy.types.PropertyGroup):
 
 
 # ---------------------------------------------------------------------------
+# Result handler (module-level — must not reference operator self)
+# ---------------------------------------------------------------------------
+def _handle_audio_result(job: FalJob, name: str):
+    """Download audio result and add to VSE."""
+    if job.status == "error":
+        print(f"fal.ai: Audio generation failed: {job.error}")
+        return
+
+    result = job.result or {}
+    audio_url = None
+    for key in ["audio", "output", "audio_url", "audio_file"]:
+        val = result.get(key)
+        if isinstance(val, dict) and "url" in val:
+            audio_url = val["url"]
+            break
+        elif isinstance(val, str) and val.startswith("http"):
+            audio_url = val
+            break
+
+    if not audio_url:
+        print("fal.ai: No audio in response")
+        return
+
+    local_path = download_file(audio_url, suffix=".wav")
+    add_audio_to_vse(local_path, name=name)
+    print("fal.ai: Audio added to VSE!")
+
+
+# ---------------------------------------------------------------------------
 # Operator
 # ---------------------------------------------------------------------------
 class FAL_OT_generate_audio(bpy.types.Operator):
@@ -144,7 +173,7 @@ class FAL_OT_generate_audio(bpy.types.Operator):
             args["voice"] = props.voice_preset
 
         def on_complete(job: FalJob):
-            FAL_OT_generate_audio._handle_audio_result(job, "fal_tts")
+            _handle_audio_result(job, "fal_tts")
 
         job = FalJob(
             endpoint=props.tts_endpoint,
@@ -163,7 +192,7 @@ class FAL_OT_generate_audio(bpy.types.Operator):
         }
 
         def on_complete(job: FalJob):
-            FAL_OT_generate_audio._handle_audio_result(job, "fal_sfx")
+            _handle_audio_result(job, "fal_sfx")
 
         job = FalJob(
             endpoint=props.sfx_endpoint,
@@ -182,7 +211,7 @@ class FAL_OT_generate_audio(bpy.types.Operator):
         }
 
         def on_complete(job: FalJob):
-            FAL_OT_generate_audio._handle_audio_result(job, "fal_music")
+            _handle_audio_result(job, "fal_music")
 
         job = FalJob(
             endpoint=props.music_endpoint,
@@ -193,34 +222,6 @@ class FAL_OT_generate_audio(bpy.types.Operator):
         JobManager.get().submit(job)
         self.report({"INFO"}, "Generating music...")
         return {"FINISHED"}
-
-    @staticmethod
-    def _handle_audio_result(job: FalJob, name: str):
-        """Download audio result and add to VSE."""
-        if job.status == "error":
-            print(f"fal.ai: Audio generation failed: {job.error}")
-            return
-
-        result = job.result or {}
-
-        # Find audio URL in result
-        audio_url = None
-        for key in ["audio", "output", "audio_url", "audio_file"]:
-            val = result.get(key)
-            if isinstance(val, dict) and "url" in val:
-                audio_url = val["url"]
-                break
-            elif isinstance(val, str) and val.startswith("http"):
-                audio_url = val
-                break
-
-        if not audio_url:
-            print("fal.ai: No audio in response")
-            return
-
-        local_path = download_file(audio_url, suffix=".wav")
-        add_audio_to_vse(local_path, name=name)
-        print("fal.ai: Audio added to VSE!")
 
 
 # ---------------------------------------------------------------------------

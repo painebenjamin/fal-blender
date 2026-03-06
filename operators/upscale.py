@@ -66,6 +66,52 @@ class FalUpscaleProperties(bpy.types.PropertyGroup):
 
 
 # ---------------------------------------------------------------------------
+# Result helpers (module-level — must not reference operator self)
+# ---------------------------------------------------------------------------
+def _find_result_url(result: dict, is_video: bool) -> str | None:
+    for key in ["video", "output", "image"]:
+        val = result.get(key)
+        if isinstance(val, dict) and "url" in val:
+            return val["url"]
+        elif isinstance(val, str) and val.startswith("http"):
+            return val
+    if "images" in result and result["images"]:
+        first = result["images"][0]
+        if isinstance(first, dict) and "url" in first:
+            return first["url"]
+        elif isinstance(first, str):
+            return first
+    return None
+
+
+def _import_upscaled_image(local_path: str):
+    img = bpy.data.images.load(local_path)
+    img.name = "fal_upscaled"
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type == "IMAGE_EDITOR":
+                area.spaces.active.image = img
+                break
+
+
+def _add_video_to_vse(local_path: str):
+    scene = bpy.context.scene
+    if not scene.sequence_editor:
+        scene.sequence_editor_create()
+    se = scene.sequence_editor
+    channel = 1
+    used = {s.channel for s in se.sequences_all} if se.sequences_all else set()
+    while channel in used:
+        channel += 1
+    se.sequences.new_movie(
+        name="fal_upscaled",
+        filepath=local_path,
+        channel=channel,
+        frame_start=scene.frame_current,
+    )
+
+
+# ---------------------------------------------------------------------------
 # Operator
 # ---------------------------------------------------------------------------
 class FAL_OT_upscale(bpy.types.Operator):
@@ -108,7 +154,7 @@ class FAL_OT_upscale(bpy.types.Operator):
                 return
 
             result = job.result or {}
-            result_url = FAL_OT_upscale._find_result_url(result, is_video)
+            result_url = _find_result_url(result, is_video)
             if not result_url:
                 print("fal.ai: No output in upscale response")
                 return
@@ -117,10 +163,10 @@ class FAL_OT_upscale(bpy.types.Operator):
             local_path = download_file(result_url, suffix=suffix)
 
             if is_video:
-                FAL_OT_upscale._add_video_to_vse(local_path)
+                _add_video_to_vse(local_path)
                 print("fal.ai: Upscaled video added to VSE")
             else:
-                FAL_OT_upscale._import_upscaled_image(local_path)
+                _import_upscaled_image(local_path)
                 print("fal.ai: Upscaled image loaded")
 
         job = FalJob(
@@ -132,8 +178,6 @@ class FAL_OT_upscale(bpy.types.Operator):
         JobManager.get().submit(job)
         self.report({"INFO"}, f"Upscaling {mode_str}...")
         return {"FINISHED"}
-
-    # ── Helpers ────────────────────────────────────────────────────────
 
     def _get_source_url(self, props) -> str:
         """Resolve the source to a fal CDN URL."""
@@ -155,51 +199,11 @@ class FAL_OT_upscale(bpy.types.Operator):
             return upload_blender_image(img)
         raise RuntimeError("Unknown source type")
 
-    @staticmethod
-    def _find_result_url(result: dict, is_video: bool) -> str | None:
-        """Extract output URL from result dict."""
-        for key in ["video", "output", "image"]:
-            val = result.get(key)
-            if isinstance(val, dict) and "url" in val:
-                return val["url"]
-            elif isinstance(val, str) and val.startswith("http"):
-                return val
-        if "images" in result and result["images"]:
-            first = result["images"][0]
-            if isinstance(first, dict) and "url" in first:
-                return first["url"]
-            elif isinstance(first, str):
-                return first
-        return None
 
-    @staticmethod
-    def _import_upscaled_image(local_path: str):
-        """Load upscaled image as a Blender Image datablock."""
-        img = bpy.data.images.load(local_path)
-        img.name = "fal_upscaled"
-        for window in bpy.context.window_manager.windows:
-            for area in window.screen.areas:
-                if area.type == "IMAGE_EDITOR":
-                    area.spaces.active.image = img
-                    break
 
-    @staticmethod
-    def _add_video_to_vse(local_path: str):
-        """Add upscaled video to the VSE."""
-        scene = bpy.context.scene
-        if not scene.sequence_editor:
-            scene.sequence_editor_create()
-        se = scene.sequence_editor
-        channel = 1
-        used = {s.channel for s in se.sequences_all} if se.sequences_all else set()
-        while channel in used:
-            channel += 1
-        se.sequences.new_movie(
-            name="fal_upscaled",
-            filepath=local_path,
-            channel=channel,
-            frame_start=scene.frame_current,
-        )
+
+
+
 
 
 # ---------------------------------------------------------------------------
