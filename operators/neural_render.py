@@ -322,8 +322,9 @@ class FAL_OT_neural_render(bpy.types.Operator):
         if self._seed >= 0:
             args["seed"] = self._seed
 
+        rw, rh = self._render_w, self._render_h
         def on_complete(job: FalJob):
-            self._handle_image_result(job)
+            FAL_OT_neural_render._handle_image_result(job, rw, rh)
 
         job = FalJob(
             endpoint=resolve_endpoint(self._endpoint, args),
@@ -489,8 +490,9 @@ class FAL_OT_neural_render(bpy.types.Operator):
             },
         )
 
+        rw, rh = self._render_w, self._render_h
         def on_complete(job: FalJob):
-            self._handle_image_result(job)
+            FAL_OT_neural_render._handle_image_result(job, rw, rh)
 
         job = FalJob(
             endpoint=resolve_endpoint(self._endpoint, args),
@@ -791,10 +793,11 @@ class FAL_OT_neural_render(bpy.types.Operator):
 
     # ── Result handling ────────────────────────────────────────────────
 
-    def _handle_image_result(self, job: FalJob):
+    @staticmethod
+    def _handle_image_result(job: FalJob, render_w: int = 0, render_h: int = 0):
         """Download generated image and load into Blender."""
         if job.status == "error":
-            self.report({"ERROR"}, f"Neural render failed: {job.error}")
+            print(f"fal.ai: Neural render failed: {job.error}")
             return
 
         result = job.result or {}
@@ -811,14 +814,15 @@ class FAL_OT_neural_render(bpy.types.Operator):
                 image_url = out["url"]
 
         if not image_url:
-            self.report({"ERROR"}, "No image in response")
+            print("fal.ai: No image in response")
             return
 
         local_path = download_file(image_url, suffix=".png")
         from ..core.importers import import_image_to_editor, resize_image_to_target
-        resize_image_to_target(local_path, self._render_w, self._render_h)
+        if render_w > 0 and render_h > 0:
+            resize_image_to_target(local_path, render_w, render_h)
         import_image_to_editor(local_path, name="fal_neural_render")
-        self.report({"INFO"}, "Neural render complete!")
+        print("fal.ai: Neural render complete!")
 
 
 # ---------------------------------------------------------------------------

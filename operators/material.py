@@ -249,7 +249,7 @@ class FAL_OT_generate_material(bpy.types.Operator):
 
         def on_tiling_complete(job: FalJob):
             if job.status == "error":
-                self.report({"ERROR"}, f"Tiling failed: {job.error}")
+                print(f"fal.ai: Tiling failed: {job.error}")
                 return
 
             result = job.result or {}
@@ -258,7 +258,7 @@ class FAL_OT_generate_material(bpy.types.Operator):
                 image_url = result["images"][0].get("url")
 
             if not image_url:
-                self.report({"ERROR"}, "No image in tiling response")
+                print("fal.ai: No image in tiling response")
                 return
 
             # Now run CHORD PBR on the generated texture
@@ -269,12 +269,12 @@ class FAL_OT_generate_material(bpy.types.Operator):
 
             def on_pbr_complete(pbr_job: FalJob):
                 if pbr_job.status == "error":
-                    self.report({"ERROR"}, f"PBR failed: {pbr_job.error}")
+                    print(f"fal.ai: PBR failed: {pbr_job.error}")
                     return
 
                 pbr_result = pbr_job.result or {}
                 _finish_pbr(
-                    self, pbr_result, target_obj_name,
+                    pbr_result, target_obj_name,
                     f"fal_{prompt_short}",
                 )
 
@@ -303,7 +303,7 @@ class FAL_OT_generate_material(bpy.types.Operator):
         else:
             img = bpy.data.images.get(props.texture_name)
             if not img:
-                self.report({"ERROR"}, f"Image '{props.texture_name}' not found")
+                print(f"fal.ai: Image '{props.texture_name}' not found")
                 return
             image_url = upload_blender_image(img)
 
@@ -316,10 +316,10 @@ class FAL_OT_generate_material(bpy.types.Operator):
 
         def on_pbr_complete(job: FalJob):
             if job.status == "error":
-                self.report({"ERROR"}, f"PBR failed: {job.error}")
+                print(f"fal.ai: PBR failed: {job.error}")
                 return
             _finish_pbr(
-                self, job.result or {}, target_obj_name,
+                job.result or {}, target_obj_name,
                 f"fal_{prompt_short}",
             )
 
@@ -348,7 +348,7 @@ class FAL_OT_generate_material(bpy.types.Operator):
 
         def on_complete(job: FalJob):
             if job.status == "error":
-                self.report({"ERROR"}, f"Tiling failed: {job.error}")
+                print(f"fal.ai: Tiling failed: {job.error}")
                 return
 
             result = job.result or {}
@@ -357,7 +357,7 @@ class FAL_OT_generate_material(bpy.types.Operator):
                 image_url = result["images"][0].get("url")
 
             if not image_url:
-                self.report({"ERROR"}, "No image in response")
+                print("fal.ai: No image in response")
                 return
 
             local_path = download_file(image_url, suffix=".png")
@@ -366,7 +366,7 @@ class FAL_OT_generate_material(bpy.types.Operator):
                 if target_obj_name else None
             )
             _apply_simple_texture(obj, local_path, f"fal_{prompt_short}")
-            self.report({"INFO"}, "Tiling texture applied!")
+            print("fal.ai: Tiling texture applied!")
 
         job = FalJob(
             endpoint=resolve_endpoint(props.tiling_endpoint, args),
@@ -379,7 +379,6 @@ class FAL_OT_generate_material(bpy.types.Operator):
 
 
 def _finish_pbr(
-    operator,
     result: dict,
     target_obj_name: str | None,
     name: str,
@@ -390,7 +389,7 @@ def _finish_pbr(
         entry = result.get(map_name, {})
         url = entry.get("url") if isinstance(entry, dict) else None
         if not url:
-            operator.report({"ERROR"}, f"Missing {map_name} map in response")
+            print(f"fal.ai: Missing {map_name} map in response")
             return
         map_urls[map_name] = url
 
@@ -404,7 +403,7 @@ def _finish_pbr(
         if target_obj_name else None
     )
     if not obj:
-        operator.report({"WARNING"}, "No active object — PBR maps downloaded but not applied")
+        print("fal.ai: No active object — PBR maps downloaded but not applied")
         return
 
     _apply_pbr_material(
@@ -415,7 +414,7 @@ def _finish_pbr(
         metalness_path=local_paths["metalness"],
         name=name,
     )
-    operator.report({"INFO"}, "PBR material applied!")
+    print("fal.ai: PBR material applied!")
 
 
 # ---------------------------------------------------------------------------

@@ -104,24 +104,24 @@ class FAL_OT_upscale(bpy.types.Operator):
 
         def on_complete(job: FalJob):
             if job.status == "error":
-                self.report({"ERROR"}, f"Upscale failed: {job.error}")
+                print(f"fal.ai: Upscale failed: {job.error}")
                 return
 
             result = job.result or {}
-            result_url = self._find_result_url(result, is_video)
+            result_url = FAL_OT_upscale._find_result_url(result, is_video)
             if not result_url:
-                self.report({"ERROR"}, "No output in upscale response")
+                print("fal.ai: No output in upscale response")
                 return
 
             suffix = ".mp4" if is_video else ".png"
             local_path = download_file(result_url, suffix=suffix)
 
             if is_video:
-                self._add_video_to_vse(local_path)
-                self.report({"INFO"}, "Upscaled video added to VSE")
+                FAL_OT_upscale._add_video_to_vse(local_path)
+                print("fal.ai: Upscaled video added to VSE")
             else:
-                self._import_upscaled_image(local_path)
-                self.report({"INFO"}, "Upscaled image loaded")
+                FAL_OT_upscale._import_upscaled_image(local_path)
+                print("fal.ai: Upscaled image loaded")
 
         job = FalJob(
             endpoint=endpoint,

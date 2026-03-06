@@ -89,7 +89,7 @@ class FAL_OT_mesh_ops(bpy.types.Operator):
             label = f"Remesh: {obj_name}"
 
         def on_complete(job: FalJob):
-            self._handle_result(job, obj_name)
+            FAL_OT_mesh_ops._handle_result(job, obj_name)
 
         job = FalJob(
             endpoint=endpoint,
@@ -101,10 +101,11 @@ class FAL_OT_mesh_ops(bpy.types.Operator):
         self.report({"INFO"}, f"Processing mesh ({props.mode.lower()})...")
         return {"FINISHED"}
 
-    def _handle_result(self, job: FalJob, original_name: str):
+    @staticmethod
+    def _handle_result(job: FalJob, original_name: str):
         """Download result GLB and import."""
         if job.status == "error":
-            self.report({"ERROR"}, f"Mesh operation failed: {job.error}")
+            print(f"fal.ai: Mesh operation failed: {job.error}")
             return
 
         result = job.result or {}
@@ -128,7 +129,7 @@ class FAL_OT_mesh_ops(bpy.types.Operator):
                 model_url = urls[0]
 
         if not model_url:
-            self.report({"ERROR"}, "No model in response")
+            print("fal.ai: No model in response")
             return
 
         local_path = download_file(model_url, suffix=".glb")
@@ -140,10 +141,7 @@ class FAL_OT_mesh_ops(bpy.types.Operator):
             name=f"fal_{original_name}",
             location=cursor_loc,
         )
-        self.report(
-            {"INFO"},
-            f"Imported {len(objects)} object(s) from mesh operation",
-        )
+        print(f"fal.ai: Imported {len(objects)} object(s) from mesh operation")
 
 
 # ---------------------------------------------------------------------------

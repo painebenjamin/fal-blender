@@ -95,8 +95,9 @@ class FAL_OT_generate_3d(bpy.types.Operator):
         args = {"prompt": props.prompt}
         label = f"3D: {props.prompt[:30]}"
 
+        name = props.prompt[:30]
         def on_complete(job: FalJob):
-            self._handle_3d_result(job, props.prompt[:30])
+            FAL_OT_generate_3d._handle_3d_result(job, name)
 
         job = FalJob(
             endpoint=props.text_endpoint,
@@ -132,7 +133,7 @@ class FAL_OT_generate_3d(bpy.types.Operator):
         label = "3D from image"
 
         def on_complete(job: FalJob):
-            self._handle_3d_result(job, "image_model")
+            FAL_OT_generate_3d._handle_3d_result(job, "image_model")
 
         job = FalJob(
             endpoint=props.image_endpoint,
@@ -144,10 +145,11 @@ class FAL_OT_generate_3d(bpy.types.Operator):
         self.report({"INFO"}, "Generating 3D model from image...")
         return {"FINISHED"}
 
-    def _handle_3d_result(self, job: FalJob, name: str):
+    @staticmethod
+    def _handle_3d_result(job: FalJob, name: str):
         """Process 3D generation result — download GLB and import."""
         if job.status == "error":
-            self.report({"ERROR"}, f"3D generation failed: {job.error}")
+            print(f"fal.ai: 3D generation failed: {job.error}")
             return
 
         result = job.result or {}
@@ -182,8 +184,8 @@ class FAL_OT_generate_3d(bpy.types.Operator):
                         break
 
         if not model_url:
-            print(f"fal.ai ERROR: No 3D model URL found in response keys: {list(result.keys())}")
-            print(f"fal.ai ERROR: Full response: {result}")
+            print(f"fal.ai: No 3D model URL found in response keys: {list(result.keys())}")
+            print(f"fal.ai: Full response: {result}")
             return
 
         # Download GLB
@@ -196,10 +198,7 @@ class FAL_OT_generate_3d(bpy.types.Operator):
             name=f"fal_{name}",
             location=cursor_loc,
         )
-        self.report(
-            {"INFO"},
-            f"Imported {len(objects)} object(s) from 3D generation",
-        )
+        print(f"fal.ai: Imported {len(objects)} object(s) from 3D generation")
 
 
 # ---------------------------------------------------------------------------

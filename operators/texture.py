@@ -93,7 +93,7 @@ class FAL_OT_generate_texture(bpy.types.Operator):
 
         def on_complete(job: FalJob):
             if job.status == "error":
-                self.report({"ERROR"}, f"Generation failed: {job.error}")
+                print(f"fal.ai: Generation failed: {job.error}")
                 return
 
             # Find image URL in result
@@ -112,7 +112,7 @@ class FAL_OT_generate_texture(bpy.types.Operator):
                     image_url = out["url"]
 
             if not image_url:
-                self.report({"ERROR"}, "No image in response")
+                print("fal.ai: No image in response")
                 return
 
             # Download image
@@ -139,7 +139,7 @@ class FAL_OT_generate_texture(bpy.types.Operator):
                 name=f"fal_{props.prompt[:20]}",
                 apply_to_selected=obj is not None,
             )
-            self.report({"INFO"}, "Texture applied!")
+            print("fal.ai: Texture applied!")
 
         job = FalJob(
             endpoint=resolve_endpoint(props.endpoint, args),

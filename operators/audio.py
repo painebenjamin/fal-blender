@@ -144,7 +144,7 @@ class FAL_OT_generate_audio(bpy.types.Operator):
             args["voice"] = props.voice_preset
 
         def on_complete(job: FalJob):
-            self._handle_audio_result(job, "fal_tts")
+            FAL_OT_generate_audio._handle_audio_result(job, "fal_tts")
 
         job = FalJob(
             endpoint=props.tts_endpoint,
@@ -163,7 +163,7 @@ class FAL_OT_generate_audio(bpy.types.Operator):
         }
 
         def on_complete(job: FalJob):
-            self._handle_audio_result(job, "fal_sfx")
+            FAL_OT_generate_audio._handle_audio_result(job, "fal_sfx")
 
         job = FalJob(
             endpoint=props.sfx_endpoint,
@@ -182,7 +182,7 @@ class FAL_OT_generate_audio(bpy.types.Operator):
         }
 
         def on_complete(job: FalJob):
-            self._handle_audio_result(job, "fal_music")
+            FAL_OT_generate_audio._handle_audio_result(job, "fal_music")
 
         job = FalJob(
             endpoint=props.music_endpoint,
@@ -194,10 +194,11 @@ class FAL_OT_generate_audio(bpy.types.Operator):
         self.report({"INFO"}, "Generating music...")
         return {"FINISHED"}
 
-    def _handle_audio_result(self, job: FalJob, name: str):
+    @staticmethod
+    def _handle_audio_result(job: FalJob, name: str):
         """Download audio result and add to VSE."""
         if job.status == "error":
-            self.report({"ERROR"}, f"Audio generation failed: {job.error}")
+            print(f"fal.ai: Audio generation failed: {job.error}")
             return
 
         result = job.result or {}
@@ -214,12 +215,12 @@ class FAL_OT_generate_audio(bpy.types.Operator):
                 break
 
         if not audio_url:
-            self.report({"ERROR"}, "No audio in response")
+            print("fal.ai: No audio in response")
             return
 
         local_path = download_file(audio_url, suffix=".wav")
         add_audio_to_vse(local_path, name=name)
-        self.report({"INFO"}, "Audio added to VSE!")
+        print("fal.ai: Audio added to VSE!")
 
 
 # ---------------------------------------------------------------------------

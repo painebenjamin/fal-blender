@@ -551,7 +551,7 @@ class FAL_OT_generate_video(bpy.types.Operator):
             args["resolution"] = self._resolution
 
         def on_complete(job: FalJob):
-            self._handle_video_result(job)
+            FAL_OT_generate_video._handle_video_result(job)
 
         job = FalJob(
             endpoint=self._endpoint,
@@ -688,7 +688,7 @@ class FAL_OT_generate_video(bpy.types.Operator):
         }
 
         def on_complete(job: FalJob):
-            self._handle_video_result(job)
+            FAL_OT_generate_video._handle_video_result(job)
 
         job = FalJob(
             endpoint=props.text_endpoint,
@@ -724,7 +724,7 @@ class FAL_OT_generate_video(bpy.types.Operator):
         }
 
         def on_complete(job: FalJob):
-            self._handle_video_result(job)
+            FAL_OT_generate_video._handle_video_result(job)
 
         job = FalJob(
             endpoint=props.image_endpoint,
@@ -738,10 +738,11 @@ class FAL_OT_generate_video(bpy.types.Operator):
 
     # ── Result handling ────────────────────────────────────────────────
 
-    def _handle_video_result(self, job: FalJob):
+    @staticmethod
+    def _handle_video_result(job: FalJob):
         """Download video result and import to VSE."""
         if job.status == "error":
-            self.report({"ERROR"}, f"Video generation failed: {job.error}")
+            print(f"fal.ai: Video generation failed: {job.error}")
             return
 
         result = job.result or {}
@@ -757,7 +758,7 @@ class FAL_OT_generate_video(bpy.types.Operator):
                 break
 
         if not video_url:
-            self.report({"ERROR"}, "No video in response")
+            print("fal.ai: No video in response")
             return
 
         local_path = download_file(video_url, suffix=".mp4")
@@ -783,7 +784,7 @@ class FAL_OT_generate_video(bpy.types.Operator):
             channel=channel,
             frame_start=scene.frame_current,
         )
-        self.report({"INFO"}, "Video imported to VSE!")
+        print("fal.ai: Video imported to VSE!")
 
 
 # ---------------------------------------------------------------------------
