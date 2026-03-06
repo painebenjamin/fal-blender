@@ -102,6 +102,25 @@ DEPTH_CONTROL_ENDPOINTS: list[EndpointDef] = [
     ),
 ]
 
+
+# ---------------------------------------------------------------------------
+# Refine (image-to-image) — render normally, then refine via AI
+# ---------------------------------------------------------------------------
+REFINE_ENDPOINTS: list[EndpointDef] = [
+    EndpointDef(
+        "fal-ai/z-image/turbo/image-to-image",
+        "z-image Turbo img2img",
+        resolution_mode=ResolutionMode.PIXELS,
+        notes="Fast image-to-image refinement with strength control",
+    ),
+    EndpointDef(
+        "fal-ai/flux/dev/image-to-image",
+        "FLUX.1 [dev] img2img",
+        resolution_mode=ResolutionMode.PIXELS,
+        notes="High quality image-to-image with FLUX",
+    ),
+]
+
 # ---------------------------------------------------------------------------
 # 3D Generation
 # ---------------------------------------------------------------------------

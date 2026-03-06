@@ -15,6 +15,7 @@ import bpy  # type: ignore[import-not-found]
 from ..endpoints import (
     DEPTH_CONTROL_ENDPOINTS,
     IMAGE_GENERATION_ENDPOINTS,
+    REFINE_ENDPOINTS,
     endpoint_items,
 )
 from ..core.api import build_image_gen_args, download_file, resolve_endpoint, upload_image_file
@@ -64,6 +65,7 @@ class FalNeuralRenderProperties(bpy.types.PropertyGroup):
         items=[
             ("DEPTH", "Depth", "Render depth pass and generate image via depth ControlNet"),
             ("SKETCH", "Sketch", "Render scene and reimagine via image generation"),
+            ("REFINE", "Refine", "Render normally then refine via image-to-image AI"),
         ],
         default="DEPTH",
     )
@@ -78,6 +80,22 @@ class FalNeuralRenderProperties(bpy.types.PropertyGroup):
         name="Sketch Endpoint",
         items=endpoint_items(IMAGE_GENERATION_ENDPOINTS),
         description="Endpoint for sketch reimagining",
+    )
+
+    refine_endpoint: bpy.props.EnumProperty(
+        name="Refine Endpoint",
+        items=endpoint_items(REFINE_ENDPOINTS),
+        description="Endpoint for image-to-image refinement",
+    )
+
+    refine_strength: bpy.props.FloatProperty(
+        name="Strength",
+        description="How much AI changes the render (0 = no change, 1 = full reimagine)",
+        default=0.35,
+        min=0.0,
+        max=1.0,
+        step=5,
+        precision=2,
     )
 
     prompt: bpy.props.StringProperty(
@@ -173,9 +191,13 @@ class FAL_OT_neural_render(bpy.types.Operator):
         self._mode = props.mode
         self._prompt = props.prompt
         self._seed = props.seed
-        self._endpoint = (
-            props.depth_endpoint if self._mode == "DEPTH" else props.sketch_endpoint
-        )
+        if self._mode == "DEPTH":
+            self._endpoint = props.depth_endpoint
+        elif self._mode == "SKETCH":
+            self._endpoint = props.sketch_endpoint
+        else:
+            self._endpoint = props.refine_endpoint
+        self._refine_strength = props.refine_strength
         self._enable_labels = props.enable_labels
         self._auto_label = props.auto_label
         self._render_w, self._render_h = self._get_dimensions(context, props)
@@ -194,8 +216,10 @@ class FAL_OT_neural_render(bpy.types.Operator):
         try:
             if self._mode == "DEPTH":
                 self._setup_depth(context)
-            else:
+            elif self._mode == "SKETCH":
                 self._setup_sketch(context)
+            else:
+                self._setup_refine(context)
         except Exception as e:
             self._restore_state(context)
             self.report({"ERROR"}, f"Render setup failed: {e}")
@@ -237,8 +261,10 @@ class FAL_OT_neural_render(bpy.types.Operator):
         # Render succeeded — save result, restore scene, upload & submit
         if self._mode == "DEPTH":
             self._finish_depth(context)
-        else:
+        elif self._mode == "SKETCH":
             self._finish_sketch(context)
+        else:
+            self._finish_refine(context)
 
         return {"FINISHED"}
 
@@ -543,6 +569,71 @@ class FAL_OT_neural_render(bpy.types.Operator):
         )
         JobManager.get().submit(job)
         self.report({"INFO"}, "Sketch rendered — generating image...")
+
+
+    # ── Refine Mode — setup / finish ───────────────────────────────────
+
+    def _setup_refine(self, context):
+        """Configure scene for a normal render (no scene modifications needed)."""
+        scene = context.scene
+
+        # Save render settings so we can restore after
+        self._saved.update({
+            "res_x": scene.render.resolution_x,
+            "res_y": scene.render.resolution_y,
+            "res_pct": scene.render.resolution_percentage,
+        })
+
+        # Set resolution
+        scene.render.resolution_x = self._render_w
+        scene.render.resolution_y = self._render_h
+        scene.render.resolution_percentage = 100
+
+    def _finish_refine(self, context):
+        """Save normal render, restore scene, upload and submit for img2img."""
+        render_img = bpy.data.images.get("Render Result")
+        if not render_img:
+            self._restore_state(context)
+            self.report({"ERROR"}, "Render failed — no result")
+            return
+
+        tmp = tempfile.NamedTemporaryFile(
+            suffix=".png", delete=False, prefix="fal_refine_"
+        ).name
+        render_img.save_render(tmp)
+        print(f"fal.ai: Render saved for refinement: {tmp}")
+
+        # Restore scene state
+        self._restore_state(context)
+
+        # Upload and submit to img2img endpoint
+        image_url = upload_image_file(tmp)
+        args = {
+            "prompt": self._prompt,
+            "image_url": image_url,
+            "strength": self._refine_strength,
+        }
+        if self._seed >= 0:
+            args["seed"] = self._seed
+
+        # Add width/height for endpoints that accept them
+        from ..endpoints import snap_to_mod16
+        w, h = snap_to_mod16(self._render_w, self._render_h)
+        args["width"] = w
+        args["height"] = h
+
+        rw, rh = self._render_w, self._render_h
+        def on_complete(job: FalJob):
+            _handle_neural_image_result(job, rw, rh)
+
+        job = FalJob(
+            endpoint=resolve_endpoint(self._endpoint, args),
+            arguments=args,
+            on_complete=on_complete,
+            label=f"Neural Refine: {self._prompt[:30]}",
+        )
+        JobManager.get().submit(job)
+        self.report({"INFO"}, f"Render complete — refining (strength={self._refine_strength:.0%})...")
 
     # ── Unified state restoration ──────────────────────────────────────
 
