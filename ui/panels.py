@@ -244,6 +244,18 @@ class FAL_PT_video_panel(bpy.types.Panel):
             layout.prop(props, "prompt")
             layout.prop(props, "use_scene_resolution")
 
+            # Optional first-frame image
+            layout.separator()
+            layout.prop(props, "depth_use_first_frame")
+            if props.depth_use_first_frame:
+                layout.prop(props, "depth_image_source")
+                if props.depth_image_source == "FILE":
+                    layout.prop(props, "depth_image_path")
+                elif props.depth_image_source == "TEXTURE":
+                    layout.prop_search(props, "depth_texture_name", bpy.data, "images")
+                else:  # RENDER
+                    layout.label(text="Will use current Render Result", icon="INFO")
+
         # Duration
         layout.prop(props, "use_scene_duration")
         if props.use_scene_duration:

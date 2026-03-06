@@ -93,6 +93,35 @@ class FalVideoProperties(bpy.types.PropertyGroup):
         default="",
     )
 
+    # Depth mode: optional first-frame image
+    depth_use_first_frame: bpy.props.BoolProperty(
+        name="Use First Frame Image",
+        description="Provide a reference image as the first frame for depth video",
+        default=False,
+    )
+
+    depth_image_source: bpy.props.EnumProperty(
+        name="First Frame Source",
+        items=[
+            ("FILE", "File", "Load image from disk"),
+            ("RENDER", "Render Result", "Use the current render result"),
+            ("TEXTURE", "Blender Texture", "Use an existing Blender image"),
+        ],
+        default="RENDER",
+    )
+
+    depth_image_path: bpy.props.StringProperty(
+        name="First Frame",
+        description="Path to the first frame image",
+        subtype="FILE_PATH",
+        default="",
+    )
+
+    depth_texture_name: bpy.props.StringProperty(
+        name="First Frame Texture",
+        description="Blender image to use as first frame",
+    )
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -447,6 +476,30 @@ class FAL_OT_generate_video(bpy.types.Operator):
         self.report({"INFO"}, f"Generating {duration}s video from image...")
         return {"FINISHED"}
 
+    def _get_depth_first_frame_url(self, props) -> str | None:
+        """Upload the first-frame image for depth video and return its URL."""
+        try:
+            if props.depth_image_source == "FILE":
+                if not props.depth_image_path.strip():
+                    return None
+                return upload_image_file(props.depth_image_path)
+            elif props.depth_image_source == "TEXTURE":
+                img = bpy.data.images.get(props.depth_texture_name)
+                if not img:
+                    return None
+                from ..core.api import upload_blender_image
+                return upload_blender_image(img)
+            else:  # RENDER
+                render_img = bpy.data.images.get("Render Result")
+                if not render_img:
+                    self.report({"WARNING"}, "No render result available for first frame")
+                    return None
+                from ..core.api import upload_blender_image
+                return upload_blender_image(render_img)
+        except Exception as e:
+            self.report({"WARNING"}, f"Failed to upload first frame: {e}")
+            return None
+
     def _depth_video(self, context, props) -> set[str]:
         """Render depth animation, upload as video, submit to depth endpoint."""
         scene = context.scene
@@ -481,6 +534,12 @@ class FAL_OT_generate_video(bpy.types.Operator):
         if ep and ep.default_params:
             for k, v in ep.default_params.items():
                 args.setdefault(k, v)
+
+        # Optional first-frame image
+        if props.depth_use_first_frame:
+            image_url = self._get_depth_first_frame_url(props)
+            if image_url:
+                args["image_url"] = image_url
 
         # Add resolution if using scene settings
         if props.use_scene_resolution:
