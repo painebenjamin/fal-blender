@@ -275,20 +275,23 @@ class JobManager:
         """Timer callback — runs on the main thread."""
         done_ids = []
 
-        for job_id, job in self.jobs.items():
-            if job.is_done:
-                done_ids.append(job_id)
-                self.history.append(job)
-                if len(self.history) > self._max_history:
-                    self.history.pop(0)
-                try:
-                    job.on_complete(job)
-                except Exception as e:
-                    print(f"fal.ai: Error in completion handler: {e}")
-                    traceback.print_exc()
+        # Snapshot keys — on_complete handlers may submit new jobs
+        for job_id in list(self.jobs):
+            job = self.jobs.get(job_id)
+            if job is None or not job.is_done:
+                continue
+            done_ids.append(job_id)
+            self.history.append(job)
+            if len(self.history) > self._max_history:
+                self.history.pop(0)
+            try:
+                job.on_complete(job)
+            except Exception as e:
+                print(f"fal.ai: Error in completion handler: {e}")
+                traceback.print_exc()
 
         for jid in done_ids:
-            del self.jobs[jid]
+            self.jobs.pop(jid, None)
 
         if self.jobs:
             try:
