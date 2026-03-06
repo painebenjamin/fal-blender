@@ -60,14 +60,26 @@ IMAGE_GENERATION_ENDPOINTS: list[EndpointDef] = [
 # Tiled Texture Generation
 # ---------------------------------------------------------------------------
 TILING_ENDPOINTS: list[EndpointDef] = [
-    # TODO: Dedicated tiling endpoint (multi-diffusion)
+    EndpointDef(
+        "painebenjamin/z-image-turbo-seamless-tiling",
+        "Z-Image Turbo Seamless Tiling",
+        resolution_mode=ResolutionMode.PIXELS,
+        default_params={"tile_size": 64, "tile_stride": 32},
+        notes="Generates seamlessly tileable textures via multi-diffusion",
+    ),
 ]
 
 # ---------------------------------------------------------------------------
-# PBR Material (diffuse → normal/roughness/metallic)
+# PBR Material (texture -> basecolor/normal/roughness/metalness)
 # ---------------------------------------------------------------------------
 PBR_ENDPOINTS: list[EndpointDef] = [
-    # TODO: Dedicated PBR endpoint
+    EndpointDef(
+        "painebenjamin/chord-pbr",
+        "CHORD PBR (Ubisoft)",
+        resolution_mode=ResolutionMode.PIXELS,
+        supports_seed=False,
+        notes="Estimates PBR maps from a single texture image (research-only)",
+    ),
 ]
 
 # ---------------------------------------------------------------------------

@@ -25,6 +25,7 @@ class FalSceneProperties(bpy.types.PropertyGroup):
             ("UPSCALE", "Upscale", "AI upscaling", "FULLSCREEN_ENTER", 4),
             ("AUDIO", "Audio", "Audio generation", "SOUND", 5),
             ("MESHOPS", "Mesh Ops", "3D-to-3D operations", "MOD_REMESH", 6),
+            ("MATERIAL", "Material", "PBR material generation", "MATERIAL", 7),
         ],
         default="TEXTURE",
     )
@@ -183,10 +184,10 @@ class FAL_PT_neural_render_panel(bpy.types.Panel):
         else:
             layout.prop(props, "sketch_endpoint")
             row = layout.row()
-        row.prop(props, "enable_labels")
-        sub = row.row()
-        sub.enabled = props.enable_labels
-        sub.prop(props, "auto_label")
+            row.prop(props, "enable_labels")
+            sub = row.row()
+            sub.enabled = props.enable_labels
+            sub.prop(props, "auto_label")
 
         layout.prop(props, "prompt")
 
@@ -316,6 +317,68 @@ class FAL_PT_mesh_ops_panel(bpy.types.Panel):
 
 
 # ---------------------------------------------------------------------------
+# Material Generation Sub-Panel
+# ---------------------------------------------------------------------------
+class FAL_PT_material_panel(bpy.types.Panel):
+    bl_label = "PBR Material"
+    bl_idname = "FAL_PT_material_panel"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "fal.ai"
+    bl_parent_id = "FAL_PT_main_panel"
+
+    @classmethod
+    def poll(cls, context: bpy.types.Context) -> bool:
+        return context.scene.fal.active_tab == "MATERIAL"
+
+    def draw(self, context: bpy.types.Context) -> None:
+        layout = self.layout
+        props = context.scene.fal_material
+
+        layout.prop(props, "mode")
+
+        if props.mode == "FULL":
+            # Full pipeline: prompt -> tiling texture -> PBR maps
+            layout.prop(props, "tiling_endpoint")
+            layout.prop(props, "pbr_endpoint")
+            layout.separator()
+            layout.prop(props, "prompt")
+
+            row = layout.row(align=True)
+            row.prop(props, "width")
+            row.prop(props, "height")
+            layout.prop(props, "seed")
+
+        elif props.mode == "PBR_ONLY":
+            # PBR from existing image
+            layout.prop(props, "pbr_endpoint")
+            layout.separator()
+            layout.prop(props, "image_source")
+            if props.image_source == "FILE":
+                layout.prop(props, "image_path")
+            elif props.image_source == "TEXTURE":
+                layout.prop_search(props, "texture_name", bpy.data, "images")
+
+        else:
+            # Tiling texture only
+            layout.prop(props, "tiling_endpoint")
+            layout.separator()
+            layout.prop(props, "prompt")
+
+            row = layout.row(align=True)
+            row.prop(props, "width")
+            row.prop(props, "height")
+            layout.prop(props, "seed")
+
+        layout.separator()
+        layout.prop(props, "output_format")
+
+        row = layout.row()
+        row.scale_y = 1.5
+        row.operator("fal.generate_material", icon="MATERIAL")
+
+
+# ---------------------------------------------------------------------------
 # Jobs Panel (always visible)
 # ---------------------------------------------------------------------------
 class FAL_PT_jobs_panel(bpy.types.Panel):
@@ -392,6 +455,7 @@ _classes = (
     FAL_PT_video_panel,
     FAL_PT_audio_panel,
     FAL_PT_mesh_ops_panel,
+    FAL_PT_material_panel,
     FAL_PT_jobs_panel,
 )
 

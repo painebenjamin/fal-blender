@@ -21,6 +21,7 @@ from .operators import (  # noqa: F401
     video,
     audio,
     mesh_ops,
+    material,
 )
 
 # Registration order matters!
@@ -40,6 +41,7 @@ _modules = [
     video,
     audio,
     mesh_ops,
+    material,
     panels,  # MUST be last — panels reference operator PropertyGroups
 ]
 
