@@ -242,34 +242,6 @@ class FAL_OT_neural_render(bpy.types.Operator):
                 _restore_compositor(scene.node_tree, _saved_nodes)
 
             scene.use_nodes = old_use_nodes
-            scene.view_settings.view_transform = old_view_transform
-            scene.view_settings.look = old_look
-            # Restore view settings
-            scene.view_settings.view_transform = old_view_transform
-            scene.view_settings.look = old_look
-
-            # Restore world
-            if scene.world and old_world_color is not None:
-                _set_world_color(scene.world, old_world_color)
-
-            # Restore materials
-            for obj_name, mat_list in old_materials.items():
-                obj = scene.objects.get(obj_name)
-                if not obj:
-                    continue
-                for slot_idx, orig_mat in mat_list:
-                    if slot_idx == -1:
-                        if obj.data.materials:
-                            obj.data.materials.pop()
-                    elif slot_idx < len(obj.material_slots):
-                        obj.material_slots[slot_idx].material = orig_mat
-            for mat in sketch_mats:
-                bpy.data.materials.remove(mat)
-
-            # Restore lights
-            for obj in hidden_lights:
-                obj.hide_render = False
-
             scene.render.engine = old_engine
             scene.render.film_transparent = old_film_transparent
             scene.render.resolution_x = old_res_x
