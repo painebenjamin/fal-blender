@@ -297,14 +297,21 @@ class FAL_OT_neural_render(bpy.types.Operator):
         scene.render.use_compositing = True
         view_layer.use_pass_mist = True
 
+        # Standard color management — Filmic compresses depth range
+        self._saved["view_transform"] = scene.view_settings.view_transform
+        self._saved["look"] = scene.view_settings.look
+        scene.view_settings.view_transform = "Standard"
+        scene.view_settings.look = "None"
+
         # Mist range from actual scene depth bounds
         camera = scene.camera
         if camera and world:
             near, far = _calc_scene_depth_bounds(scene, camera)
             if near is not None and far is not None:
-                padding = (far - near) * 0.05
-                world.mist_settings.start = max(0.0, near - padding)
-                world.mist_settings.depth = (far - near) + padding * 2
+                # No padding — use the full 0-1 range for actual geometry
+                # This gives maximum contrast in the depth map
+                world.mist_settings.start = max(0.0, near)
+                world.mist_settings.depth = max(0.01, far - near)
                 world.mist_settings.falloff = "LINEAR"
                 print(f"fal.ai: Depth range: {near:.2f} — {far:.2f}m from camera")
             else:
