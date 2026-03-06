@@ -475,6 +475,13 @@ class FAL_OT_generate_video(bpy.types.Operator):
             "num_frames": num_frames,
         }
 
+        # Merge endpoint default_params (e.g. ic_lora for LTX-2 depth)
+        from ..endpoints import DEPTH_VIDEO_ENDPOINTS, get_endpoint
+        ep = get_endpoint(DEPTH_VIDEO_ENDPOINTS, props.depth_endpoint)
+        if ep and ep.default_params:
+            for k, v in ep.default_params.items():
+                args.setdefault(k, v)
+
         # Add resolution if using scene settings
         if props.use_scene_resolution:
             w, h = _get_scene_dimensions(scene)
