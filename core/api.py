@@ -35,7 +35,8 @@ def build_image_gen_args(
     if ep is None:
         ep = get_endpoint(TILING_ENDPOINTS, endpoint_id)
 
-    args: dict[str, Any] = {"prompt": prompt, "expand_prompt": expand_prompt}
+    args: dict[str, Any] = {"prompt": prompt, "expand_prompt": expand_prompt, "enable_prompt_expansion": expand_prompt}
+    args: dict[str, Any] = {"prompt": prompt, "enable_prompt_expansion": expand_prompt}
 
     if ep and ep.resolution_mode == ResolutionMode.ASPECT_RESOLUTION:
         aspect, resolution = pixels_to_aspect_resolution(width, height)

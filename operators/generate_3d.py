@@ -142,6 +142,7 @@ class FAL_OT_generate_3d(bpy.types.Operator):
 
     def _text_to_3d(self, context, props) -> set[str]:
         args = {"prompt": props.prompt, "expand_prompt": props.enable_prompt_expansion}
+        args = {"prompt": props.prompt, "enable_prompt_expansion": props.enable_prompt_expansion}
         label = f"3D: {props.prompt[:30]}"
 
         name = props.prompt[:30]

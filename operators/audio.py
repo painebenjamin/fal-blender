@@ -195,6 +195,7 @@ class FAL_OT_generate_audio(bpy.types.Operator):
         args = {
             "prompt": props.sfx_prompt,
             "expand_prompt": props.enable_prompt_expansion,
+            "enable_prompt_expansion": props.enable_prompt_expansion,
             "duration": props.duration,
         }
 
@@ -215,6 +216,7 @@ class FAL_OT_generate_audio(bpy.types.Operator):
         args = {
             "prompt": props.music_prompt,
             "expand_prompt": props.enable_prompt_expansion,
+            "enable_prompt_expansion": props.enable_prompt_expansion,
             "duration": props.duration,
         }
 

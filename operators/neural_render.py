@@ -393,6 +393,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
             "image_url": image_url,
             "prompt": self._prompt,
             "expand_prompt": self._expand_prompt,
+            "enable_prompt_expansion": self._expand_prompt,
         }
         if self._seed >= 0:
             args["seed"] = self._seed
@@ -622,6 +623,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
             "image_url": image_url,
             "strength": self._refine_strength,
             "expand_prompt": self._expand_prompt,
+            "enable_prompt_expansion": self._expand_prompt,
         }
         if self._seed >= 0:
             args["seed"] = self._seed

@@ -588,6 +588,7 @@ class FAL_OT_generate_video(bpy.types.Operator):
         args = {
             "prompt": self._prompt,
             "expand_prompt": self._expand_prompt,
+            "enable_prompt_expansion": self._expand_prompt,
             "video_url": video_url,
             "num_frames": self._num_frames,
         }
@@ -741,6 +742,7 @@ class FAL_OT_generate_video(bpy.types.Operator):
         args = {
             "prompt": props.prompt,
                 "expand_prompt": props.enable_prompt_expansion,
+                "enable_prompt_expansion": props.enable_prompt_expansion,
             "duration": duration,
         }
 
@@ -777,6 +779,7 @@ class FAL_OT_generate_video(bpy.types.Operator):
         args = {
             "prompt": props.prompt,
                 "expand_prompt": props.enable_prompt_expansion,
+                "enable_prompt_expansion": props.enable_prompt_expansion,
             "image_url": image_url,
             "duration": duration,
         }

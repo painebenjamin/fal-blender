@@ -123,6 +123,7 @@ class FAL_OT_mesh_ops(bpy.types.Operator):
                 "model_url": mesh_url,
                 "prompt": props.prompt,
                 "expand_prompt": props.enable_prompt_expansion,
+                "enable_prompt_expansion": props.enable_prompt_expansion,
             }
             label = f"Retexture: {props.prompt[:30]}"
         else:
