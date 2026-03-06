@@ -815,7 +815,8 @@ class FAL_OT_neural_render(bpy.types.Operator):
             return
 
         local_path = download_file(image_url, suffix=".png")
-        from ..core.importers import import_image_to_editor
+        from ..core.importers import import_image_to_editor, resize_image_to_target
+        resize_image_to_target(local_path, self._render_w, self._render_h)
         import_image_to_editor(local_path, name="fal_neural_render")
         self.report({"INFO"}, "Neural render complete!")
 

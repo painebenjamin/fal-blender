@@ -107,6 +107,37 @@ def import_glb(
     return new_objects
 
 
+def resize_image_to_target(
+    image_path: str,
+    target_width: int,
+    target_height: int,
+) -> str:
+    """Resize an image file to the target dimensions if they don't match.
+
+    Overwrites the file in-place and returns the same path.
+    Silently returns the original path if PIL is unavailable or on error.
+    """
+    try:
+        from PIL import Image
+    except ImportError:
+        return image_path
+
+    try:
+        img = Image.open(image_path)
+        if img.size == (target_width, target_height):
+            return image_path
+
+        print(
+            f"fal.ai: Resizing result {img.size[0]}x{img.size[1]} "
+            f"→ {target_width}x{target_height}"
+        )
+        img = img.resize((target_width, target_height), Image.LANCZOS)
+        img.save(image_path)
+    except Exception as e:
+        print(f"fal.ai: Image resize failed, using original size: {e}")
+
+    return image_path
+
 def import_image_to_editor(
     image_path: str,
     *,
