@@ -179,6 +179,12 @@ IMAGE_TO_VIDEO_ENDPOINTS: list[EndpointDef] = [
 
 DEPTH_VIDEO_ENDPOINTS: list[EndpointDef] = [
     EndpointDef(
+        "fal-ai/ltx-2-19b/distilled/video-to-video",
+        "LTX-2 19B Distilled (Depth)",
+        default_params={"ic_lora": "depth"},
+        notes="Faster depth video — fewer steps, good for simple camera moves",
+    ),
+    EndpointDef(
         "fal-ai/ltx-2-19b/video-to-video",
         "LTX-2 19B (Depth)",
         default_params={"ic_lora": "depth"},
