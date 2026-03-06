@@ -342,6 +342,12 @@ class FAL_OT_generate_video(bpy.types.Operator):
         self._tmp_dir = None
         self._output_path = None
 
+        # Pre-capture first-frame image BEFORE depth render overwrites
+        # the Render Result with BW depth data
+        self._first_frame_url = None
+        if self._use_first_frame:
+            self._first_frame_url = self._capture_first_frame()
+
         # Set up scene for depth animation render
         try:
             self._setup_depth_animation(context)
@@ -536,11 +542,9 @@ class FAL_OT_generate_video(bpy.types.Operator):
             for k, v in ep.default_params.items():
                 args.setdefault(k, v)
 
-        # Optional first-frame image
-        if self._use_first_frame:
-            image_url = self._get_depth_first_frame_url()
-            if image_url:
-                args["image_url"] = image_url
+        # Optional first-frame image (pre-captured before depth render)
+        if self._first_frame_url:
+            args["image_url"] = self._first_frame_url
 
         # Resolution
         if self._resolution:
@@ -609,6 +613,40 @@ class FAL_OT_generate_video(bpy.types.Operator):
                 world.mist_settings.depth = s["mist_depth"]
 
         self._saved.clear()
+
+    def _capture_first_frame(self) -> str | None:
+        """Capture the first-frame image NOW, before depth render overwrites state.
+
+        Must be called before _setup_depth_animation because the depth render
+        changes color_mode to BW and overwrites the Render Result.
+        """
+        try:
+            if self._first_frame_source == "FILE":
+                if not self._first_frame_path.strip():
+                    return None
+                return upload_image_file(self._first_frame_path)
+            elif self._first_frame_source == "TEXTURE":
+                img = bpy.data.images.get(self._first_frame_texture)
+                if not img:
+                    return None
+                from ..core.api import upload_blender_image
+                return upload_blender_image(img)
+            else:  # RENDER
+                render_img = bpy.data.images.get("Render Result")
+                if not render_img:
+                    print("fal.ai: No render result available for first frame")
+                    return None
+                # Save to disk immediately — Render Result will be overwritten
+                tmp = tempfile.NamedTemporaryFile(
+                    suffix=".png", delete=False, prefix="fal_first_frame_"
+                )
+                tmp.close()
+                render_img.save_render(tmp.name)
+                print(f"fal.ai: First frame captured to {tmp.name}")
+                return upload_image_file(tmp.name)
+        except Exception as e:
+            print(f"fal.ai: Failed to capture first frame: {e}")
+            return None
 
     def _get_depth_first_frame_url(self) -> str | None:
         """Upload the first-frame image for depth video and return its URL."""
