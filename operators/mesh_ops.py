@@ -42,14 +42,14 @@ class FalMeshOpsProperties(bpy.types.PropertyGroup):
 
     prompt: bpy.props.StringProperty(
         name="Prompt",
-        description="Describe the desired texture/style (retexture only)
+        description="Describe the desired texture/style (retexture only)",
+        default="",
+    )
+
     enable_prompt_expansion: bpy.props.BoolProperty(
         name="Prompt Expansion",
         description="Let the AI model expand and enhance your prompt for better results",
         default=True,
-    )
-",
-        default="",
     )
 
 

@@ -84,14 +84,14 @@ class FalAudioProperties(bpy.types.PropertyGroup):
 
     music_prompt: bpy.props.StringProperty(
         name="Music Prompt",
-        description="Describe the music (genre, mood, instruments)
+        description="Describe the music (genre, mood, instruments)",
+        default="",
+    )
+
     enable_prompt_expansion: bpy.props.BoolProperty(
         name="Prompt Expansion",
         description="Let the AI model expand and enhance your prompt for better results",
         default=True,
-    )
-",
-        default="",
     )
 
     duration: bpy.props.FloatProperty(
