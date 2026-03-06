@@ -246,8 +246,8 @@ class FAL_OT_generate_material(bpy.types.Operator):
             width=props.width,
             height=props.height,
             seed=seed,
-            extra={"output_format": props.output_format},,
-            expand_prompt=props.enable_prompt_expansion
+            expand_prompt=props.enable_prompt_expansion,
+            extra={"output_format": props.output_format, "tiling_mode": props.tiling_mode},
         )
 
         prompt_short = props.prompt[:20]
@@ -349,7 +349,7 @@ class FAL_OT_generate_material(bpy.types.Operator):
             height=props.height,
             seed=seed,
             expand_prompt=props.enable_prompt_expansion,
-            extra={"output_format": props.output_format},
+            extra={"output_format": props.output_format, "tiling_mode": props.tiling_mode},
         )
 
         prompt_short = props.prompt[:20]

@@ -55,6 +55,17 @@ class FalTextureProperties(bpy.types.PropertyGroup):
         step=16,
     )
 
+    tiling_mode: bpy.props.EnumProperty(
+        name="Tiling",
+        items=[
+            ("both", "All Directions", "Seamless tiling in both directions"),
+            ("horizontal", "Horizontal", "Tile left-right only (e.g. walls with baseboard)"),
+            ("vertical", "Vertical", "Tile top-bottom only"),
+        ],
+        default="both",
+        description="Which directions the texture should tile seamlessly",
+    )
+
     seed: bpy.props.IntProperty(
         name="Seed",
         description="Random seed (-1 for random)",
@@ -88,6 +99,8 @@ class FAL_OT_generate_texture(bpy.types.Operator):
             width=props.width,
             height=props.height,
             seed=seed,
+            expand_prompt=props.enable_prompt_expansion,
+            extra={"tiling_mode": props.tiling_mode},
         )
 
         # Capture reference to target object

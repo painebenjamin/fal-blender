@@ -78,6 +78,7 @@ class FAL_PT_texture_panel(bpy.types.Panel):
         row.prop(props, "width")
         row.prop(props, "height")
 
+        layout.prop(props, "tiling_mode")
         layout.prop(props, "seed")
 
         row = layout.row()
@@ -362,6 +363,7 @@ class FAL_PT_material_panel(bpy.types.Panel):
         if props.mode == "FULL":
             # Full pipeline: prompt -> tiling texture -> PBR maps
             layout.prop(props, "tiling_endpoint")
+            layout.prop(props, "tiling_mode")
             layout.prop(props, "pbr_endpoint")
             layout.separator()
             layout.prop(props, "prompt")
