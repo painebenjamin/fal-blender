@@ -74,6 +74,17 @@ class FalMaterialProperties(bpy.types.PropertyGroup):
         description="Texture height in pixels",
     )
 
+    tiling_mode: bpy.props.EnumProperty(
+        name="Tiling",
+        items=[
+            ("both", "All Directions", "Seamless tiling in both directions"),
+            ("horizontal", "Horizontal", "Tile left-right only (e.g. walls with baseboard)"),
+            ("vertical", "Vertical", "Tile top-bottom only"),
+        ],
+        default="both",
+        description="Which directions the texture should tile seamlessly",
+    )
+
     seed: bpy.props.IntProperty(
         name="Seed", default=-1, min=-1, max=2147483647,
         description="Random seed (-1 for random)",
