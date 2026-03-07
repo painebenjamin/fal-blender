@@ -279,11 +279,12 @@ _session = _RealtimeSession()
 def _capture_viewport_as_data_uri(context: bpy.types.Context, size: int) -> str | None:
     """Capture the 3D viewport as a JPEG base64 data URI.
 
-    Uses bpy.ops.render.opengl() for reliable viewport capture, then
-    reads the Render Result, resizes, and encodes as JPEG data URI.
+    Saves the viewport to a temp file via render.opengl, then reads it back.
+    If that fails, falls back to gpu.offscreen.
     Returns data:image/jpeg;base64,... or None on failure.
     """
-    import numpy as np
+    import tempfile
+    import os
     from PIL import Image
 
     # Find the 3D viewport area
@@ -293,64 +294,74 @@ def _capture_viewport_as_data_uri(context: bpy.types.Context, size: int) -> str 
             view3d_area = a
             break
     if view3d_area is None:
+        print("fal.ai realtime: no VIEW_3D area found")
         return None
 
-    # Save current resolution
     scene = context.scene
+
+    # Save settings
     old_res_x = scene.render.resolution_x
     old_res_y = scene.render.resolution_y
     old_pct = scene.render.resolution_percentage
+    old_path = scene.render.filepath
     old_format = scene.render.image_settings.file_format
+    old_quality = scene.render.image_settings.quality
+
+    tmp_path = os.path.join(tempfile.gettempdir(), "fal_realtime_capture.jpg")
 
     try:
-        # Set capture resolution
+        # Set capture resolution and output to temp file
         scene.render.resolution_x = size
         scene.render.resolution_y = size
         scene.render.resolution_percentage = 100
+        scene.render.filepath = tmp_path
+        scene.render.image_settings.file_format = "JPEG"
+        scene.render.image_settings.quality = JPEG_QUALITY
 
-        # Override context to target the 3D viewport
+        # Capture viewport
         with context.temp_override(area=view3d_area):
-            bpy.ops.render.opengl(write_still=False)
+            bpy.ops.render.opengl(write_still=True)
 
-        # Read the Render Result
-        render_img = bpy.data.images.get("Render Result")
-        if render_img is None:
+        # Read the file
+        if not os.path.exists(tmp_path):
+            print("fal.ai realtime: capture file not created")
             return None
 
-        w, h = render_img.size
-        if w == 0 or h == 0:
+        with open(tmp_path, "rb") as f:
+            jpeg_bytes = f.read()
+
+        if len(jpeg_bytes) < 100:
+            print(f"fal.ai realtime: capture too small ({len(jpeg_bytes)} bytes)")
             return None
 
-        # Read pixels (flat RGBA float array)
-        pixels = np.zeros(w * h * 4, dtype=np.float32)
-        render_img.pixels.foreach_get(pixels)
-        pixels = pixels.reshape(h, w, 4)
-
-        # Flip Y (Blender stores bottom-up)
-        pixels = np.flip(pixels, axis=0)
-
-        # Convert to uint8 RGB
-        rgb = (pixels[:, :, :3] * 255).clip(0, 255).astype(np.uint8)
-
-        img = Image.fromarray(rgb)
-
-        # Resize to target if needed
+        # Resize if needed
+        img = Image.open(io.BytesIO(jpeg_bytes))
         if img.size != (size, size):
             img = img.resize((size, size), Image.LANCZOS)
+            buf = io.BytesIO()
+            img.save(buf, format="JPEG", quality=JPEG_QUALITY)
+            jpeg_bytes = buf.getvalue()
 
-        buf = io.BytesIO()
-        img.save(buf, format="JPEG", quality=JPEG_QUALITY)
-        b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+        b64 = base64.b64encode(jpeg_bytes).decode("ascii")
         return f"data:image/jpeg;base64,{b64}"
 
     except Exception as e:
         print(f"fal.ai realtime: capture error: {e}")
+        import traceback
+        traceback.print_exc()
         return None
     finally:
-        # Restore resolution
         scene.render.resolution_x = old_res_x
         scene.render.resolution_y = old_res_y
         scene.render.resolution_percentage = old_pct
+        scene.render.filepath = old_path
+        scene.render.image_settings.file_format = old_format
+        scene.render.image_settings.quality = old_quality
+        # Clean up temp file
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
 
 def _load_result_image(image_bytes: bytes, image_name: str = "fal Realtime") -> None:
@@ -442,6 +453,8 @@ class FAL_OT_realtime_refine_start(bpy.types.Operator):
         # Capture and send viewport frame
         if now - self._last_send_time >= self._interval:
             data_uri = _capture_viewport_as_data_uri(context, self._capture_size)
+            if data_uri is None and self._last_send_time == 0.0:
+                print("fal.ai realtime: first capture returned None — check console for errors")
             if data_uri:
                 payload = {
                     "prompt": self._full_prompt,
