@@ -311,7 +311,6 @@ def _capture_viewport_as_data_uri(context: bpy.types.Context, size: int) -> str 
             context.view_layer,
             space,
             region,
-            context.scene.camera.matrix_world if context.scene.camera else
             space.region_3d.view_matrix.inverted(),
             space.region_3d.window_matrix,
             do_color_management=True,
