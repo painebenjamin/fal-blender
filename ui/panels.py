@@ -194,6 +194,9 @@ class FAL_PT_neural_render_panel(bpy.types.Panel):
         else:
             layout.prop(props, "refine_endpoint")
             layout.prop(props, "refine_strength", slider=True)
+            layout.separator()
+            layout.label(text="System Prompt:")
+            layout.prop(props, "refine_system_prompt", text="")
 
         layout.prop(props, "prompt")
         layout.prop(props, "enable_prompt_expansion")

@@ -98,6 +98,17 @@ class FalNeuralRenderProperties(bpy.types.PropertyGroup):
         precision=2,
     )
 
+    refine_system_prompt: bpy.props.StringProperty(
+        name="System Prompt",
+        description="Instructions for how the AI should refine the render (Refine mode only)",
+        default=(
+            "You are presented with a 3D-rendered image. Recreate this image in a "
+            "photorealistic manner, being sure to represent the original artistic "
+            "intent, only using a photorealistic style. Adjust lighting to be more "
+            "realistic while adding details and texture where appropriate."
+        ),
+    )
+
     prompt: bpy.props.StringProperty(
         name="Prompt",
         description="Describe what to generate from the rendered input",
@@ -204,6 +215,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
         else:
             self._endpoint = props.refine_endpoint
         self._refine_strength = props.refine_strength
+        self._refine_system_prompt = props.refine_system_prompt
         self._expand_prompt = props.enable_prompt_expansion
         self._enable_labels = props.enable_labels
         self._auto_label = props.auto_label
@@ -618,21 +630,33 @@ class FAL_OT_neural_render(bpy.types.Operator):
 
         # Upload and submit to img2img endpoint
         image_url = upload_image_file(tmp)
+
+        # Compose full prompt: system prompt + user prompt
+        system = self._refine_system_prompt.strip()
+        user = self._prompt.strip()
+        if system and user:
+            full_prompt = f'{system}\n\nFollow the user\'s prompt: "{user}"'
+        elif system:
+            full_prompt = system
+        else:
+            full_prompt = user
+
+        # Build args — different endpoints expect different image param names
+        from ..endpoints import snap_to_mod16
+        w, h = snap_to_mod16(self._render_w, self._render_h)
+
         args = {
-            "prompt": self._prompt,
+            "prompt": full_prompt,
             "image_url": image_url,
+            "image_urls": [image_url],  # Klein uses image_urls (list)
             "strength": self._refine_strength,
             "expand_prompt": self._expand_prompt,
             "enable_prompt_expansion": self._expand_prompt,
+            "width": w,
+            "height": h,
         }
         if self._seed >= 0:
             args["seed"] = self._seed
-
-        # Add width/height for endpoints that accept them
-        from ..endpoints import snap_to_mod16
-        w, h = snap_to_mod16(self._render_w, self._render_h)
-        args["width"] = w
-        args["height"] = h
 
         rw, rh = self._render_w, self._render_h
         def on_complete(job: FalJob):

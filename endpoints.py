@@ -108,6 +108,24 @@ DEPTH_CONTROL_ENDPOINTS: list[EndpointDef] = [
 # ---------------------------------------------------------------------------
 REFINE_ENDPOINTS: list[EndpointDef] = [
     EndpointDef(
+        "fal-ai/flux-2/klein/9b/base/edit",
+        "FLUX.2 Klein (Quality)",
+        resolution_mode=ResolutionMode.PIXELS,
+        notes="High quality edit/refine with FLUX.2 Klein 9B",
+    ),
+    EndpointDef(
+        "fal-ai/nano-banana-pro",
+        "Nano Banana Pro",
+        resolution_mode=ResolutionMode.ASPECT_RESOLUTION,
+        notes="Fast, high quality refine via Nano Banana Pro",
+    ),
+    EndpointDef(
+        "fal-ai/nano-banana-2",
+        "Nano Banana 2",
+        resolution_mode=ResolutionMode.ASPECT_RESOLUTION,
+        notes="Latest Nano Banana model for image refinement",
+    ),
+    EndpointDef(
         "fal-ai/z-image/turbo/image-to-image",
         "z-image Turbo img2img",
         resolution_mode=ResolutionMode.PIXELS,
