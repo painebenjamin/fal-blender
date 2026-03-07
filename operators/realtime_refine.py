@@ -207,27 +207,59 @@ class _RealtimeSession:
                         if "error" in result:
                             print(f"fal.ai realtime: server error: {result['error']}")
                             continue
+                        # Debug: log raw result structure for first few frames
+                        if self._frames_received < 3:
+                            # Truncate large values for logging
+                            debug_result = {}
+                            for k, v in result.items():
+                                if isinstance(v, list) and v:
+                                    first = v[0]
+                                    if isinstance(first, dict):
+                                        debug_item = {}
+                                        for ik, iv in first.items():
+                                            if isinstance(iv, (str, bytes)) and len(str(iv)) > 100:
+                                                debug_item[ik] = f"<{type(iv).__name__} len={len(iv)}>"
+                                            else:
+                                                debug_item[ik] = iv
+                                        debug_result[k] = [debug_item, f"...({len(v)} total)"]
+                                    else:
+                                        debug_result[k] = v[:3] if len(v) > 3 else v
+                                else:
+                                    debug_result[k] = v
+                            print(f"fal.ai realtime: raw result: {debug_result}")
+
                         if "images" in result:
                             images = result["images"]
                             if images:
-                                content = images[0].get("content", "")
-                                if content:
+                                first_img = images[0]
+                                content = first_img.get("content", "")
+
+                                if isinstance(content, bytes):
+                                    image_bytes = content
+                                elif isinstance(content, str) and len(content) > 100:
+                                    # Likely base64 encoded
                                     image_bytes = base64.b64decode(content)
-                                    # Drop oldest result if full
-                                    if self._result_queue.full():
-                                        try:
-                                            self._result_queue.get_nowait()
-                                        except queue.Empty:
-                                            pass
-                                    self._result_queue.put_nowait(image_bytes)
-                                    self._frames_received += 1
-                                    if self._frames_received <= 3:
-                                        print(f"fal.ai realtime: received frame {self._frames_received} "
-                                              f"({len(image_bytes)} bytes)")
                                 else:
-                                    print(f"fal.ai realtime: empty content in result")
-                        elif self._frames_received == 0:
-                            print(f"fal.ai realtime: unexpected result format: {list(result.keys())}")
+                                    print(f"fal.ai realtime: unexpected content: "
+                                          f"type={type(content).__name__} len={len(str(content))} "
+                                          f"repr={repr(content)[:200]}")
+                                    continue
+
+                                # Drop oldest result if full
+                                if self._result_queue.full():
+                                    try:
+                                        self._result_queue.get_nowait()
+                                    except queue.Empty:
+                                        pass
+                                self._result_queue.put_nowait(image_bytes)
+                                self._frames_received += 1
+                                if self._frames_received <= 3:
+                                    print(f"fal.ai realtime: received frame {self._frames_received} "
+                                          f"({len(image_bytes)} bytes)")
+                            else:
+                                print("fal.ai realtime: empty images list")
+                        elif self._frames_received < 5:
+                            print(f"fal.ai realtime: unexpected result keys: {list(result.keys())}")
                     except Exception as e:
                         print(f"fal.ai realtime: receive error: {e}")
 
