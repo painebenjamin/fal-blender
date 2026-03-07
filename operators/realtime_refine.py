@@ -25,7 +25,9 @@ from ..preferences import ensure_api_key
 # Constants
 # ---------------------------------------------------------------------------
 
-KLEIN_REALTIME_APP = "fal-ai/flux-2/klein/realtime"
+# Application ID without /realtime — the client.realtime() method
+# appends path="/realtime" by default
+KLEIN_REALTIME_APP = "fal-ai/flux-2/klein"
 DEFAULT_SYSTEM_PROMPT = (
     "You are presented with a 3D-rendered image. Recreate this image in a "
     "photorealistic manner, being sure to represent the original artistic "
@@ -174,8 +176,10 @@ class _RealtimeSession:
 
             ensure_api_key()
             client = fal_client.SyncClient()
+            print(f"fal.ai realtime: connecting to {KLEIN_REALTIME_APP}...")
 
             with client.realtime(KLEIN_REALTIME_APP, max_buffering=1) as connection:
+                print("fal.ai realtime: connected!")
                 while not self._stop_event.is_set():
                     # Check for frame to send
                     try:
@@ -184,29 +188,54 @@ class _RealtimeSession:
                         continue
 
                     # Send frame
-                    connection.send(payload)
-                    self._frames_sent += 1
+                    try:
+                        connection.send(payload)
+                        self._frames_sent += 1
+                        if self._frames_sent <= 3:
+                            print(f"fal.ai realtime: sent frame {self._frames_sent} "
+                                  f"(image_url len={len(payload.get('image_url', ''))})")
+                    except Exception as e:
+                        print(f"fal.ai realtime: send error: {e}")
+                        self._error = f"Send failed: {e}"
+                        break
 
-                    # Wait for result (blocking, but WebSocket is fast)
+                    # Wait for result
                     try:
                         result = connection.recv()
-                        if result and "images" in result:
+                        if result is None:
+                            continue
+                        if "error" in result:
+                            print(f"fal.ai realtime: server error: {result['error']}")
+                            continue
+                        if "images" in result:
                             images = result["images"]
                             if images:
-                                # Raw image content (base64 encoded bytes)
                                 content = images[0].get("content", "")
                                 if content:
                                     image_bytes = base64.b64decode(content)
+                                    # Drop oldest result if full
+                                    if self._result_queue.full():
+                                        try:
+                                            self._result_queue.get_nowait()
+                                        except queue.Empty:
+                                            pass
                                     self._result_queue.put_nowait(image_bytes)
                                     self._frames_received += 1
-                    except queue.Full:
-                        pass  # Drop result if queue is full
+                                    if self._frames_received <= 3:
+                                        print(f"fal.ai realtime: received frame {self._frames_received} "
+                                              f"({len(image_bytes)} bytes)")
+                                else:
+                                    print(f"fal.ai realtime: empty content in result")
+                        elif self._frames_received == 0:
+                            print(f"fal.ai realtime: unexpected result format: {list(result.keys())}")
                     except Exception as e:
                         print(f"fal.ai realtime: receive error: {e}")
 
         except Exception as e:
             self._error = str(e)
+            import traceback
             print(f"fal.ai realtime: connection error: {e}")
+            traceback.print_exc()
 
 
 # Module-level session instance
