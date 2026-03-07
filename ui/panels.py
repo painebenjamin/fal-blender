@@ -219,6 +219,58 @@ class FAL_PT_neural_render_panel(bpy.types.Panel):
         row.scale_y = 1.5
         row.operator("fal.neural_render", icon="RENDER_RESULT")
 
+
+# ---------------------------------------------------------------------------
+# Realtime Refine Sub-Panel
+# ---------------------------------------------------------------------------
+class FAL_PT_realtime_refine_panel(bpy.types.Panel):
+    bl_label = "Realtime Refine"
+    bl_idname = "FAL_PT_realtime_refine_panel"
+    bl_space_type = "VIEW_3D"
+    bl_region_type = "UI"
+    bl_category = "fal.ai"
+    bl_parent_id = "FAL_PT_main_panel"
+    bl_options = {"DEFAULT_CLOSED"}
+
+    @classmethod
+    def poll(cls, context: bpy.types.Context) -> bool:
+        return context.scene.fal.active_tab == "RENDER"
+
+    def draw(self, context: bpy.types.Context) -> None:
+        layout = self.layout
+        props = context.scene.fal_realtime_refine
+
+        if props.is_active:
+            # Show stop button + stats
+            row = layout.row()
+            row.scale_y = 1.5
+            row.alert = True
+            row.operator("fal.realtime_refine_stop", icon="CANCEL", text="Stop Streaming")
+
+            from ..operators.realtime_refine import _session
+            sent, received = _session.stats
+            layout.label(text=f"Frames: {sent} sent / {received} received")
+        else:
+            # Show settings + start button
+            layout.label(text="System Prompt:")
+            layout.prop(props, "system_prompt", text="")
+            layout.prop(props, "prompt")
+
+            layout.separator()
+            row = layout.row(align=True)
+            row.prop(props, "image_size")
+            row.prop(props, "target_fps")
+
+            row = layout.row(align=True)
+            row.prop(props, "num_inference_steps")
+            row.prop(props, "feedback_strength", slider=True)
+
+            layout.separator()
+            row = layout.row()
+            row.scale_y = 1.5
+            row.operator("fal.realtime_refine_start", icon="PLAY", text="Start Realtime Refine")
+
+
 # ---------------------------------------------------------------------------
 # Video Sub-Panel
 # ---------------------------------------------------------------------------
@@ -481,6 +533,7 @@ _classes = (
     FAL_PT_gen3d_panel,
     FAL_PT_upscale_panel,
     FAL_PT_neural_render_panel,
+    FAL_PT_realtime_refine_panel,
     FAL_PT_video_panel,
     FAL_PT_audio_panel,
     FAL_PT_mesh_ops_panel,
