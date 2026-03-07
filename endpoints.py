@@ -64,7 +64,6 @@ TILING_ENDPOINTS: list[EndpointDef] = [
         "painebenjamin/z-image-turbo-seamless-tiling",
         "Z-Image Turbo Seamless Tiling",
         resolution_mode=ResolutionMode.PIXELS,
-        default_params={"tile_size": 64, "tile_stride": 32},
         notes="Generates seamlessly tileable textures via multi-diffusion",
     ),
 ]
