@@ -98,6 +98,17 @@ class FalNeuralRenderProperties(bpy.types.PropertyGroup):
         precision=2,
     )
 
+    sketch_system_prompt: bpy.props.StringProperty(
+        name="System Prompt",
+        description="Instructions for how the AI should interpret the sketch (Sketch mode only)",
+        default=(
+            "Render a photorealistic image that conforms to the layout presented. "
+            "If labels are present on the image, follow those instructions to inform "
+            "what should fill that space. Do not include the outlines or labels in "
+            "your final image."
+        ),
+    )
+
     refine_system_prompt: bpy.props.StringProperty(
         name="System Prompt",
         description="Instructions for how the AI should refine the render (Refine mode only)",
@@ -215,6 +226,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
         else:
             self._endpoint = props.refine_endpoint
         self._refine_strength = props.refine_strength
+        self._sketch_system_prompt = props.sketch_system_prompt
         self._refine_system_prompt = props.refine_system_prompt
         self._expand_prompt = props.enable_prompt_expansion
         self._enable_labels = props.enable_labels
@@ -566,9 +578,20 @@ class FAL_OT_neural_render(bpy.types.Operator):
         # Upload and submit
         image_url = upload_image_file(tmp)
         seed = self._seed if self._seed >= 0 else None
+
+        # Compose full prompt: system prompt + user prompt
+        system = self._sketch_system_prompt.strip()
+        user = self._prompt.strip()
+        if system and user:
+            full_prompt = f'{system}\n\nFollow the user\'s prompt: "{user}"'
+        elif system:
+            full_prompt = system
+        else:
+            full_prompt = user
+
         args = build_image_gen_args(
             endpoint_id=self._endpoint,
-            prompt=self._prompt,
+            prompt=full_prompt,
             width=self._render_w,
             height=self._render_h,
             seed=seed,

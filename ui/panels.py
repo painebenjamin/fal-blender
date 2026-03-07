@@ -191,6 +191,9 @@ class FAL_PT_neural_render_panel(bpy.types.Panel):
             sub = row.row()
             sub.enabled = props.enable_labels
             sub.prop(props, "auto_label")
+            layout.separator()
+            layout.label(text="System Prompt:")
+            layout.prop(props, "sketch_system_prompt", text="")
         else:
             layout.prop(props, "refine_endpoint")
             layout.prop(props, "refine_strength", slider=True)
