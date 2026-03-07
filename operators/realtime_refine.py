@@ -16,8 +16,6 @@ import time
 from typing import Any
 
 import bpy
-import gpu
-from gpu_extras.presets import draw_texture_2d
 
 from ..preferences import ensure_api_key
 
@@ -281,64 +279,78 @@ _session = _RealtimeSession()
 def _capture_viewport_as_data_uri(context: bpy.types.Context, size: int) -> str | None:
     """Capture the 3D viewport as a JPEG base64 data URI.
 
-    Uses gpu.offscreen to render the viewport at the specified size.
+    Uses bpy.ops.render.opengl() for reliable viewport capture, then
+    reads the Render Result, resizes, and encodes as JPEG data URI.
     Returns data:image/jpeg;base64,... or None on failure.
     """
-    # Find the 3D viewport
-    area = None
+    import numpy as np
+    from PIL import Image
+
+    # Find the 3D viewport area
+    view3d_area = None
     for a in context.screen.areas:
         if a.type == "VIEW_3D":
-            area = a
+            view3d_area = a
             break
-    if area is None:
+    if view3d_area is None:
         return None
 
-    space = area.spaces.active
-    region = None
-    for r in area.regions:
-        if r.type == "WINDOW":
-            region = r
-            break
-    if region is None:
-        return None
-
-    # Create offscreen buffer
-    offscreen = gpu.types.GPUOffScreen(size, size)
+    # Save current resolution
+    scene = context.scene
+    old_res_x = scene.render.resolution_x
+    old_res_y = scene.render.resolution_y
+    old_pct = scene.render.resolution_percentage
+    old_format = scene.render.image_settings.file_format
 
     try:
-        offscreen.draw_view3d(
-            context.scene,
-            context.view_layer,
-            space,
-            region,
-            space.region_3d.view_matrix.inverted(),
-            space.region_3d.window_matrix,
-            do_color_management=True,
-            draw_background=True,
-        )
+        # Set capture resolution
+        scene.render.resolution_x = size
+        scene.render.resolution_y = size
+        scene.render.resolution_percentage = 100
 
-        # Read pixels
-        buffer = offscreen.texture_color.read()
-        # buffer is a Buffer object with RGBA float data
-        # Convert to bytes
-        import numpy as np
-        from PIL import Image
+        # Override context to target the 3D viewport
+        with context.temp_override(area=view3d_area):
+            bpy.ops.render.opengl(write_still=False)
 
-        pixels = np.array(buffer.to_list(), dtype=np.float32)
-        pixels = pixels.reshape(size, size, 4)
-        # Flip Y (OpenGL convention)
+        # Read the Render Result
+        render_img = bpy.data.images.get("Render Result")
+        if render_img is None:
+            return None
+
+        w, h = render_img.size
+        if w == 0 or h == 0:
+            return None
+
+        # Read pixels (flat RGBA float array)
+        pixels = np.zeros(w * h * 4, dtype=np.float32)
+        render_img.pixels.foreach_get(pixels)
+        pixels = pixels.reshape(h, w, 4)
+
+        # Flip Y (Blender stores bottom-up)
         pixels = np.flip(pixels, axis=0)
+
         # Convert to uint8 RGB
         rgb = (pixels[:, :, :3] * 255).clip(0, 255).astype(np.uint8)
 
         img = Image.fromarray(rgb)
+
+        # Resize to target if needed
+        if img.size != (size, size):
+            img = img.resize((size, size), Image.LANCZOS)
+
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=JPEG_QUALITY)
         b64 = base64.b64encode(buf.getvalue()).decode("ascii")
         return f"data:image/jpeg;base64,{b64}"
 
+    except Exception as e:
+        print(f"fal.ai realtime: capture error: {e}")
+        return None
     finally:
-        offscreen.free()
+        # Restore resolution
+        scene.render.resolution_x = old_res_x
+        scene.render.resolution_y = old_res_y
+        scene.render.resolution_percentage = old_pct
 
 
 def _load_result_image(image_bytes: bytes, image_name: str = "fal Realtime") -> None:
