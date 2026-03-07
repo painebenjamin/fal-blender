@@ -446,9 +446,12 @@ class FAL_OT_realtime_refine_start(bpy.types.Operator):
         result_bytes = _session.get_result()
         if result_bytes is not None:
             _load_result_image(result_bytes)
-            # Force redraw of image editors
+            # Set the image in any visible Image Editor and redraw
+            bl_img = bpy.data.images.get("fal Realtime")
             for area in context.screen.areas:
                 if area.type == "IMAGE_EDITOR":
+                    if bl_img is not None:
+                        area.spaces.active.image = bl_img
                     area.tag_redraw()
 
         return {"PASS_THROUGH"}
