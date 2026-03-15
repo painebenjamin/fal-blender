@@ -12,15 +12,19 @@ import math
 
 import bpy  # type: ignore[import-not-found]
 
-from ..endpoints import (
-    DEPTH_CONTROL_ENDPOINTS,
-    IMAGE_GENERATION_ENDPOINTS,
-    REFINE_ENDPOINTS,
-    endpoint_items,
+from ..models import (
+    SketchGuidedImageGenerationModel,
+    DepthGuidedImageGenerationModel,
+    ImageRefinementModel,
 )
-from ..core.api import build_image_gen_args, download_file, resolve_endpoint, upload_image_file
+from ..core.api import build_image_gen_args, download_file
 from ..core.job_queue import FalJob, JobManager
 from ..core.importers import import_image_to_editor, resize_image_to_target
+
+
+SKETCH_GUIDED_IMAGE_GENERATION_MODELS = SketchGuidedImageGenerationModel.catalog()
+DEPTH_GUIDED_IMAGE_GENERATION_MODELS = DepthGuidedImageGenerationModel.catalog()
+IMAGE_REFINEMENT_MODELS = ImageRefinementModel.catalog()
 
 
 # ---------------------------------------------------------------------------
@@ -72,19 +76,19 @@ class FalNeuralRenderProperties(bpy.types.PropertyGroup):
 
     depth_endpoint: bpy.props.EnumProperty(
         name="Depth Endpoint",
-        items=endpoint_items(DEPTH_CONTROL_ENDPOINTS),
+        items=list(DEPTH_GUIDED_IMAGE_GENERATION_MODELS.keys()),
         description="Endpoint for depth-controlled generation",
     )
 
     sketch_endpoint: bpy.props.EnumProperty(
         name="Sketch Endpoint",
-        items=endpoint_items(IMAGE_GENERATION_ENDPOINTS),
+        items=list(SKETCH_GUIDED_IMAGE_GENERATION_MODELS.keys()),
         description="Endpoint for sketch reimagining",
     )
 
     refine_endpoint: bpy.props.EnumProperty(
         name="Refine Endpoint",
-        items=endpoint_items(REFINE_ENDPOINTS),
+        items=list(IMAGE_REFINEMENT_MODELS.keys()),
         description="Endpoint for image-to-image refinement",
     )
 
@@ -125,6 +129,7 @@ class FalNeuralRenderProperties(bpy.types.PropertyGroup):
         description="Describe what to generate from the rendered input",
         default="",
     )
+
     enable_prompt_expansion: bpy.props.BoolProperty(
         name="Prompt Expansion",
         description="Let the AI model expand and enhance your prompt for better results",
@@ -219,12 +224,14 @@ class FAL_OT_neural_render(bpy.types.Operator):
         self._mode = props.mode
         self._prompt = props.prompt
         self._seed = props.seed
+
         if self._mode == "DEPTH":
-            self._endpoint = props.depth_endpoint
+            self._model = DEPTH_GUIDED_IMAGE_GENERATION_MODELS[props.depth_endpoint]
         elif self._mode == "SKETCH":
-            self._endpoint = props.sketch_endpoint
+            self._model = SKETCH_GUIDED_IMAGE_GENERATION_MODELS[props.sketch_endpoint]
         else:
-            self._endpoint = props.refine_endpoint
+            self._model = IMAGE_REFINEMENT_MODELS[props.refine_endpoint]
+
         self._refine_strength = props.refine_strength
         self._sketch_system_prompt = props.sketch_system_prompt
         self._refine_system_prompt = props.refine_system_prompt
@@ -410,24 +417,21 @@ class FAL_OT_neural_render(bpy.types.Operator):
         # Restore scene state before doing network I/O
         self._restore_state(context)
 
-        # Upload and submit
-        image_url = upload_image_file(depth_path)
-        args = {
-            "control_image_url": image_url,
-            "image_url": image_url,
-            "prompt": self._prompt,
-            "expand_prompt": self._expand_prompt,
-            "enable_prompt_expansion": self._expand_prompt,
-        }
-        if self._seed >= 0:
-            args["seed"] = self._seed
+        args = self._model.parameters(
+            image_path=depth_path,
+            prompt=self._prompt,
+            enable_prompt_expansion=self._expand_prompt,
+            width=self._render_w,
+            height=self._render_h,
+            seed=self._seed if self._seed >= 0 else None,
+        )
 
         rw, rh = self._render_w, self._render_h
         def on_complete(job: FalJob):
             _handle_neural_image_result(job, rw, rh)
 
         job = FalJob(
-            endpoint=resolve_endpoint(self._endpoint, args),
+            endpoint=self._model.endpoint,
             arguments=args,
             on_complete=on_complete,
             label=f"Neural Depth: {self._prompt[:30]}",
@@ -576,7 +580,6 @@ class FAL_OT_neural_render(bpy.types.Operator):
             self._overlay_labels(context, tmp, self._render_w, self._render_h)
 
         # Upload and submit
-        image_url = upload_image_file(tmp)
         seed = self._seed if self._seed >= 0 else None
 
         # Compose full prompt: system prompt + user prompt
@@ -589,17 +592,13 @@ class FAL_OT_neural_render(bpy.types.Operator):
         else:
             full_prompt = user
 
-        args = build_image_gen_args(
-            endpoint_id=self._endpoint,
+        args = self._model.parameters(
             prompt=full_prompt,
             width=self._render_w,
             height=self._render_h,
             seed=seed,
-            expand_prompt=self._expand_prompt,
-            extra={
-                "image_url": image_url,
-                "image_urls": [image_url],
-            },
+            enable_prompt_expansion=self._expand_prompt,
+            image_path=tmp,
         )
 
         rw, rh = self._render_w, self._render_h
@@ -607,7 +606,7 @@ class FAL_OT_neural_render(bpy.types.Operator):
             _handle_neural_image_result(job, rw, rh)
 
         job = FalJob(
-            endpoint=resolve_endpoint(self._endpoint, args),
+            endpoint=self._model.endpoint,
             arguments=args,
             on_complete=on_complete,
             label=f"Neural Sketch: {self._prompt[:30]}",
@@ -651,9 +650,6 @@ class FAL_OT_neural_render(bpy.types.Operator):
         # Restore scene state
         self._restore_state(context)
 
-        # Upload and submit to img2img endpoint
-        image_url = upload_image_file(tmp)
-
         # Compose full prompt: system prompt + user prompt
         system = self._refine_system_prompt.strip()
         user = self._prompt.strip()
@@ -664,29 +660,22 @@ class FAL_OT_neural_render(bpy.types.Operator):
         else:
             full_prompt = user
 
-        # Build args — different endpoints expect different image param names
-        from ..endpoints import snap_to_mod16
-        w, h = snap_to_mod16(self._render_w, self._render_h)
-
-        args = {
-            "prompt": full_prompt,
-            "image_url": image_url,
-            "image_urls": [image_url],  # Klein uses image_urls (list)
-            "strength": self._refine_strength,
-            "expand_prompt": self._expand_prompt,
-            "enable_prompt_expansion": self._expand_prompt,
-            "width": w,
-            "height": h,
-        }
-        if self._seed >= 0:
-            args["seed"] = self._seed
+        args = self._model.parameters(
+            prompt=full_prompt,
+            image_path=tmp,
+            strength=self._refine_strength,
+            enable_prompt_expansion=self._expand_prompt,
+            width=w,
+            height=h,
+            seed=self._seed if self._seed >= 0 else None,
+        )
 
         rw, rh = self._render_w, self._render_h
         def on_complete(job: FalJob):
             _handle_neural_image_result(job, rw, rh)
 
         job = FalJob(
-            endpoint=resolve_endpoint(self._endpoint, args),
+            endpoint=self._model.endpoint,
             arguments=args,
             on_complete=on_complete,
             label=f"Neural Refine: {self._prompt[:30]}",
