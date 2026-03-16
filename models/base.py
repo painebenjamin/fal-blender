@@ -1,26 +1,15 @@
 from __future__ import annotations
 from abc import ABCMeta, abstractmethod
-from typing import Any
+from typing import Any, ClassVar
 
 from ..utils import path_to_data_uri
 
 class FalModel(metaclass=ABCMeta):
-    @property
-    @classmethod
-    def static_parameters(cls) -> dict[str, Any]:
-        return {}
-
-    @property
-    @classmethod
-    @abstractmethod
-    def endpoint(cls) -> str:
-        pass
-
-    @property
-    @classmethod
-    @abstractmethod
-    def display_name(cls) -> str:
-        pass
+    enabled: ClassVar[bool] = True
+    endpoint: ClassVar[str]
+    display_name: ClassVar[str]
+    description: ClassVar[str] = ""
+    static_parameters: ClassVar[dict[str, Any]] = {}
 
     @classmethod
     @abstractmethod
@@ -28,18 +17,34 @@ class FalModel(metaclass=ABCMeta):
         pass
 
     @classmethod
-    def catalog(cls, by_endpoint: bool = False) -> dict[str, FalModel]:
+    def catalog(cls) -> dict[str, FalModel]:
         """
         Returns a dictionary of all available models.
         """
         catalog: dict[str, type[FalModel]] = {}
         for subcls in cls.__subclasses__():
-            if by_endpoint:
-                catalog[subcls.endpoint] = subcls
-            else:
-                catalog[subcls.display_name] = subcls
+            catalog[subcls.__name__] = subcls
         return catalog
 
+    @classmethod
+    def is_available(cls) -> bool:
+        """
+        Returns True if the model is available.
+        """
+        return getattr(cls, "endpoint", None) is not None \
+            and getattr(cls, "display_name", None) is not None \
+            and getattr(cls, "enabled", True)
+
+    @classmethod
+    def enumerate(cls) -> list[tuple[str, str, str]]:
+        """
+        Returns a list of all available models.
+        """
+        return [
+            (subcls.__name__, subcls.display_name, subcls.description)
+            for subcls in cls.__subclasses__()
+            if subcls.is_available()
+        ]
 
 class VisualFalModel(FalModel):
     use_resolution_aspect_ratio: ClassVar[bool] = False
@@ -163,10 +168,11 @@ class VisualFalModel(FalModel):
                 video_uris.append(path_to_data_uri(video_path))
         if video_urls:
             video_uris.extend(video_urls)
-        return {
-            cls.video_urls_parameter: video_uris,
-        }
 
+        if cls.video_urls_parameter:
+            return {
+                cls.video_urls_parameter: video_uris,
+            }
         return {
             cls.video_url_parameter: video_uris[0] if video_uris else None,
         }
@@ -185,6 +191,8 @@ class VisualFalModel(FalModel):
         prompt = kwargs.get("prompt", None)
         enable_prompt_expansion = kwargs.get("enable_prompt_expansion", True)
 
+        image_paths: list[str] = []
+        image_urls: list[str] = []
         if "image_paths" in kwargs:
             image_paths = kwargs["image_paths"]
         if "image_path" in kwargs:

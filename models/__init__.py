@@ -4,6 +4,16 @@ from .image_generation import (
     NanoBananaSketchGuidedImageGenerationModel,
     NanoBananaProSketchGuidedImageGenerationModel,
     NanoBanana2SketchGuidedImageGenerationModel,
+    DepthGuidedImageGenerationModel,
+    ZImageTurboDepthGuidedImageGenerationModel,
+    FLUX1DevDepthGuidedImageGenerationModel,
+    ImageRefinementModel,
+    NanoBananaImageRefinementModel,
+    NanoBananaProImageRefinementModel,
+    NanoBanana2ImageRefinementModel,
+    ZImageTurboImageRefinementModel,
+    FLUX1DevImageRefinementModel,
+    FLUX2Klein9BImageRefinementModel,
 )
 
 __all__ = [
@@ -12,4 +22,14 @@ __all__ = [
     "NanoBananaSketchGuidedImageGenerationModel",
     "NanoBananaProSketchGuidedImageGenerationModel",
     "NanoBanana2SketchGuidedImageGenerationModel",
+    "DepthGuidedImageGenerationModel",
+    "ZImageTurboDepthGuidedImageGenerationModel",
+    "FLUX1DevDepthGuidedImageGenerationModel",
+    "ImageRefinementModel",
+    "NanoBananaImageRefinementModel",
+    "NanoBananaProImageRefinementModel",
+    "NanoBanana2ImageRefinementModel",
+    "ZImageTurboImageRefinementModel",
+    "FLUX1DevImageRefinementModel",
+    "FLUX2Klein9BImageRefinementModel",
 ]

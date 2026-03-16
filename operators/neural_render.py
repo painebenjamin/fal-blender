@@ -17,7 +17,7 @@ from ..models import (
     DepthGuidedImageGenerationModel,
     ImageRefinementModel,
 )
-from ..core.api import build_image_gen_args, download_file
+from ..utils import download_file
 from ..core.job_queue import FalJob, JobManager
 from ..core.importers import import_image_to_editor, resize_image_to_target
 
@@ -76,19 +76,19 @@ class FalNeuralRenderProperties(bpy.types.PropertyGroup):
 
     depth_endpoint: bpy.props.EnumProperty(
         name="Depth Endpoint",
-        items=list(DEPTH_GUIDED_IMAGE_GENERATION_MODELS.keys()),
+        items=DepthGuidedImageGenerationModel.enumerate(),
         description="Endpoint for depth-controlled generation",
     )
 
     sketch_endpoint: bpy.props.EnumProperty(
         name="Sketch Endpoint",
-        items=list(SKETCH_GUIDED_IMAGE_GENERATION_MODELS.keys()),
+        items=SketchGuidedImageGenerationModel.enumerate(),
         description="Endpoint for sketch reimagining",
     )
 
     refine_endpoint: bpy.props.EnumProperty(
         name="Refine Endpoint",
-        items=list(IMAGE_REFINEMENT_MODELS.keys()),
+        items=ImageRefinementModel.enumerate(),
         description="Endpoint for image-to-image refinement",
     )
 
@@ -199,8 +199,17 @@ class FAL_OT_neural_render(bpy.types.Operator):
     def poll(cls, context: bpy.types.Context) -> bool:
         if cls._rendering:
             return False
+        if context.scene.camera is None:
+            return False
+
         props = context.scene.fal_neural_render
-        return bool(props.prompt.strip()) and context.scene.camera is not None
+
+        if props.mode == "SKETCH":
+            return bool(props.sketch_system_prompt.strip() or props.prompt.strip())
+        elif props.mode == "REFINE":
+            return bool(props.refine_system_prompt.strip() or props.prompt.strip())
+
+        return bool(props.prompt.strip())
 
     @staticmethod
     def _get_dimensions(context, props) -> tuple[int, int]:
@@ -665,8 +674,8 @@ class FAL_OT_neural_render(bpy.types.Operator):
             image_path=tmp,
             strength=self._refine_strength,
             enable_prompt_expansion=self._expand_prompt,
-            width=w,
-            height=h,
+            width=self._render_w,
+            height=self._render_h,
             seed=self._seed if self._seed >= 0 else None,
         )
 

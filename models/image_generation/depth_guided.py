@@ -34,8 +34,10 @@ class FLUX1DevDepthGuidedImageGenerationModel(DepthGuidedImageGenerationModel, F
             {
                 "path": "Shakker-Labs/FLUX.1-dev-ControlNet-Union-Pro",
                 "controls": [
-                    "control_image_url": params.pop("image_url", None),
-                    "control_mode": "depth",
+                    {
+                        "control_image_url": params.pop("image_url", None),
+                        "control_mode": "depth",
+                    }
                 ],
             },
         ]
