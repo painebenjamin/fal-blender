@@ -4,6 +4,7 @@ __all__ = [
     "NanoBanana",
     "NanoBananaPro",
     "NanoBanana2",
+    "ZImageBase",
     "ZImageTurbo",
     "FLUX1Dev",
     "FLUX2Klein9B",
@@ -38,6 +39,10 @@ class NanoBanana2(VisualFalModel):
 
 class ZImageTurbo(VisualFalModel):
     display_name = "Z-Image Turbo"
+    size_parameter = "image_size"
+
+class ZImageBase(VisualFalModel):
+    display_name = "Z-Image Base"
     size_parameter = "image_size"
 
 class FLUX1Dev(VisualFalModel):

@@ -9,6 +9,14 @@ from typing import Any
 
 import bpy  # type: ignore[import-not-found]
 
+__all__ = [
+    "apply_texture_to_object",
+    "import_image_as_texture",
+    "import_glb",
+    "resize_image_to_target",
+    "import_image_to_editor",
+    "add_audio_to_vse",
+]
 
 def import_image_as_texture(
     image_path: str,
@@ -26,12 +34,12 @@ def import_image_as_texture(
 
     if apply_to_selected and bpy.context.active_object:
         obj = bpy.context.active_object
-        _apply_texture_to_object(obj, img)
+        apply_texture_to_object(obj, img)
 
     return img
 
 
-def _apply_texture_to_object(obj: bpy.types.Object, img: bpy.types.Image):
+def apply_texture_to_object(obj: bpy.types.Object, img: bpy.types.Image):
     """Create or update a Principled BSDF material with the image as base color."""
     # Ensure the object has a material
     if not obj.data.materials:

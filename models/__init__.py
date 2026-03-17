@@ -15,6 +15,14 @@ from .image_generation import (
     FLUX1DevImageRefinementModel,
     FLUX2Klein9BImageRefinementModel,
 )
+from .image_processing import (
+    ImageUpscalingModel,
+    SeedVR29BImageUpscalingModel,
+)
+from .video_processing import (
+    VideoUpscalingModel,
+    SeedVR29BVideoUpscalingModel,
+)
 
 __all__ = [
     "FalModel",
@@ -32,4 +40,8 @@ __all__ = [
     "ZImageTurboImageRefinementModel",
     "FLUX1DevImageRefinementModel",
     "FLUX2Klein9BImageRefinementModel",
+    "ImageUpscalingModel",
+    "SeedVR29BImageUpscalingModel",
+    "VideoUpscalingModel",
+    "SeedVR29BVideoUpscalingModel",
 ]

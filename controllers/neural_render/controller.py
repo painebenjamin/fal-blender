@@ -1,0 +1,43 @@
+from ..base import FalController
+from .props import FalNeuralRenderPropertyGroup
+from .operator import FalNeuralRenderOperator
+from .ui import FalNeuralRenderUI
+
+class FalNeuralRenderController(FalController):
+    display_name = "Neural Render"
+    description = "Render scene data and generates AI images via fal.ai"
+    icon = "RENDER_RESULT"
+    operator_class = FalNeuralRenderOperator
+    properties_class = FalNeuralRenderPropertyGroup
+    ui = FalControllerUI(
+        field_orders = [
+            "mode",
+            "depth_endpoint",
+            "sketch_endpoint",
+            "sketch_system_prompt",
+            "enable_labels",
+            "auto_label",
+            "refine_endpoint",
+            "refine_strength",
+            "refine_system_prompt",
+            "prompt",
+            "enable_prompt_expansion",
+            "use_scene_resolution",
+            "width",
+            "height",
+            "seed",
+        ]
+        field_conditions = {
+            "enable_prompt_expansion": lambda context, props: props.mode != "SKETCH",
+            "width": lambda context, props: not props.use_scene_resolution,
+            "height": lambda context, props: not props.use_scene_resolution,
+            "depth_endpoint": lambda context, props: props.mode == "DEPTH",
+            "sketch_endpoint": lambda context, props: props.mode == "SKETCH",
+            "sketch_system_prompt": lambda context, props: props.mode == "SKETCH",
+            "enable_labels": lambda context, props: props.mode == "SKETCH",
+            "auto_label": lambda context, props: props.mode == "SKETCH",
+            "refine_endpoint": lambda context, props: props.mode == "REFINE",
+            "refine_strength": lambda context, props: props.mode == "REFINE",
+            "refine_system_prompt": lambda context, props: props.mode == "REFINE",
+        }
+    )
