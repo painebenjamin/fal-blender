@@ -1,13 +1,10 @@
-# SPDX-License-Identifier: Apache-2.0
-"""Import helpers — bring fal results into Blender."""
-
 from __future__ import annotations
 
 import os
 from pathlib import Path
 from typing import Any
 
-import bpy  # type: ignore[import-not-found]
+import bpy
 
 __all__ = [
     "apply_texture_to_object",

@@ -1,7 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
-"""Async job queue — runs fal API calls in background threads,
-polls via bpy.app.timers, processes results on the main thread."""
-
 from __future__ import annotations
 
 import os
@@ -11,9 +7,6 @@ import traceback
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable, TYPE_CHECKING
 from pathlib import Path
-
-if TYPE_CHECKING:
-    pass
 
 import bpy  # type: ignore[import-not-found]
 
@@ -75,7 +68,9 @@ def _format_error(e: Exception) -> str:
 # FalJob
 # ---------------------------------------------------------------------------
 class FalJob:
-    """Tracks a single fal API request running in a background thread."""
+    """
+    Tracks a single fal API request running in a background thread.
+    """
 
     def __init__(
         self,
@@ -86,7 +81,19 @@ class FalJob:
         job_id: str | None = None,
         label: str = "",
         download_keys: list[str] | None = None,
-    ):
+    ) -> None:
+        """Initialize a FalJob.
+
+        Args:
+            endpoint: The API endpoint to call.
+            arguments: The arguments to pass to the API endpoint.
+            on_complete: The function to call when the job is complete.
+            job_id: The ID of the job.
+            label: The label of the job.
+            download_keys: The keys to download from the result. Defaults to an empty list.
+                Supports dotted paths like 'model_mesh.url' and
+                array access like 'images.0.url'.
+        """
         self.job_id = job_id or uuid.uuid4().hex[:12]
         self.endpoint = endpoint
         self.arguments = arguments
@@ -106,8 +113,9 @@ class FalJob:
 
     # ── Lifecycle ──────────────────────────────────────────────────────
 
-    def submit(self):
-        """Submit the job to the thread pool.
+    def submit(self) -> None:
+        """
+        Submit the job to the thread pool.
 
         MUST be called from the main thread — caches the API key
         before spawning the background thread.
@@ -118,8 +126,10 @@ class FalJob:
         self.status = "running"
         self._future = _executor.submit(self._run)
 
-    def _run(self):
-        """Execute in background thread — no bpy calls allowed here!"""
+    def _run(self) -> None:
+        """
+        Execute in background thread — no bpy calls allowed here!
+        """
         try:
             import fal_client
         except ImportError as e:
@@ -132,8 +142,7 @@ class FalJob:
             os.environ["FAL_KEY"] = self._api_key
 
         try:
-
-            def _on_queue_update(update):
+            def _on_queue_update(update) -> None:
                 if isinstance(update, fal_client.InProgress):
                     if update.logs:
                         last = update.logs[-1]
@@ -144,7 +153,7 @@ class FalJob:
                         )
                         self.progress_message = msg[:80]
 
-            def _on_enqueue(request_id: str):
+            def _on_enqueue(request_id: str) -> None:
                 self.request_id = request_id
                 print(f"fal.ai: {self.endpoint} enqueued as {request_id}")
 
@@ -177,7 +186,12 @@ class FalJob:
             traceback.print_exc()
 
     def _download_results(self, result: dict[str, Any]):
-        """Download URLs from result dict to local temp files."""
+        """
+        Download URLs from result dict to local temp files.
+
+        Args:
+            result: The result from the API call.
+        """
         import urllib.request
 
         for key in self.download_keys:
@@ -201,10 +215,21 @@ class FalJob:
 
     @staticmethod
     def _extract_url(data: Any, key: str) -> str | None:
-        """Extract a URL from nested result data.
+        """
+        Extract a URL from nested result data.
 
         Supports dotted paths like 'model_mesh.url' and
         array access like 'images.0.url'.
+
+        Args:
+            data: The data to extract the URL from.
+            key: The key to extract the URL from.
+
+        Returns:
+            The URL if found, otherwise None.
+
+        Raises:
+            ValueError: If the key is not a valid URL.
         """
         parts = key.split(".")
         current = data
@@ -224,6 +249,7 @@ class FalJob:
 
     @property
     def is_done(self) -> bool:
+        """Check if the job is done."""
         return self.status in ("complete", "error")
 
 
@@ -231,29 +257,53 @@ class FalJob:
 # JobManager singleton
 # ---------------------------------------------------------------------------
 class JobManager:
-    """Manages active fal jobs, polls completion via bpy.app.timers."""
+    """
+    Manages active fal jobs, polls completion via bpy.app.timers.
+    """
 
     _instance: JobManager | None = None
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """
+        Initialize a JobManager.
+
+        Args:
+            jobs: The jobs to manage.
+            history: The history of jobs.
+            _timer_running: Whether the timer is running.
+            _max_history: The maximum number of jobs to keep in history.
+        """
         self.jobs: dict[str, FalJob] = {}
         self.history: list[FalJob] = []
         self._timer_running = False
         self._max_history = 20
 
     @classmethod
-    def get(cls) -> "JobManager":
+    def get(cls) -> JobManager:
+        """
+        Get the singleton instance of JobManager.
+        """
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
 
     @classmethod
-    def reset(cls):
-        """Reset the singleton (for testing / unregister)."""
+    def reset(cls) -> None:
+        """
+        Reset the singleton (for testing / unregister).
+        """
         cls._instance = None
 
     def submit(self, job: FalJob) -> FalJob:
-        """Submit a job for execution. Must be called from main thread."""
+        """
+        Submit a job for execution. Must be called from main thread.
+
+        Args:
+            job: The job to submit.
+
+        Returns:
+            The submitted job.
+        """
         self.jobs[job.job_id] = job
         job.submit()
         if not self._timer_running:
@@ -262,7 +312,15 @@ class JobManager:
         return job
 
     def cancel(self, job_id: str) -> bool:
-        """Cancel a pending/running job (best-effort)."""
+        """
+        Cancel a pending/running job (best-effort).
+
+        Args:
+            job_id: The ID of the job to cancel.
+
+        Returns:
+            True if the job was cancelled, False otherwise.
+        """
         job = self.jobs.get(job_id)
         if job and job._future:
             job._future.cancel()
@@ -272,7 +330,12 @@ class JobManager:
         return False
 
     def _poll(self) -> float | None:
-        """Timer callback — runs on the main thread."""
+        """
+        Timer callback — runs on the main thread.
+
+        Returns:
+            The time to wait until the next poll, or None if no jobs are left.
+        """
         done_ids = []
 
         # Snapshot keys — on_complete handlers may submit new jobs
@@ -308,19 +371,14 @@ class JobManager:
 
     @property
     def active_count(self) -> int:
+        """
+        Get the number of active jobs.
+        """
         return len(self.jobs)
 
     @property
     def active_jobs(self) -> list[FalJob]:
+        """
+        Get the list of active jobs.
+        """
         return list(self.jobs.values())
-
-
-# ---------------------------------------------------------------------------
-# Registration
-# ---------------------------------------------------------------------------
-def register():
-    pass
-
-
-def unregister():
-    JobManager.reset()
