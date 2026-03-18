@@ -32,10 +32,11 @@ DEPTH_GUIDED_IMAGE_GENERATION_MODELS = DepthGuidedImageGenerationModel.catalog()
 IMAGE_REFINEMENT_MODELS = ImageRefinementModel.catalog()
 
 
-# ---------------------------------------------------------------------------
-# Operator
-# ---------------------------------------------------------------------------
 class FalNeuralRenderOperator(FalOperator):
+    """
+    Operator for neural rendering.
+    """
+
     label = "Neural Render"  # text in button in UI
 
     # Guard against overlapping renders
