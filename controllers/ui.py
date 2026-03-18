@@ -91,7 +91,7 @@ class FalControllerUI:
 
                 self._current_row.prop(props, field_name)
                 self._current_group_seen.add(field_name)
-    
+
                 if len(self._current_group_seen) == len(group):
                     self._flush_current_group()
                     if any(field_name in self.field_separators for field_name in group):
