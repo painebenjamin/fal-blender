@@ -41,4 +41,7 @@ class FalNeuralRenderController(FalController):
             "refine_strength": lambda context, props: props.mode == "REFINE",
             "refine_system_prompt": lambda context, props: props.mode == "REFINE",
         },
+        field_groupings=[
+            {"width", "height"},
+        ],
     )

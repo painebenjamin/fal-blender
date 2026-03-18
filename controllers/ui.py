@@ -12,6 +12,41 @@ class FalControllerUI:
     field_orders: list[str] = field(default_factory=list)
     field_separators: list[str] = field(default_factory=list)
     field_conditions: dict[str, ConditionFunc] = field(default_factory=dict)
+    field_groupings: list[set[str]] = field(default_factory=list)
+
+    _current_group_seen: set[str] = field(default_factory=set)
+    _current_group: set[str] | None = None
+    _current_row: bpy.types.UILayout | None = None
+
+    def __post_init__(self) -> None:
+        """
+        Post-init hook, validate field groupings.
+
+        Fields can only be in one grouping.
+        """
+        seen_fields = set()
+        for group in self.field_groupings:
+            for field in group:
+                if field in seen_fields:
+                    raise ValueError(f"Field {field} is in multiple groupings")
+                seen_fields.add(field)
+
+    def _get_group_for_field(self, field_name: str) -> set[str] | None:
+        """
+        Get the group for a field.
+        """
+        for group in self.field_groupings:
+            if field_name in group:
+                return group
+        return None
+
+    def _flush_current_group(self) -> None:
+        """
+        Flush the current group.
+        """
+        self._current_group = None
+        self._current_row = None
+        self._current_group_seen.clear()
 
     def status_message(
         self,
@@ -47,9 +82,24 @@ class FalControllerUI:
         Draw a field in the UI.
         """
         if self.show_field(context, props, field_name):
-            layout.prop(props, field_name)
-            if field_name in self.field_separators:
-                layout.separator()
+            group = self._get_group_for_field(field_name)
+            if group:
+                if self._current_group != group:
+                    self._current_group = group
+                    self._current_row = layout.row()
+                    self._current_group_seen.clear()
+
+                self._current_row.prop(props, field_name)
+                self._current_group_seen.add(field_name)
+    
+                if len(self._current_group_seen) == len(group):
+                    self._flush_current_group()
+                    if any(field_name in self.field_separators for field_name in group):
+                        layout.separator()
+            else:
+                layout.prop(props, field_name)
+                if field_name in self.field_separators:
+                    layout.separator()
 
     def draw_status(
         self,
@@ -109,3 +159,4 @@ class FalControllerUI:
         self.draw_operator(
             layout, context, props, operator_name, operator_icon, operator_size
         )
+        self._flush_current_group()
