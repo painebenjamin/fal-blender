@@ -11,7 +11,6 @@ class FalExampleController(FalController):
     """
     Example controller.
     """
-    enabled = False  # Set to True to enable the controller
     display_name = "Example"
     description = "This is an example controller"
     icon = "FILE_IMAGE"
