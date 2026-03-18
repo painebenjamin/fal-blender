@@ -1,39 +1,30 @@
 from __future__ import annotations
 
 import tempfile
-import math
-import bpy 
-
 from typing import ClassVar
 
+import bpy
+
+from ...importers import import_image_to_editor, resize_image_to_target
+from ...job_queue import FalJob, JobManager
 from ...models import (
-    SketchGuidedImageGenerationModel,
     DepthGuidedImageGenerationModel,
     ImageRefinementModel,
-)
-from ...job_queue import (
-    FalJob,
-    JobManager,
-)
-from ...importers import (
-    import_image_to_editor,
-    resize_image_to_target,
+    SketchGuidedImageGenerationModel,
 )
 from ...utils import (
     download_file,
-    snapshot_compositor,
-    restore_compositor,
     get_world_color,
+    restore_compositor,
     set_world_color,
-    get_default_font,
+    snapshot_compositor,
 )
 from ..operators import FalOperator
 from .utils import (
     calc_scene_depth_bounds,
-    overlay_labels,
-    is_occluded,
-    render_to_sketch,
     get_dimensions,
+    overlay_labels,
+    render_to_sketch,
 )
 
 SKETCH_GUIDED_IMAGE_GENERATION_MODELS = SketchGuidedImageGenerationModel.catalog()
@@ -51,7 +42,9 @@ class FalNeuralRenderOperator(FalOperator):
     _rendering: ClassVar[bool] = False
 
     @classmethod
-    def enabled(cls, context: bpy.types.Context, props: bpy.types.PropertyGroup) -> bool:
+    def enabled(
+        cls, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> bool:
         """
         Check if the operator is enabled.
         """
@@ -78,7 +71,9 @@ class FalNeuralRenderOperator(FalOperator):
         Invoke the operator.
         """
         if not invoke:
-            raise RuntimeError("Neural render operator should be used as a modal operator")
+            raise RuntimeError(
+                "Neural render operator should be used as a modal operator"
+            )
 
         # Cache everything we need — context may not be fully usable
         # from inside render handlers.
@@ -217,16 +212,18 @@ class FalNeuralRenderOperator(FalOperator):
         world = scene.world
 
         # Save current settings
-        self._saved.update({
-            "engine": scene.render.engine,
-            "film_transparent": scene.render.film_transparent,
-            "res_x": scene.render.resolution_x,
-            "res_y": scene.render.resolution_y,
-            "res_pct": scene.render.resolution_percentage,
-            "use_compositing": scene.render.use_compositing,
-            "use_nodes": scene.use_nodes,
-            "use_pass_mist": view_layer.use_pass_mist,
-        })
+        self._saved.update(
+            {
+                "engine": scene.render.engine,
+                "film_transparent": scene.render.film_transparent,
+                "res_x": scene.render.resolution_x,
+                "res_y": scene.render.resolution_y,
+                "res_pct": scene.render.resolution_percentage,
+                "use_compositing": scene.render.use_compositing,
+                "use_nodes": scene.use_nodes,
+                "use_pass_mist": view_layer.use_pass_mist,
+            }
+        )
         if world:
             self._saved["mist_start"] = world.mist_settings.start
             self._saved["mist_depth"] = world.mist_settings.depth
@@ -308,6 +305,7 @@ class FalNeuralRenderOperator(FalOperator):
         )
 
         rw, rh = self._render_w, self._render_h
+
         def on_complete(job: FalJob):
             _handle_neural_image_result(job, rw, rh)
 
@@ -331,17 +329,19 @@ class FalNeuralRenderOperator(FalOperator):
         world = scene.world
 
         # Save render settings
-        self._saved.update({
-            "engine": scene.render.engine,
-            "res_x": scene.render.resolution_x,
-            "res_y": scene.render.resolution_y,
-            "res_pct": scene.render.resolution_percentage,
-            "film_transparent": scene.render.film_transparent,
-            "use_freestyle": scene.render.use_freestyle,
-            "vl_use_freestyle": view_layer.use_freestyle,
-            "view_transform": scene.view_settings.view_transform,
-            "look": scene.view_settings.look,
-        })
+        self._saved.update(
+            {
+                "engine": scene.render.engine,
+                "res_x": scene.render.resolution_x,
+                "res_y": scene.render.resolution_y,
+                "res_pct": scene.render.resolution_percentage,
+                "film_transparent": scene.render.film_transparent,
+                "use_freestyle": scene.render.use_freestyle,
+                "vl_use_freestyle": view_layer.use_freestyle,
+                "view_transform": scene.view_settings.view_transform,
+                "look": scene.view_settings.look,
+            }
+        )
         if world:
             self._saved["world_color"] = get_world_color(world)
 
@@ -356,7 +356,8 @@ class FalNeuralRenderOperator(FalOperator):
         self._sketch_mats = []
         self._old_materials = {}
         visible_meshes = [
-            obj for obj in scene.objects
+            obj
+            for obj in scene.objects
             if obj.type in {"MESH", "CURVE", "SURFACE", "META", "FONT"}
             and obj.visible_get()
         ]
@@ -477,6 +478,7 @@ class FalNeuralRenderOperator(FalOperator):
         )
 
         rw, rh = self._render_w, self._render_h
+
         def on_complete(job: FalJob):
             _handle_neural_image_result(job, rw, rh)
 
@@ -489,7 +491,6 @@ class FalNeuralRenderOperator(FalOperator):
         JobManager.get().submit(job)
         self.report({"INFO"}, "Sketch rendered — generating image...")
 
-
     # ── Refine Mode — setup / finish ───────────────────────────────────
 
     def _setup_refine(self, context: bpy.types.Context) -> None:
@@ -499,11 +500,13 @@ class FalNeuralRenderOperator(FalOperator):
         scene = context.scene
 
         # Save render settings so we can restore after
-        self._saved.update({
-            "res_x": scene.render.resolution_x,
-            "res_y": scene.render.resolution_y,
-            "res_pct": scene.render.resolution_percentage,
-        })
+        self._saved.update(
+            {
+                "res_x": scene.render.resolution_x,
+                "res_y": scene.render.resolution_y,
+                "res_pct": scene.render.resolution_percentage,
+            }
+        )
 
         # Set resolution
         scene.render.resolution_x = self._render_w
@@ -541,6 +544,7 @@ class FalNeuralRenderOperator(FalOperator):
         )
 
         rw, rh = self._render_w, self._render_h
+
         def on_complete(job: FalJob):
             _handle_neural_image_result(job, rw, rh)
 
@@ -551,7 +555,10 @@ class FalNeuralRenderOperator(FalOperator):
             label=f"Neural Refine: {self._prompt[:30]}",
         )
         JobManager.get().submit(job)
-        self.report({"INFO"}, f"Render complete — refining (strength={self._refine_strength:.0%})...")
+        self.report(
+            {"INFO"},
+            f"Render complete — refining (strength={self._refine_strength:.0%})...",
+        )
 
     # ── Unified state restoration ──────────────────────────────────────
 
@@ -631,6 +638,7 @@ class FalNeuralRenderOperator(FalOperator):
         self._hidden_lights.clear()
 
         self._saved.clear()
+
 
 # ---------------------------------------------------------------------------
 # Result handler (module-level — must not reference operator self)

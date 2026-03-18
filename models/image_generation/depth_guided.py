@@ -1,7 +1,7 @@
-from ..base import VisualFalModel
-from .base import ZImageTurbo, FLUX1Dev
-
 from typing import Any
+
+from ..base import VisualFalModel
+from .base import FLUX1Dev, ZImageTurbo
 
 __all__ = [
     "DepthGuidedImageGenerationModel",
@@ -9,23 +9,27 @@ __all__ = [
     "FLUX1DevDepthGuidedImageGenerationModel",
 ]
 
+
 class DepthGuidedImageGenerationModel(VisualFalModel):
     pass
 
-class ZImageTurboDepthGuidedImageGenerationModel(DepthGuidedImageGenerationModel, ZImageTurbo):
+
+class ZImageTurboDepthGuidedImageGenerationModel(
+    DepthGuidedImageGenerationModel, ZImageTurbo
+):
     endpoint = "fal-ai/z-image/turbo/controlnet"
     image_url_parameter = "image_url"
     prompt_expansion_parameter = "enable_prompt_expansion"
 
-class FLUX1DevDepthGuidedImageGenerationModel(DepthGuidedImageGenerationModel, FLUX1Dev):
+
+class FLUX1DevDepthGuidedImageGenerationModel(
+    DepthGuidedImageGenerationModel, FLUX1Dev
+):
     endpoint = "fal-ai/flux-general"
     image_url_parameter = "image_url"
 
     @classmethod
-    def parameters(
-        cls,
-        **kwargs: Any
-    ) -> dict[str, Any]:
+    def parameters(cls, **kwargs: Any) -> dict[str, Any]:
         """
         Returns the parameters for the model.
         """

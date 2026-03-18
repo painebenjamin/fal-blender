@@ -1,7 +1,4 @@
-from .upscaling import (
-    VideoUpscalingModel,
-    SeedVR29BVideoUpscalingModel,
-)
+from .upscaling import SeedVR29BVideoUpscalingModel, VideoUpscalingModel
 
 __all__ = [
     "VideoUpscalingModel",

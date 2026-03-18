@@ -1,7 +1,4 @@
-from .upscaling import (
-    ImageUpscalingModel,
-    SeedVR29BImageUpscalingModel,
-)
+from .upscaling import ImageUpscalingModel, SeedVR29BImageUpscalingModel
 
 __all__ = [
     "ImageUpscalingModel",

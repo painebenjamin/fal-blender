@@ -1,7 +1,7 @@
-from ..base import VisualFalModel
-from .base import NanoBanana, NanoBananaPro, NanoBanana2
-
 from typing import Any
+
+from ..base import VisualFalModel
+from .base import NanoBanana, NanoBanana2, NanoBananaPro
 
 __all__ = [
     "SketchGuidedImageGenerationModel",
@@ -10,12 +10,10 @@ __all__ = [
     "NanoBanana2SketchGuidedImageGenerationModel",
 ]
 
+
 class SketchGuidedImageGenerationModel(VisualFalModel):
     @classmethod
-    def parameters(
-        cls,
-        **kwargs: Any
-    ) -> dict[str, Any]:
+    def parameters(cls, **kwargs: Any) -> dict[str, Any]:
         """
         Returns the parameters for the model.
         """
@@ -29,16 +27,26 @@ class SketchGuidedImageGenerationModel(VisualFalModel):
         params["prompt"] = prompt
         return params
 
-class NanoBananaSketchGuidedImageGenerationModel(SketchGuidedImageGenerationModel, NanoBanana):
+
+class NanoBananaSketchGuidedImageGenerationModel(
+    SketchGuidedImageGenerationModel, NanoBanana
+):
     endpoint = "fal-ai/nano-banana/edit"
     image_urls_parameter = "image_urls"
 
-class NanoBananaProSketchGuidedImageGenerationModel(SketchGuidedImageGenerationModel, NanoBananaPro):
+
+class NanoBananaProSketchGuidedImageGenerationModel(
+    SketchGuidedImageGenerationModel, NanoBananaPro
+):
     endpoint = "fal-ai/nano-banana-pro/edit"
     image_urls_parameter = "image_urls"
 
-class NanoBanana2SketchGuidedImageGenerationModel(SketchGuidedImageGenerationModel, NanoBanana2):
+
+class NanoBanana2SketchGuidedImageGenerationModel(
+    SketchGuidedImageGenerationModel, NanoBanana2
+):
     endpoint = "fal-ai/nano-banana-2/edit"
     image_urls_parameter = "image_urls"
+
 
 # TODO: FLUX.2 Flex Maybe?

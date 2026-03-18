@@ -1,7 +1,7 @@
 from ..base import FalController
-from .props import FalNeuralRenderPropertyGroup
-from .operator import FalNeuralRenderOperator
 from ..ui import FalControllerUI
+from .operator import FalNeuralRenderOperator
+from .props import FalNeuralRenderPropertyGroup
 
 
 class FalNeuralRenderController(FalController):
@@ -11,7 +11,7 @@ class FalNeuralRenderController(FalController):
     operator_class = FalNeuralRenderOperator
     properties_class = FalNeuralRenderPropertyGroup
     ui = FalControllerUI(
-        field_orders = [
+        field_orders=[
             "mode",
             "depth_endpoint",
             "sketch_endpoint",
@@ -28,7 +28,7 @@ class FalNeuralRenderController(FalController):
             "height",
             "seed",
         ],
-        field_conditions = {
+        field_conditions={
             "enable_prompt_expansion": lambda context, props: props.mode != "SKETCH",
             "width": lambda context, props: not props.use_scene_resolution,
             "height": lambda context, props: not props.use_scene_resolution,
@@ -40,5 +40,5 @@ class FalNeuralRenderController(FalController):
             "refine_endpoint": lambda context, props: props.mode == "REFINE",
             "refine_strength": lambda context, props: props.mode == "REFINE",
             "refine_system_prompt": lambda context, props: props.mode == "REFINE",
-        }
+        },
     )

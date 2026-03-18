@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 from abc import ABCMeta, abstractmethod
 from typing import Any, ClassVar
 
 from ..utils import path_to_data_uri
+
 
 class FalModel(metaclass=ABCMeta):
     enabled: ClassVar[bool] = True
@@ -31,9 +33,11 @@ class FalModel(metaclass=ABCMeta):
         """
         Returns True if the model is available.
         """
-        return getattr(cls, "endpoint", None) is not None \
-            and getattr(cls, "display_name", None) is not None \
+        return (
+            getattr(cls, "endpoint", None) is not None
+            and getattr(cls, "display_name", None) is not None
             and getattr(cls, "enabled", True)
+        )
 
     @classmethod
     def enumerate(cls) -> list[tuple[str, str, str]]:
@@ -45,6 +49,7 @@ class FalModel(metaclass=ABCMeta):
             for subcls in cls.__subclasses__()
             if subcls.is_available()
         ]
+
 
 class VisualFalModel(FalModel):
     use_resolution_aspect_ratio: ClassVar[bool] = False
@@ -64,9 +69,13 @@ class VisualFalModel(FalModel):
         Convert pixel dimensions to closest aspect ratio + resolution tier.
         """
         if not cls.aspect_ratios:
-            raise RuntimeError(f"No aspect ratios defined for {cls.__name__}; either disable `use_resolution_aspect_ratio` or define the aspect ratios in the model class.")
+            raise RuntimeError(
+                f"No aspect ratios defined for {cls.__name__}; either disable `use_resolution_aspect_ratio` or define the aspect ratios in the model class."
+            )
         if not cls.resolutions:
-            raise RuntimeError(f"No resolutions defined for {cls.__name__}; either disable `use_resolution_aspect_ratio` or define the resolutions in the model class.")
+            raise RuntimeError(
+                f"No resolutions defined for {cls.__name__}; either disable `use_resolution_aspect_ratio` or define the resolutions in the model class."
+            )
 
         target_ratio = width / height
         best_ar = cls.aspect_ratios[0]
@@ -92,7 +101,7 @@ class VisualFalModel(FalModel):
             diff = abs(longest - pixels)
             if diff < best_res_diff:
                 best_res_diff = diff
-                best_res = name 
+                best_res = name
 
         return best_ar, best_res
 
@@ -116,7 +125,7 @@ class VisualFalModel(FalModel):
             return {
                 cls.size_parameter: {"width": width, "height": height},
             }
-    
+
         return {
             "width": width,
             "height": height,
@@ -178,10 +187,7 @@ class VisualFalModel(FalModel):
         }
 
     @classmethod
-    def parameters(
-        cls,
-        **kwargs: Any
-    ) -> dict[str, Any]:
+    def parameters(cls, **kwargs: Any) -> dict[str, Any]:
         """
         Returns the parameters for the model.
         """

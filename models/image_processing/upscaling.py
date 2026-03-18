@@ -5,8 +5,10 @@ __all__ = [
     "SeedVR29BImageUpscalingModel",
 ]
 
+
 class ImageUpscalingModel(VisualFalModel):
     pass
+
 
 class SeedVR29BImageUpscalingModel(ImageUpscalingModel):
     endpoint = "fal-ai/seedvr/upscale/image"

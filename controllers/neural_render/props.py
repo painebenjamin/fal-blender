@@ -1,16 +1,22 @@
 import bpy
+
 from ...models import (
-    SketchGuidedImageGenerationModel,
     DepthGuidedImageGenerationModel,
     ImageRefinementModel,
+    SketchGuidedImageGenerationModel,
 )
+
 
 class FalNeuralRenderPropertyGroup(bpy.types.PropertyGroup):
     # ── Common ──────────────────────────────────────────────────────────
     mode: bpy.props.EnumProperty(
         name="Mode",
         items=[
-            ("DEPTH", "Depth", "Render depth pass and generate image via depth ControlNet"),
+            (
+                "DEPTH",
+                "Depth",
+                "Render depth pass and generate image via depth ControlNet",
+            ),
             ("SKETCH", "Sketch", "Render scene and reimagine via image generation"),
             ("REFINE", "Refine", "Render normally then refine via image-to-image AI"),
         ],
@@ -97,7 +103,7 @@ class FalNeuralRenderPropertyGroup(bpy.types.PropertyGroup):
     auto_label: bpy.props.BoolProperty(
         name="Auto-label from Names",
         description="Use Blender object names as labels (no custom property needed). "
-                    "Objects with 'fal_ai_label' custom property override their name",
+        "Objects with 'fal_ai_label' custom property override their name",
         default=True,
     )
 

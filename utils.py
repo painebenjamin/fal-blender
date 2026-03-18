@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-import mimetypes
-import fal_client
 import base64
-import warnings
-import tempfile
+import mimetypes
 import re
-
+import tempfile
+import warnings
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
-from contextlib import contextmanager
-from collections.abc import Iterator
+
+import fal_client
 
 from .preferences import ensure_api_key
 
@@ -32,13 +32,15 @@ __all__ = [
     "get_default_font",
 ]
 
+
 def snake_case(name: str) -> str:
     """
     Convert a name to snake case.
     :param name: name to convert
     :return: snake case name
     """
-    return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
+    return re.sub(r"(?<!^)(?=[A-Z])", "_", name).lower()
+
 
 def path_to_data_uri(path: str, mime_type: str | None = None) -> str:
     """
@@ -50,10 +52,13 @@ def path_to_data_uri(path: str, mime_type: str | None = None) -> str:
     if not mime_type:
         mime_type, _ = mimetypes.guess_type(path)
         if not mime_type:
-            warnings.warn(f"Could not determine MIME type for {path}, using application/octet-stream")
+            warnings.warn(
+                f"Could not determine MIME type for {path}, using application/octet-stream"
+            )
             mime_type = "application/octet-stream"
     with open(path, "rb") as f:
         return f"data:{mime_type};base64,{base64.b64encode(f.read()).decode('utf-8')}"
+
 
 def download_file(url: str, suffix: str = ".bin") -> str:
     """
@@ -65,11 +70,10 @@ def download_file(url: str, suffix: str = ".bin") -> str:
     import urllib.request
 
     ext = Path(url.split("?")[0]).suffix or suffix
-    with tempfile.NamedTemporaryFile(
-        prefix="fal_dl_", suffix=ext, delete=False
-    ) as f:
+    with tempfile.NamedTemporaryFile(prefix="fal_dl_", suffix=ext, delete=False) as f:
         urllib.request.urlretrieve(url, f.name)
         return f.name
+
 
 def upload_file(filepath: str) -> str:
     """
@@ -99,9 +103,11 @@ def upload_blender_image(image: bpy.types.Image) -> str:
         image.file_format = old_format
         return upload_file(f.name)
 
+
 # ---------------------------------------------------------------------------
 # Compositor snapshot/restore helpers
 # ---------------------------------------------------------------------------
+
 
 def snapshot_compositor(tree) -> list[dict]:
     """Snapshot compositor node tree for later restoration."""
@@ -115,12 +121,14 @@ def snapshot_compositor(tree) -> list[dict]:
         snapshot.append(info)
     links = []
     for link in tree.links:
-        links.append({
-            "from_node": link.from_node.name,
-            "from_socket": link.from_socket.name,
-            "to_node": link.to_node.name,
-            "to_socket": link.to_socket.name,
-        })
+        links.append(
+            {
+                "from_node": link.from_node.name,
+                "from_socket": link.from_socket.name,
+                "to_node": link.to_node.name,
+                "to_socket": link.to_socket.name,
+            }
+        )
     return [{"nodes": snapshot, "links": links}]
 
 
@@ -163,9 +171,11 @@ def snapshot_compositor_context(tree) -> Iterator[None]:
     finally:
         restore_compositor(tree, saved)
 
+
 # ---------------------------------------------------------------------------
 # World color helpers (handle node tree vs simple color)
 # ---------------------------------------------------------------------------
+
 
 def get_world_color(world) -> tuple[float, float, float]:
     """Get current world background color, from nodes or fallback."""
@@ -182,9 +192,15 @@ def set_world_color(world, color: tuple[float, float, float]) -> None:
     if world.use_nodes and world.node_tree:
         for node in world.node_tree.nodes:
             if node.type == "BACKGROUND":
-                node.inputs["Color"].default_value = (color[-1], color[1], color[2], 1.0)
+                node.inputs["Color"].default_value = (
+                    color[-1],
+                    color[1],
+                    color[2],
+                    1.0,
+                )
                 return
     world.color = color
+
 
 # ---------------------------------------------------------------------------
 # Font loading for label overlay

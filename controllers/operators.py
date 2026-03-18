@@ -7,6 +7,7 @@ import bpy
 
 from ..utils import snake_case
 
+
 class FalOperator(metaclass=ABCMeta):
     label: ClassVar[str]
     description: ClassVar[str]
@@ -17,7 +18,9 @@ class FalOperator(metaclass=ABCMeta):
         self._operator_instance = operator_instance
 
     @classmethod
-    def enabled(cls, context: bpy.types.Context, props: bpy.types.PropertyGroup) -> bool:
+    def enabled(
+        cls, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> bool:
         """
         Check if the operator is enabled.
         """
@@ -39,7 +42,9 @@ class FalOperator(metaclass=ABCMeta):
         """
         Modal handler for the operator.
         """
-        print("modal() called but not implemented - you should implement this in your subclass if you want to use modal operators")
+        print(
+            "modal() called but not implemented - you should implement this in your subclass if you want to use modal operators"
+        )
         return {"PASS_THROUGH"}
 
     def report(self, levels: set[str], message: str) -> None:
@@ -67,6 +72,7 @@ class FalOperator(metaclass=ABCMeta):
         Dynamically create a new operator class that wraps the operator.
         """
         if not hasattr(cls, "_operator_class"):
+
             class Operator(bpy.types.Operator):
                 bl_idname = cls.get_name()
                 bl_label = getattr(cls, "label", cls.__name__)
@@ -87,13 +93,19 @@ class FalOperator(metaclass=ABCMeta):
                     props = getattr(context.scene, props_alias)
                     return self._get_operator_instance()(context, props)
 
-                def invoke(self, context: bpy.types.Context, event: bpy.types.Event) -> set[str]:
+                def invoke(
+                    self, context: bpy.types.Context, event: bpy.types.Event
+                ) -> set[str]:
                     props = getattr(context.scene, props_alias)
-                    return self._get_operator_instance()(context, props, event, invoke=True)
+                    return self._get_operator_instance()(
+                        context, props, event, invoke=True
+                    )
 
-                def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> set[str]:
+                def modal(
+                    self, context: bpy.types.Context, event: bpy.types.Event
+                ) -> set[str]:
                     props = getattr(context.scene, props_alias)
                     return self._get_operator_instance().modal(context, props, event)
-                
+
             cls._operator_class = Operator
         return cls._operator_class

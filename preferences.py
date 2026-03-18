@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import bpy
 import os
+
+import bpy
 
 # For extensions, __package__ is "bl_ext.user_default.fal_ai" (or similar).
 # AddonPreferences.bl_idname MUST match this, not a hardcoded string.
@@ -53,9 +54,9 @@ class FalPreferences(bpy.types.AddonPreferences):
             box = layout.box()
             box.label(text="No API key set!", icon="ERROR")
             box.label(text="Set above, or export FAL_KEY in your shell")
-            box.operator(
-                "wm.url_open", text="Get a key at fal.ai"
-            ).url = "https://fal.ai/dashboard/keys"
+            box.operator("wm.url_open", text="Get a key at fal.ai").url = (
+                "https://fal.ai/dashboard/keys"
+            )
 
         layout.prop(self, "output_dir")
         layout.prop(self, "auto_import")
@@ -98,17 +99,3 @@ def ensure_api_key() -> str:
     # Set in env so fal_client picks it up
     os.environ["FAL_KEY"] = key
     return key
-
-
-def register() -> None:
-    """
-    Register the preferences.
-    """
-    bpy.utils.register_class(FalPreferences)
-
-
-def unregister() -> None:
-    """
-    Unregister the preferences.
-    """
-    bpy.utils.unregister_class(FalPreferences)

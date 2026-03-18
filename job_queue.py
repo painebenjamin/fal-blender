@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import os
-import uuid
 import tempfile
 import traceback
+import uuid
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Callable, TYPE_CHECKING
 from pathlib import Path
+from typing import Any, Callable
 
 import bpy  # type: ignore[import-not-found]
 
@@ -49,9 +49,7 @@ def _format_error(e: Exception) -> str:
             if isinstance(detail, str):
                 parts.append(detail)
             elif isinstance(detail, list) and detail:
-                parts.append("; ".join(
-                    d.get("msg", str(d)) for d in detail[:3]
-                ))
+                parts.append("; ".join(d.get("msg", str(d)) for d in detail[:3]))
             else:
                 parts.append(str(body)[:300])
         else:
@@ -142,6 +140,7 @@ class FalJob:
             os.environ["FAL_KEY"] = self._api_key
 
         try:
+
             def _on_queue_update(update) -> None:
                 if isinstance(update, fal_client.InProgress):
                     if update.logs:
@@ -182,7 +181,9 @@ class FalJob:
             self.status = "error"
             if self.request_id:
                 self.error = f"[{self.request_id}] {self.error}"
-            print(f"fal.ai: Job {self.job_id} [{self.request_id or '?'}] failed: {self.error}")
+            print(
+                f"fal.ai: Job {self.job_id} [{self.request_id or '?'}] failed: {self.error}"
+            )
             traceback.print_exc()
 
     def _download_results(self, result: dict[str, Any]):

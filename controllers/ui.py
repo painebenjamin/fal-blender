@@ -1,11 +1,11 @@
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from typing import TypeAlias
+
 import bpy
 
-from dataclasses import dataclass, field
-
-from typing import Any, TypeAlias, ClassVar
-from collections.abc import Callable
-
 ConditionFunc: TypeAlias = Callable[[bpy.types.Context, bpy.types.PropertyGroup], bool]
+
 
 @dataclass
 class FalControllerUI:
@@ -98,7 +98,7 @@ class FalControllerUI:
                 continue
             self.draw_field(layout, context, props, field_name)
             visited_fields.add(field_name)
-    
+
         for field_name in props.keys():
             if field_name in visited_fields:
                 continue
@@ -106,4 +106,6 @@ class FalControllerUI:
             visited_fields.add(field_name)
 
         self.draw_status(layout, context, props)
-        self.draw_operator(layout, context, props, operator_name, operator_icon, operator_size)
+        self.draw_operator(
+            layout, context, props, operator_name, operator_icon, operator_size
+        )

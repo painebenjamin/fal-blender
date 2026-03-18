@@ -1,17 +1,6 @@
 from __future__ import annotations
 
-import tempfile
-import math
-import bpy  # type: ignore[import-not-found]
-
-from ...utils import (
-    download_file,
-    snapshot_compositor,
-    restore_compositor,
-    get_world_color,
-    set_world_color,
-    get_default_font,
-)
+from ...utils import get_default_font
 
 __all__ = [
     "get_dimensions",
@@ -19,6 +8,7 @@ __all__ = [
     "is_occluded",
     "render_to_sketch",
 ]
+
 
 def get_dimensions(context, props) -> tuple[int, int]:
     """Get render dimensions — from scene settings or manual override."""
@@ -30,6 +20,7 @@ def get_dimensions(context, props) -> tuple[int, int]:
             int(scene.render.resolution_y * scale),
         )
     return (props.width, props.height)
+
 
 def overlay_labels(context, image_path: str, width: int, height: int):
     """Overlay text labels on the rendered image using Pillow.
@@ -82,13 +73,13 @@ def overlay_labels(context, image_path: str, width: int, height: int):
     cam_data = cam_obj.data
 
     view_matrix = cam_obj.matrix_world.normalized().inverted()
-    projection_matrix = cam_obj.calc_matrix_camera(
-        depsgraph, x=width, y=height
-    )
+    projection_matrix = cam_obj.calc_matrix_camera(depsgraph, x=width, y=height)
 
     def project_3d_to_2d(world_pos):
-        co = projection_matrix @ view_matrix @ Vector(
-            (world_pos[0], world_pos[1], world_pos[2], 1.0)
+        co = (
+            projection_matrix
+            @ view_matrix
+            @ Vector((world_pos[0], world_pos[1], world_pos[2], 1.0))
         )
         if co.w <= 0:
             return None
@@ -101,8 +92,10 @@ def overlay_labels(context, image_path: str, width: int, height: int):
         return None
 
     def project_3d_to_2d_unclamped(world_pos):
-        co = projection_matrix @ view_matrix @ Vector(
-            (world_pos[0], world_pos[1], world_pos[2], 1.0)
+        co = (
+            projection_matrix
+            @ view_matrix
+            @ Vector((world_pos[0], world_pos[1], world_pos[2], 1.0))
         )
         if co.w <= 0:
             return None
@@ -138,10 +131,16 @@ def overlay_labels(context, image_path: str, width: int, height: int):
 
         if anchor is None and hasattr(obj, "bound_box"):
             from mathutils import Vector  # type: ignore[import-not-found]
+
             for corner in obj.bound_box:
                 world_pt = obj.matrix_world @ Vector(corner)
                 if camera and is_occluded(
-                    scene, depsgraph, camera, obj, width, height,
+                    scene,
+                    depsgraph,
+                    camera,
+                    obj,
+                    width,
+                    height,
                     override_pos=world_pt,
                 ):
                     continue
@@ -194,13 +193,16 @@ def overlay_labels(context, image_path: str, width: int, height: int):
         for cx, cy in candidates:
             cx = max(padding, min(cx, width - tw - padding * 2))
             cy = max(padding, min(cy, height - th - padding * 2))
-            rect = (cx - padding, cy - padding,
-                    cx + tw + padding, cy + th + padding)
+            rect = (cx - padding, cy - padding, cx + tw + padding, cy + th + padding)
 
             overlaps = False
             for pr in placed_labels:
-                if (rect[0] < pr[2] and rect[2] > pr[0] and
-                        rect[1] < pr[3] and rect[3] > pr[1]):
+                if (
+                    rect[0] < pr[2]
+                    and rect[2] > pr[0]
+                    and rect[1] < pr[3]
+                    and rect[3] > pr[1]
+                ):
                     overlaps = True
                     break
             if not overlaps:
@@ -211,8 +213,7 @@ def overlay_labels(context, image_path: str, width: int, height: int):
             cx, cy = candidates[0]
             cx = max(padding, min(cx, width - tw - padding * 2))
             cy = max(padding, min(cy, height - th - padding * 2))
-            rect = (cx - padding, cy - padding,
-                    cx + tw + padding, cy + th + padding)
+            rect = (cx - padding, cy - padding, cx + tw + padding, cy + th + padding)
             best = (cx, cy, rect)
 
         lx, ly, label_rect = best
@@ -224,7 +225,8 @@ def overlay_labels(context, image_path: str, width: int, height: int):
         if dist > margin * 0.5:
             draw.line(
                 [(ax, ay), (label_center_x, label_center_y)],
-                fill=(0, 0, 0), width=line_width,
+                fill=(0, 0, 0),
+                width=line_width,
             )
             r = max(2, line_width + 1)
             draw.ellipse([ax - r, ay - r, ax + r, ay + r], fill=(0, 0, 0))
@@ -239,13 +241,14 @@ def overlay_labels(context, image_path: str, width: int, height: int):
 
     img.save(image_path)
 
+
 # ---------------------------------------------------------------------------
 # Occlusion testing for labels
 # ---------------------------------------------------------------------------
-def is_occluded(scene, depsgraph, camera, obj, width: int, height: int,
-                 override_pos=None) -> bool:
+def is_occluded(
+    scene, depsgraph, camera, obj, width: int, height: int, override_pos=None
+) -> bool:
     """Check if a point (default: object origin) is occluded from camera's view."""
-    from mathutils import Vector  # type: ignore[import-not-found]
 
     cam_loc = camera.matrix_world.translation
     obj_loc = override_pos if override_pos is not None else obj.matrix_world.translation
@@ -277,19 +280,21 @@ def is_occluded(scene, depsgraph, camera, obj, width: int, height: int,
 # ---------------------------------------------------------------------------
 def render_to_sketch(render_path: str, width: int, height: int):
     """Convert a shaded render with freestyle lines into a clean sketch."""
-    from PIL import Image, ImageFilter, ImageChops, ImageOps
+    from PIL import Image, ImageChops, ImageFilter
 
     img = Image.open(render_path)
     gray = img.convert("L")
 
     edges = gray.filter(ImageFilter.FIND_EDGES)
 
-    edges2 = gray.filter(ImageFilter.Kernel(
-        size=(3, 3),
-        kernel=[-1, -1, -1, -1, 8, -1, -1, -1, -1],
-        scale=1,
-        offset=0,
-    ))
+    edges2 = gray.filter(
+        ImageFilter.Kernel(
+            size=(3, 3),
+            kernel=[-1, -1, -1, -1, 8, -1, -1, -1, -1],
+            scale=1,
+            offset=0,
+        )
+    )
 
     edges_combined = ImageChops.lighter(edges, edges2)
 
@@ -301,6 +306,7 @@ def render_to_sketch(render_path: str, width: int, height: int):
     combined = ImageChops.multiply(edge_lines, freestyle_mask)
 
     combined.convert("RGB").save(render_path)
+
 
 # ---------------------------------------------------------------------------
 # Scene depth analysis

@@ -1,4 +1,4 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 from typing import ClassVar
 
 import bpy
@@ -6,6 +6,7 @@ import bpy
 from ..utils import snake_case
 from .operators import FalOperator
 from .ui import FalControllerUI
+
 
 class FalController(metaclass=ABCMeta):
     enabled: ClassVar[bool] = True
@@ -21,9 +22,11 @@ class FalController(metaclass=ABCMeta):
         """
         Check if the controller is available.
         """
-        return getattr(cls, "properties_class", None) is not None and \
-            getattr(cls, "operator_class", None) is not None and \
-            cls.enabled
+        return (
+            getattr(cls, "properties_class", None) is not None
+            and getattr(cls, "operator_class", None) is not None
+            and cls.enabled
+        )
 
     @classmethod
     def get_display_name(cls) -> str:
@@ -71,7 +74,9 @@ class FalController(metaclass=ABCMeta):
             class Panel(bpy.types.Panel):
                 bl_idname = f"FAL_PT_{snake_case(cls.__name__)}"
                 bl_label = getattr(operator_class, "label", operator_class.__name__)
-                bl_description = str(getattr(operator_class, "description", operator_class.__doc__))
+                bl_description = str(
+                    getattr(operator_class, "description", operator_class.__doc__)
+                )
                 bl_space_type = "VIEW_3D"
                 bl_region_type = "UI"
                 bl_category = "fal.ai"
@@ -79,13 +84,18 @@ class FalController(metaclass=ABCMeta):
 
                 @classmethod
                 def poll(panel_cls, context: bpy.types.Context) -> bool:
-                    return cls.is_available() and context.scene.fal.active_controller == cls.__name__
+                    return (
+                        cls.is_available()
+                        and context.scene.fal.active_controller == cls.__name__
+                    )
 
                 def draw(self, context: bpy.types.Context) -> None:
                     layout = self.layout
                     props = getattr(context.scene, cls.get_props_alias())
                     cls.ui.draw(
-                        layout, context, props,
+                        layout,
+                        context,
+                        props,
                         operator_name=cls.operator_class.get_name(),
                         operator_icon=cls.icon,
                     )
@@ -119,7 +129,7 @@ class FalController(metaclass=ABCMeta):
         if getattr(cls, "operator_class", None) is None:
             raise NotImplementedError("operator_class must be set")
         bpy.utils.register_class(cls.operator())
-    
+
     @classmethod
     def unregister_operator(cls) -> None:
         """
@@ -153,7 +163,7 @@ class FalController(metaclass=ABCMeta):
         setattr(
             bpy.types.Scene,
             cls.get_props_alias(),
-            bpy.props.PointerProperty(type=cls.properties_class)
+            bpy.props.PointerProperty(type=cls.properties_class),
         )
 
     @classmethod
@@ -213,13 +223,20 @@ class FalController(metaclass=ABCMeta):
         Returns a list of all available controllers.
         """
         unique_id = 0
+
         def _get_unique_id() -> int:
             nonlocal unique_id
             unique_id += 1
             return unique_id
 
         return [
-            (subcls.__name__, subcls.get_display_name(), subcls.get_description(), subcls.icon, _get_unique_id())
+            (
+                subcls.__name__,
+                subcls.get_display_name(),
+                subcls.get_description(),
+                subcls.icon,
+                _get_unique_id(),
+            )
             for subcls in cls.__subclasses__()
             if subcls.is_available()
         ]

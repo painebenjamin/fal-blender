@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import os
-from pathlib import Path
 from typing import Any
 
 import bpy
@@ -14,6 +12,7 @@ __all__ = [
     "import_image_to_editor",
     "add_audio_to_vse",
 ]
+
 
 def import_image_as_texture(
     image_path: str,
@@ -142,6 +141,7 @@ def resize_image_to_target(
         print(f"fal.ai: Image resize failed, using original size: {e}")
 
     return image_path
+
 
 def import_image_to_editor(
     image_path: str,
