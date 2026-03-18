@@ -112,7 +112,7 @@ class FalJob:
         MUST be called from the main thread — caches the API key
         before spawning the background thread.
         """
-        from ..preferences import ensure_api_key
+        from .preferences import ensure_api_key
 
         self._api_key = ensure_api_key()
         self.status = "running"

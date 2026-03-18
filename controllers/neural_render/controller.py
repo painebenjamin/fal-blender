@@ -1,7 +1,8 @@
 from ..base import FalController
 from .props import FalNeuralRenderPropertyGroup
 from .operator import FalNeuralRenderOperator
-from .ui import FalNeuralRenderUI
+from ..ui import FalControllerUI
+
 
 class FalNeuralRenderController(FalController):
     display_name = "Neural Render"
@@ -26,7 +27,7 @@ class FalNeuralRenderController(FalController):
             "width",
             "height",
             "seed",
-        ]
+        ],
         field_conditions = {
             "enable_prompt_expansion": lambda context, props: props.mode != "SKETCH",
             "width": lambda context, props: not props.use_scene_resolution,

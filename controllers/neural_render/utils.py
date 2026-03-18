@@ -4,7 +4,7 @@ import tempfile
 import math
 import bpy  # type: ignore[import-not-found]
 
-from ..utils import (
+from ...utils import (
     download_file,
     snapshot_compositor,
     restore_compositor,
@@ -116,7 +116,7 @@ def overlay_labels(context, image_path: str, width: int, height: int):
     draw = ImageDraw.Draw(img)
 
     base_font_size = max(20, int(height * 0.03))
-    font = _load_label_font(base_font_size)
+    font = get_default_font(base_font_size)
     padding = 6
     margin = int(height * 0.04)
     line_width = max(1, base_font_size // 12)
@@ -128,7 +128,7 @@ def overlay_labels(context, image_path: str, width: int, height: int):
         anchor = None
         label_pos = None
 
-        origin_occluded = camera and _is_occluded(
+        origin_occluded = camera and is_occluded(
             scene, depsgraph, camera, obj, width, height
         )
         if not origin_occluded:
@@ -140,7 +140,7 @@ def overlay_labels(context, image_path: str, width: int, height: int):
             from mathutils import Vector  # type: ignore[import-not-found]
             for corner in obj.bound_box:
                 world_pt = obj.matrix_world @ Vector(corner)
-                if camera and _is_occluded(
+                if camera and is_occluded(
                     scene, depsgraph, camera, obj, width, height,
                     override_pos=world_pt,
                 ):

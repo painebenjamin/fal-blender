@@ -32,7 +32,7 @@ class FalControllerUI:
         """
         Check if a field should be shown in the UI.
         """
-        if self.field_conditions is None:
+        if not self.field_conditions or field_name not in self.field_conditions:
             return True
         return self.field_conditions[field_name](context, props)
 

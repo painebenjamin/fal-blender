@@ -1,5 +1,4 @@
 import bpy
-from ..props import FalControllerPropertyGroup
 from ...models import (
     SketchGuidedImageGenerationModel,
     DepthGuidedImageGenerationModel,
@@ -43,7 +42,6 @@ class FalNeuralRenderPropertyGroup(bpy.types.PropertyGroup):
         min=64,
         max=4096,
         step=16,
-        show_condition=lambda context, props: not props.use_scene_resolution,
     )
 
     height: bpy.props.IntProperty(
@@ -53,7 +51,6 @@ class FalNeuralRenderPropertyGroup(bpy.types.PropertyGroup):
         min=64,
         max=4096,
         step=16,
-        show_condition=lambda context, props: not props.use_scene_resolution,
     )
 
     seed: bpy.props.IntProperty(

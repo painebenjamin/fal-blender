@@ -3,6 +3,7 @@ from typing import ClassVar
 
 import bpy
 
+from ..utils import snake_case
 from .operators import FalOperator
 from .ui import FalControllerUI
 
@@ -22,7 +23,6 @@ class FalController(metaclass=ABCMeta):
         """
         return getattr(cls, "properties_class", None) is not None and \
             getattr(cls, "operator_class", None) is not None and \
-            getattr(cls, "panel_class", None) is not None and \
             cls.enabled
 
     @classmethod
@@ -61,7 +61,6 @@ class FalController(metaclass=ABCMeta):
     def panel(
         cls,
         parent_id: str,
-        show_condition: ConditionFunc | None = None,
     ) -> type[bpy.types.Panel]:
         """
         Return the panel class for the controller.
@@ -70,30 +69,26 @@ class FalController(metaclass=ABCMeta):
             operator_class = cls.operator()
 
             class Panel(bpy.types.Panel):
-                bl_idname = f"fal.{cls.__name__}"
+                bl_idname = f"FAL_PT_{snake_case(cls.__name__)}"
                 bl_label = getattr(operator_class, "label", operator_class.__name__)
-                bl_description = getattr(operator_class, "description", operator_class.__doc__)
+                bl_description = str(getattr(operator_class, "description", operator_class.__doc__))
                 bl_space_type = "VIEW_3D"
                 bl_region_type = "UI"
                 bl_category = "fal.ai"
                 bl_parent_id = parent_id
 
-            @classmethod
-            def poll(cls, context: bpy.types.Context) -> bool:
-                if show_condition is None:
-                    return True
-                props = getattr(context.scene, cls.get_props_alias())
-                return show_condition(context, props)
+                @classmethod
+                def poll(panel_cls, context: bpy.types.Context) -> bool:
+                    return cls.is_available() and context.scene.fal.active_controller == cls.__name__
 
-            @classmethod
-            def draw(self, context: bpy.types.Context) -> None:
-                layout = self.layout
-                props = getattr(context.scene, cls.get_props_alias())
-                cls.ui.draw(
-                    layout, context, props,
-                    operator_name=operator_class.get_name(),
-                    operator_icon=cls.icon,
-                )
+                def draw(self, context: bpy.types.Context) -> None:
+                    layout = self.layout
+                    props = getattr(context.scene, cls.get_props_alias())
+                    cls.ui.draw(
+                        layout, context, props,
+                        operator_name=cls.operator_class.get_name(),
+                        operator_icon=cls.icon,
+                    )
 
             cls._panel_class = Panel
         return cls._panel_class
@@ -130,27 +125,23 @@ class FalController(metaclass=ABCMeta):
         """
         Unregister the operator class for the controller.
         """
-        if getattr(cls, "operator_class", None) is None:
-            raise NotImplementedError("operator_class must be set")
-        bpy.utils.unregister_class(cls.operator())
+        if hasattr(cls, "_operator_class"):
+            bpy.utils.unregister_class(cls._operator_class)
 
     @classmethod
-    def register_panel(cls) -> None:
+    def register_panel(cls, parent_id: str) -> None:
         """
         Register the panel class for the controller.
         """
-        if getattr(cls, "panel_class", None) is None:
-            raise NotImplementedError("panel_class must be set")
-        bpy.utils.register_class(cls.panel())
+        bpy.utils.register_class(cls.panel(parent_id=parent_id))
 
     @classmethod
     def unregister_panel(cls) -> None:
         """
         Unregister the panel class for the controller.
         """
-        if getattr(cls, "panel_class", None) is None:
-            raise NotImplementedError("panel_class must be set")
-        bpy.utils.unregister_class(cls.panel())
+        if hasattr(cls, "_panel_class"):
+            bpy.utils.unregister_class(cls._panel_class)
 
     @classmethod
     def register_properties_pointer(cls) -> None:
@@ -175,7 +166,7 @@ class FalController(metaclass=ABCMeta):
         delattr(bpy.types.Scene, cls.get_props_alias())
 
     @classmethod
-    def register(cls) -> None:
+    def register(cls, parent_id: str) -> None:
         """
         Register the controller.
         """
@@ -183,7 +174,7 @@ class FalController(metaclass=ABCMeta):
             return
         cls.register_properties()
         cls.register_operator()
-        cls.register_panel()
+        cls.register_panel(parent_id=parent_id)
         cls.register_properties_pointer()
 
     @classmethod
@@ -199,13 +190,13 @@ class FalController(metaclass=ABCMeta):
         cls.unregister_properties_pointer()
 
     @classmethod
-    def register_all(cls) -> None:
+    def register_all(cls, parent_id: str) -> None:
         """
         Register all controllers.
         """
         for subcls in cls.__subclasses__():
             if subcls.is_available():
-                subcls.register()
+                subcls.register(parent_id=parent_id)
 
     @classmethod
     def unregister_all(cls) -> None:
@@ -221,8 +212,14 @@ class FalController(metaclass=ABCMeta):
         """
         Returns a list of all available controllers.
         """
+        unique_id = 0
+        def _get_unique_id() -> int:
+            nonlocal unique_id
+            unique_id += 1
+            return unique_id
+
         return [
-            (subcls.__name__, subcls.get_display_name(), subcls.get_description(), subcls.icon)
+            (subcls.__name__, subcls.get_display_name(), subcls.get_description(), subcls.icon, _get_unique_id())
             for subcls in cls.__subclasses__()
             if subcls.is_available()
         ]

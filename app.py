@@ -1,7 +1,14 @@
+import bpy
+
 from .controllers import FalController
 from .job_queue import JobManager
 
 ALL_CONTROLLERS = FalController.enumerate()
+
+if not ALL_CONTROLLERS:
+    raise RuntimeError("No controllers found!")
+
+print(f"ALL_CONTROLLERS: {ALL_CONTROLLERS}")
 
 # ---------------------------------------------------------------------------
 # Scene properties for UI state
@@ -10,7 +17,7 @@ class FalAISceneProperties(bpy.types.PropertyGroup):
     """Per-scene properties for fal.ai UI state."""
 
     # Active tab
-    active_tab: bpy.props.EnumProperty(
+    active_controller: bpy.props.EnumProperty(
         name="Tab",
         items=ALL_CONTROLLERS,
         default=ALL_CONTROLLERS[0][0],
@@ -20,9 +27,9 @@ class FalAISceneProperties(bpy.types.PropertyGroup):
 # ---------------------------------------------------------------------------
 # Main Panel
 # ---------------------------------------------------------------------------
-class FalAIMainPanel(bpy.types.Panel):
+class FAL_PT_MainPanel(bpy.types.Panel):
     bl_label = "fal.ai"
-    bl_idname = "FalAIMainPanel"
+    bl_idname = "FAL_PT_MainPanel"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "fal.ai"
@@ -34,18 +41,31 @@ class FalAIMainPanel(bpy.types.Panel):
 
         # Tab row
         row = layout.row(align=True)
-        row.prop(fal, "active_tab")
+        row.prop(fal, "active_controller")
+
 
 # ---------------------------------------------------------------------------
 # Jobs Panel (always visible)
 # ---------------------------------------------------------------------------
-class FalAIJobsPanel(bpy.types.Panel):
+def _draw_error(layout: bpy.types.UILayout, error_text: str) -> None:
+    """Draw a word-wrapped error message in the panel."""
+    col = layout.column(align=True)
+    # Split on structured delimiters
+    parts = error_text.split(" — ")
+    for part in parts:
+        while len(part) > 55:
+            col.label(text=part[:55], icon="BLANK1")
+            part = part[55:]
+        if part.strip():
+            col.label(text=part, icon="BLANK1")
+
+class FAL_PT_JobsPanel(bpy.types.Panel):
     bl_label = "Active Jobs"
-    bl_idname = "FalAIJobsPanel"
+    bl_idname = "FAL_PT_JobsPanel"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "fal.ai"
-    bl_parent_id = FalAIMainPanel.bl_idname
+    bl_parent_id = FAL_PT_MainPanel.bl_idname
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context: bpy.types.Context) -> None:
@@ -91,16 +111,18 @@ class FalAIJobsPanel(bpy.types.Panel):
 # ---------------------------------------------------------------------------
 def register() -> None:
     bpy.utils.register_class(FalAISceneProperties)
-    bpy.utils.register_class(FalAIMainPanel)
-    bpy.utils.register_class(FalAIJobsPanel)
     bpy.types.Scene.fal = bpy.props.PointerProperty(type=FalAISceneProperties)
-    FalController.register_all()
+    bpy.utils.register_class(FAL_PT_MainPanel)
+    FalController.register_all(
+        parent_id=FAL_PT_MainPanel.bl_idname,
+    )
+    bpy.utils.register_class(FAL_PT_JobsPanel)
 
 def unregister() -> None:
     bpy.utils.unregister_class(FalAISceneProperties)
-    bpy.utils.unregister_class(FalAIMainPanel)
-    bpy.utils.unregister_class(FalAIJobsPanel)
     if hasattr(bpy.types.Scene, "fal"):
         del bpy.types.Scene.fal
+    bpy.utils.unregister_class(FAL_PT_MainPanel)
     FalController.unregister_all()
+    bpy.utils.unregister_class(FAL_PT_JobsPanel)
     JobManager.reset()

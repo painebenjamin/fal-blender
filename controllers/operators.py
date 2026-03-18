@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
-from typing import Any
+from typing import ClassVar
 
 import bpy
+
+from ..utils import snake_case
 
 class FalOperator(metaclass=ABCMeta):
     label: ClassVar[str]
@@ -26,7 +28,7 @@ class FalOperator(metaclass=ABCMeta):
         """
         Return the name of the operator.
         """
-        return f"fal.{cls.__name__}"
+        return f"fal.{snake_case(cls.__name__)}"
 
     def modal(
         self,
@@ -68,12 +70,13 @@ class FalOperator(metaclass=ABCMeta):
             class Operator(bpy.types.Operator):
                 bl_idname = cls.get_name()
                 bl_label = getattr(cls, "label", cls.__name__)
-                bl_description = getattr(cls, "description", cls.__doc__)
+                bl_description = str(getattr(cls, "description", cls.__doc__))
                 bl_options = {"REGISTER", "UNDO"}
 
                 @classmethod
-                def poll(cls, context: bpy.types.Context) -> bool:
-                    return cls.enabled(context)
+                def poll(operator_cls, context: bpy.types.Context) -> bool:
+                    props = getattr(context.scene, props_alias)
+                    return cls.enabled(context, props)
 
                 def _get_operator_instance(self) -> FalOperator:
                     if not hasattr(self, "_operator_instance"):
@@ -90,7 +93,7 @@ class FalOperator(metaclass=ABCMeta):
 
                 def modal(self, context: bpy.types.Context, event: bpy.types.Event) -> set[str]:
                     props = getattr(context.scene, props_alias)
-                    return self._get_operator_instance().modal(context, event, props)
+                    return self._get_operator_instance().modal(context, props, event)
                 
             cls._operator_class = Operator
         return cls._operator_class

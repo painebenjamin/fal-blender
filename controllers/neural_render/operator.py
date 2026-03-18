@@ -45,6 +45,7 @@ IMAGE_REFINEMENT_MODELS = ImageRefinementModel.catalog()
 # Operator
 # ---------------------------------------------------------------------------
 class FalNeuralRenderOperator(FalOperator):
+    label = "Neural Render"  # text in button in UI
 
     # Guard against overlapping renders
     _rendering: ClassVar[bool] = False
@@ -137,7 +138,7 @@ class FalNeuralRenderOperator(FalOperator):
         # Enter modal loop
         wm = context.window_manager
         self._timer = wm.event_timer_add(0.25, window=context.window)
-        wm.modal_handler_add(self)
+        wm.modal_handler_add(self._operator_instance)
         self.report({"INFO"}, "Rendering...")
         return {"RUNNING_MODAL"}
 
@@ -192,7 +193,7 @@ class FalNeuralRenderOperator(FalOperator):
         """
         Clean up the modal state.
         """
-        FAL_OT_neural_render._rendering = False
+        self._rendering = False
         if self._timer is not None:
             context.window_manager.event_timer_remove(self._timer)
             self._timer = None

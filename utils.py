@@ -5,6 +5,7 @@ import fal_client
 import base64
 import warnings
 import tempfile
+import re
 
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
     from PIL import ImageFont
 
 __all__ = [
+    "snake_case",
     "path_to_data_uri",
     "download_file",
     "upload_file",
@@ -29,6 +31,14 @@ __all__ = [
     "set_world_color",
     "get_default_font",
 ]
+
+def snake_case(name: str) -> str:
+    """
+    Convert a name to snake case.
+    :param name: name to convert
+    :return: snake case name
+    """
+    return re.sub(r'(?<!^)(?=[A-Z])', '_', name).lower()
 
 def path_to_data_uri(path: str, mime_type: str | None = None) -> str:
     """
