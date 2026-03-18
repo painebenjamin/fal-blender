@@ -4,10 +4,12 @@ import bpy
 
 from ..base import FalOperator
 
+
 class FalExampleOperator(FalOperator):
     """
     Example operator.
     """
+
     label = "Example"  # text in button in UI
 
     @classmethod

@@ -1,16 +1,16 @@
 from __future__ import annotations
 
-import bpy
-
-from ..ui import FalControllerUI
 from ..base import FalController
+from ..ui import FalControllerUI
 from .operator import FalExampleOperator
 from .props import FalExamplePropertyGroup
+
 
 class FalExampleController(FalController):
     """
     Example controller.
     """
+
     display_name = "Example"
     description = "This is an example controller"
     icon = "FILE_IMAGE"
