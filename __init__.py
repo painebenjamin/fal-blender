@@ -9,7 +9,8 @@ import bpy
 
 from .preferences import FalPreferences
 from .app import (
-    FalAISceneProperties,
+    FalAI3DSceneProperties,
+    FalAIVSESceneProperties,
     FAL_PT_3D_MainPanel,
     FAL_PT_VSE_MainPanel,
     FAL_PT_3D_JobsPanel,
