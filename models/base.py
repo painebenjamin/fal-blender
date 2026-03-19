@@ -40,7 +40,7 @@ class FalModel(metaclass=ABCMeta):
         )
 
     @classmethod
-    def enumerate(cls) -> list[tuple[str, str, str]]:
+    def enumerate(cls, **kwargs: Any) -> list[tuple[str, str, str]]:
         """
         Returns a list of all available models.
         """
