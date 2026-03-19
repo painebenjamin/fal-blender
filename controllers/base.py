@@ -132,6 +132,7 @@ class FalController(metaclass=ABCMeta):
             raise NotImplementedError("panel_3d must be set")
         if getattr(cls, "_panel_3d_class", None) is None:
             cls._panel_3d_class = cls.create_panel_class(
+                ui=cls.panel_3d,
                 space_type="VIEW_3D",
                 parent_id=parent_id,
                 parent_props_alias=parent_props_alias,
@@ -151,6 +152,7 @@ class FalController(metaclass=ABCMeta):
             raise NotImplementedError("panel_vse must be set")
         if getattr(cls, "_panel_vse_class", None) is None:
             cls._panel_vse_class = cls.create_panel_class(
+                ui=cls.panel_vse,
                 space_type="SEQUENCE_EDITOR",
                 parent_id=parent_id,
                 parent_props_alias=parent_props_alias,
