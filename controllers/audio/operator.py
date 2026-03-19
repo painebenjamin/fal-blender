@@ -5,7 +5,7 @@ import bpy
 from ..base import FalOperator
 from ...job_queue import FalJob, JobManager
 from ...importers import add_audio_to_vse
-from ...utils import download_file, upload_image_file
+from ...utils import download_file
 from ...models import SpeechGenerationModel, MusicGenerationModel, SoundEffectsGenerationModel
 
 SPEECH_GENERATION_MODELS = SpeechGenerationModel.catalog()
@@ -51,7 +51,11 @@ class FalAudioOperator(FalOperator):
 
         TODO: Implement voice cloning
         """
-        model = SPEECH_GENERATION_MODELS[props.tts_endpoint]
+        if props.voice_mode == "PRESET":
+            model = SPEECH_GENERATION_MODELS[props.tts_preset_endpoint]
+        else:
+            model = SPEECH_GENERATION_MODELS[props.tts_clone_endpoint]
+
         params = model.parameters(
             text=props.text,
             voice=props.voice_preset,

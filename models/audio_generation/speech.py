@@ -1,5 +1,5 @@
 from ..base import FalModel
-from typing import Any
+from typing import Any, ClassVar
 
 __all__ = [
     "SpeechGenerationModel",
@@ -36,4 +36,5 @@ class SpeechGenerationModel(FalModel):
 
 class ElevenLabsSpeechGenerationModel(SpeechGenerationModel):
     endpoint = "fal-ai/elevenlabs/tts/turbo-v2.5"
+    display_name = "ElevenLabs TTS Turbo v2.5"
     supports_preset = True

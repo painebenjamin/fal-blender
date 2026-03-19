@@ -13,8 +13,9 @@ class SoundEffectsGenerationModel(FalModel):
         Returns the parameters for the model.
         """
         params = super().parameters(**kwargs)
-        params["text"] = kwargs.get("text", None)
+        params["text"] = kwargs.get("text", "")
         return params
 
-class ElevenLabsSoundEffectsGenerationModel(SpeechGenerationModel):
+class ElevenLabsSoundEffectsGenerationModel(SoundEffectsGenerationModel):
     endpoint = "fal-ai/elevenlabs/sound-effects/v2"
+    display_name = "ElevenLabs Sound Effects v2"

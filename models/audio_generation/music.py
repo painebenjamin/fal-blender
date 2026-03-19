@@ -13,8 +13,9 @@ class MusicGenerationModel(FalModel):
         Returns the parameters for the model.
         """
         params = super().parameters(**kwargs)
-        params["prompt"] = kwargs.get("prompt", None)
+        params["prompt"] = kwargs.get("prompt", "")
         return params
 
 class ElevenLabsMusicGenerationModel(MusicGenerationModel):
     endpoint = "fal-ai/elevenlabs/music"
+    display_name = "ElevenLabs Music"
