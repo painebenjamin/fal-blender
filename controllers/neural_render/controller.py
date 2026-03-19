@@ -1,5 +1,5 @@
 from ..base import FalController
-from ..ui import FalControllerUI
+from ..ui import FalControllerPanel
 from .operator import FalNeuralRenderOperator
 from .props import FalNeuralRenderPropertyGroup
 
@@ -10,7 +10,7 @@ class FalNeuralRenderController(FalController):
     icon = "RENDER_RESULT"
     operator_class = FalNeuralRenderOperator
     properties_class = FalNeuralRenderPropertyGroup
-    ui = FalControllerUI(
+    panel_3d = FalControllerPanel(
         field_orders=[
             "mode",
             "depth_endpoint",

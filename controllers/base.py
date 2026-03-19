@@ -5,7 +5,7 @@ import bpy
 
 from ..utils import snake_case
 from .operators import FalOperator
-from .ui import FalControllerUI
+from .ui import FalControllerPanel
 
 
 class FalController(metaclass=ABCMeta):
@@ -15,7 +15,8 @@ class FalController(metaclass=ABCMeta):
     icon: ClassVar[str] = "FILE_IMAGE"
     operator_class: ClassVar[type[FalOperator]]
     properties_class: ClassVar[type[bpy.types.PropertyGroup]]
-    ui: ClassVar[FalControllerUI] = FalControllerUI()
+    panel_3d: ClassVar[FalControllerPanel | None] = None
+    panel_vse: ClassVar[FalControllerPanel | None] = None
 
     @classmethod
     def is_available(cls) -> bool:
@@ -27,6 +28,20 @@ class FalController(metaclass=ABCMeta):
             and getattr(cls, "operator_class", None) is not None
             and cls.enabled
         )
+
+    @classmethod
+    def is_3d_panel_available(cls) -> bool:
+        """
+        Check if the 3D panel is available.
+        """
+        return cls.panel_3d is not None
+
+    @classmethod
+    def is_vse_panel_available(cls) -> bool:
+        """
+        Check if the VSE panel is available.
+        """
+        return cls.panel_vse is not None
 
     @classmethod
     def get_display_name(cls) -> str:
@@ -61,47 +76,86 @@ class FalController(metaclass=ABCMeta):
         )
 
     @classmethod
-    def panel(
+    def create_panel_class(
         cls,
+        ui: FalControllerPanel,
+        space_type: str,
         parent_id: str,
+        parent_props_alias: str,
     ) -> type[bpy.types.Panel]:
         """
         Return the panel class for the controller.
         """
-        if not hasattr(cls, "_panel_class"):
-            operator_class = cls.operator()
+        operator_class = cls.operator()
 
-            class Panel(bpy.types.Panel):
-                bl_idname = f"FAL_PT_{snake_case(cls.__name__)}"
-                bl_label = getattr(operator_class, "label", operator_class.__name__)
-                bl_description = str(
-                    getattr(operator_class, "description", operator_class.__doc__)
+        class Panel(bpy.types.Panel):
+            bl_idname = f"FAL_PT_{space_type.upper()}_{snake_case(cls.__name__)}"
+            bl_label = getattr(operator_class, "label", operator_class.__name__)
+            bl_description = str(
+                getattr(operator_class, "description", operator_class.__doc__)
+            )
+            bl_space_type = space_type
+            bl_region_type = "UI"
+            bl_category = "fal.ai"
+            bl_parent_id = parent_id
+
+            @classmethod
+            def poll(panel_cls, context: bpy.types.Context) -> bool:
+                return (
+                    cls.is_available()
+                    and getattr(context.scene, parent_props_alias).active_controller == cls.__name__
                 )
-                bl_space_type = "VIEW_3D"
-                bl_region_type = "UI"
-                bl_category = "fal.ai"
-                bl_parent_id = parent_id
 
-                @classmethod
-                def poll(panel_cls, context: bpy.types.Context) -> bool:
-                    return (
-                        cls.is_available()
-                        and context.scene.fal.active_controller == cls.__name__
-                    )
+            def draw(self, context: bpy.types.Context) -> None:
+                layout = self.layout
+                props = getattr(context.scene, cls.get_props_alias())
+                ui.draw(
+                    layout,
+                    context,
+                    props,
+                    operator_name=cls.operator_class.get_name(),
+                    operator_icon=cls.icon,
+                )
 
-                def draw(self, context: bpy.types.Context) -> None:
-                    layout = self.layout
-                    props = getattr(context.scene, cls.get_props_alias())
-                    cls.ui.draw(
-                        layout,
-                        context,
-                        props,
-                        operator_name=cls.operator_class.get_name(),
-                        operator_icon=cls.icon,
-                    )
+        return Panel
 
-            cls._panel_class = Panel
-        return cls._panel_class
+    @classmethod
+    def get_panel_3d(
+        cls,
+        parent_id: str,
+        parent_props_alias: str,
+    ) -> type[bpy.types.Panel]:
+        """
+        Return the 3D panel class for the controller.
+        """
+        if cls.panel_3d is None:
+            raise NotImplementedError("panel_3d must be set")
+        if getattr(cls, "_panel_3d_class", None) is None:
+            cls._panel_3d_class = cls.create_panel_class(
+                space_type="VIEW_3D",
+                parent_id=parent_id,
+                parent_props_alias=parent_props_alias,
+            )
+        return cls._panel_3d_class
+
+    @classmethod
+    def get_panel_vse(
+        cls,
+        parent_id: str,
+        parent_props_alias: str,
+    ) -> type[bpy.types.Panel]:
+        """
+        Return the VSE panel class for the controller.
+        """
+        if cls.panel_vse is None:
+            raise NotImplementedError("panel_vse must be set")
+        if getattr(cls, "_panel_vse_class", None) is None:
+            cls._panel_vse_class = cls.create_panel_class(
+                space_type="SEQUENCE_EDITOR",
+                parent_id=parent_id,
+                parent_props_alias=parent_props_alias,
+            )
+        return cls._panel_vse_class
 
     @classmethod
     def register_properties(cls) -> None:
@@ -139,19 +193,46 @@ class FalController(metaclass=ABCMeta):
             bpy.utils.unregister_class(cls._operator_class)
 
     @classmethod
-    def register_panel(cls, parent_id: str) -> None:
+    def register_panel_3d(cls, parent_id: str, parent_props_alias: str) -> None:
         """
-        Register the panel class for the controller.
+        Register the 3D panel class for the controller.
         """
-        bpy.utils.register_class(cls.panel(parent_id=parent_id))
+        if cls.panel_3d is not None:
+            bpy.utils.register_class(
+                cls.get_panel_3d(
+                    parent_id=parent_id,
+                    parent_props_alias=parent_props_alias,
+                )
+            )
 
     @classmethod
-    def unregister_panel(cls) -> None:
+    def register_panel_vse(cls, parent_id: str, parent_props_alias: str) -> None:
         """
-        Unregister the panel class for the controller.
+        Register the VSE panel class for the controller.
         """
-        if hasattr(cls, "_panel_class"):
-            bpy.utils.unregister_class(cls._panel_class)
+        if cls.panel_vse is not None:
+            bpy.utils.register_class(
+                cls.get_panel_vse(
+                    parent_id=parent_id,
+                    parent_props_alias=parent_props_alias,
+                )
+            )
+
+    @classmethod
+    def unregister_panel_3d(cls) -> None:
+        """
+        Unregister the 3D panel class for the controller.
+        """
+        if hasattr(cls, "_panel_3d_class"):
+            bpy.utils.unregister_class(cls._panel_3d_class)
+
+    @classmethod
+    def unregister_panel_vse(cls) -> None:
+        """
+        Unregister the VSE panel class for the controller.
+        """
+        if hasattr(cls, "_panel_vse_class"):
+            bpy.utils.unregister_class(cls._panel_vse_class)
 
     @classmethod
     def register_properties_pointer(cls) -> None:
@@ -176,7 +257,13 @@ class FalController(metaclass=ABCMeta):
         delattr(bpy.types.Scene, cls.get_props_alias())
 
     @classmethod
-    def register(cls, parent_id: str) -> None:
+    def register(
+        cls,
+        parent_id_3d: str,
+        parent_props_alias_3d: str,
+        parent_id_vse: str,
+        parent_props_alias_vse: str,
+    ) -> None:
         """
         Register the controller.
         """
@@ -184,7 +271,8 @@ class FalController(metaclass=ABCMeta):
             return
         cls.register_properties()
         cls.register_operator()
-        cls.register_panel(parent_id=parent_id)
+        cls.register_panel_3d(parent_id=parent_id_3d, parent_props_alias=parent_props_alias_3d)
+        cls.register_panel_vse(parent_id=parent_id_vse, parent_props_alias=parent_props_alias_vse)
         cls.register_properties_pointer()
 
     @classmethod
@@ -196,17 +284,29 @@ class FalController(metaclass=ABCMeta):
             return
         cls.unregister_properties()
         cls.unregister_operator()
-        cls.unregister_panel()
+        cls.unregister_panel_3d()
+        cls.unregister_panel_vse()
         cls.unregister_properties_pointer()
 
     @classmethod
-    def register_all(cls, parent_id: str) -> None:
+    def register_all(
+        cls,
+        parent_id_3d: str,
+        parent_props_alias_3d: str,
+        parent_id_vse: str,
+        parent_props_alias_vse: str,
+    ) -> None:
         """
         Register all controllers.
         """
         for subcls in cls.__subclasses__():
             if subcls.is_available():
-                subcls.register(parent_id=parent_id)
+                subcls.register(
+                    parent_id_3d=parent_id_3d,
+                    parent_props_alias_3d=parent_props_alias_3d,
+                    parent_id_vse=parent_id_vse,
+                    parent_props_alias_vse=parent_props_alias_vse,
+                )
 
     @classmethod
     def unregister_all(cls) -> None:
@@ -218,7 +318,11 @@ class FalController(metaclass=ABCMeta):
                 subcls.unregister()
 
     @classmethod
-    def enumerate(cls) -> list[tuple[str, str, str]]:
+    def enumerate(
+        cls,
+        for_3d_panel: bool = False,
+        for_vse_panel: bool = False,
+    ) -> list[tuple[str, str, str]]:
         """
         Returns a list of all available controllers.
         """
@@ -238,5 +342,9 @@ class FalController(metaclass=ABCMeta):
                 _get_unique_id(),
             )
             for subcls in cls.__subclasses__()
-            if subcls.is_available()
+            if subcls.is_available() and (
+                (for_3d_panel and subcls.is_3d_panel_available())
+                or (for_vse_panel and subcls.is_vse_panel_available())
+                or (not for_3d_panel and not for_vse_panel)
+            )
         ]

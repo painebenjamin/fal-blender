@@ -3,37 +3,53 @@ import bpy
 from .controllers import FalController
 from .job_queue import JobManager
 
-ALL_CONTROLLERS = FalController.enumerate()
+CONTROLLERS_3D = FalController.enumerate(for_3d_panel=True)
+CONTROLLERS_VSE = FalController.enumerate(for_vse_panel=True)
 
-if not ALL_CONTROLLERS:
-    raise RuntimeError("No controllers found!")
+if not CONTROLLERS_3D:
+    CONTROLLERS_3D = [("NONE", "No Workflows Available", "")]
+
+if not CONTROLLERS_VSE:
+    CONTROLLERS_VSE = [("NONE", "No Workflows Available", "")]
 
 # ---------------------------------------------------------------------------
 # Scene properties for UI state
 # ---------------------------------------------------------------------------
-class FalAISceneProperties(bpy.types.PropertyGroup):
+class FalAI3DSceneProperties(bpy.types.PropertyGroup):
     """
-    Per-scene properties for fal.ai UI state.
+    Per-scene properties for fal.ai 3D UI state.
     """
 
     # Active tab
     active_controller: bpy.props.EnumProperty(
-        name="Tab",
-        items=ALL_CONTROLLERS,
-        default=ALL_CONTROLLERS[0][0],
+        name="Workflow",
+        items=CONTROLLERS_3D,
+        default=CONTROLLERS_3D[0][0],
     )
 
 
-# ---------------------------------------------------------------------------
-# Main Panel
-# ---------------------------------------------------------------------------
-class FAL_PT_MainPanel(bpy.types.Panel):
+class FalAIVSESceneProperties(bpy.types.PropertyGroup):
     """
-    Main panel for fal.ai UI.
+    Per-scene properties for fal.ai VSE UI state.
+    """
+
+    # Active tab
+    active_controller: bpy.props.EnumProperty(
+        name="Workflow",
+        items=CONTROLLERS_VSE,
+        default=CONTROLLERS_VSE[0][0],
+    )
+
+# ---------------------------------------------------------------------------
+# Main Panels
+# ---------------------------------------------------------------------------
+class FAL_PT_3D_MainPanel(bpy.types.Panel):
+    """
+    Main panel for fal.ai 3D UI.
     """
 
     bl_label = "fal.ai"
-    bl_idname = "FAL_PT_MainPanel"
+    bl_idname = "FAL_PT_3D_MainPanel"
     bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "fal.ai"
@@ -41,11 +57,32 @@ class FAL_PT_MainPanel(bpy.types.Panel):
     def draw(self, context: bpy.types.Context) -> None:
         layout = self.layout
         scene = context.scene
-        fal = scene.fal
+        fal_3d = scene.fal_3d
 
         # Tab row
         row = layout.row(align=True)
-        row.prop(fal, "active_controller")
+        row.prop(fal_3d, "active_controller")
+
+
+class FAL_PT_VSE_MainPanel(bpy.types.Panel):
+    """
+    Main panel for fal.ai VSE UI.
+    """
+
+    bl_label = "fal.ai"
+    bl_idname = "FAL_PT_VSE_MainPanel"
+    bl_space_type = "SEQUENCE_EDITOR"
+    bl_region_type = "UI"
+    bl_category = "fal.ai"
+
+    def draw(self, context: bpy.types.Context) -> None:
+        layout = self.layout
+        scene = context.scene
+        fal_vse = scene.fal_vse
+
+        # Tab row
+        row = layout.row(align=True)
+        row.prop(fal_vse, "active_controller")
 
 
 # ---------------------------------------------------------------------------
@@ -70,17 +107,14 @@ def _draw_error(layout: bpy.types.UILayout, error_text: str) -> None:
             col.label(text=part, icon="BLANK1")
 
 
-class FAL_PT_JobsPanel(bpy.types.Panel):
+class BaseJobsPanel(bpy.types.Panel):
     """
     Jobs panel for fal.ai UI.
     """
 
     bl_label = "Active Jobs"
-    bl_idname = "FAL_PT_JobsPanel"
-    bl_space_type = "VIEW_3D"
     bl_region_type = "UI"
     bl_category = "fal.ai"
-    bl_parent_id = FAL_PT_MainPanel.bl_idname
     bl_options = {"DEFAULT_CLOSED"}
 
     def draw(self, context: bpy.types.Context) -> None:
@@ -123,3 +157,21 @@ class FAL_PT_JobsPanel(bpy.types.Panel):
                     box.label(text=f"Request: {job.request_id}")
                 if job.error:
                     _draw_error(box, job.error)
+
+
+class FAL_PT_3D_JobsPanel(BaseJobsPanel):
+    """
+    Jobs panel for fal.ai 3D UI.
+    """
+    bl_idname = "FAL_PT_3D_JobsPanel"
+    bl_space_type = "VIEW_3D"
+    bl_parent_id = FAL_PT_3D_MainPanel.bl_idname
+
+
+class FAL_PT_VSE_JobsPanel(BaseJobsPanel):
+    """
+    Jobs panel for fal.ai VSE UI.
+    """
+    bl_idname = "FAL_PT_VSE_JobsPanel"
+    bl_space_type = "SEQUENCE_EDITOR"
+    bl_parent_id = FAL_PT_VSE_MainPanel.bl_idname
