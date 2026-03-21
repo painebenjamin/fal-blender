@@ -1,4 +1,8 @@
-from .base import FalModel
+from .base import (
+    FalModel,
+    VisualFalModel,
+    AudioFalModel,
+)
 from .image_generation import (
     SketchGuidedImageGenerationModel,
     NanoBananaSketchGuidedImageGenerationModel,
@@ -33,6 +37,7 @@ from .audio_generation import (
 )
 
 __all__ = [
+    "AudioFalModel",
     "DepthGuidedImageGenerationModel",
     "ElevenLabsMusicGenerationModel",
     "ElevenLabsSoundEffectsGenerationModel",
@@ -56,6 +61,7 @@ __all__ = [
     "SoundEffectsGenerationModel",
     "SpeechGenerationModel",
     "VideoUpscalingModel",
+    "VisualFalModel",
     "ZImageTurboDepthGuidedImageGenerationModel",
     "ZImageTurboImageRefinementModel",
 ]

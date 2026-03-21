@@ -1,4 +1,4 @@
-from ..base import FalModel
+from ..base import AudioFalModel
 from typing import Any
 
 __all__ = [
@@ -6,14 +6,16 @@ __all__ = [
     "ElevenLabsMusicGenerationModel",
 ]
 
-class MusicGenerationModel(FalModel):
+class MusicGenerationModel(AudioFalModel):
+    prompt_parameter = "prompt"
+
     @classmethod
     def parameters(cls, **kwargs: Any) -> dict[str, Any]:
         """
         Returns the parameters for the model.
         """
         params = super().parameters(**kwargs)
-        params["prompt"] = kwargs.get("prompt", "")
+        params["prompt"] = params.get("prompt", "")
         return params
 
 class ElevenLabsMusicGenerationModel(MusicGenerationModel):

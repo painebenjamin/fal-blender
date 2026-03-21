@@ -5,6 +5,11 @@ from typing import Any, ClassVar
 
 from ..utils import path_to_data_uri
 
+__all__ = [
+    "FalModel",
+    "VisualFalModel",
+    "AudioFalModel",
+]
 
 class FalModel(metaclass=ABCMeta):
     enabled: ClassVar[bool] = True
@@ -230,5 +235,80 @@ class VisualFalModel(FalModel):
             params["prompt"] = prompt
         if cls.prompt_expansion_parameter:
             params[cls.prompt_expansion_parameter] = enable_prompt_expansion
+
+        return params
+
+
+class AudioFalModel(FalModel):
+    # 'Text' is for TTS, 'prompt' is for everything
+    # (including TTS that allows prompting the speaker)
+    prompt_parameter: ClassVar[str | None] = None
+    text_parameter: ClassVar[str | None] = None
+    audio_urls_parameter: ClassVar[str | None] = None
+    audio_url_parameter: ClassVar[str | None] = None
+    duration_parameter: ClassVar[str | None] = None
+    duration_in_ms: ClassVar[bool] = False
+
+    @classmethod
+    def _get_audio_urls_parameters(
+        cls,
+        audio_paths: list[str] | None = None,
+        audio_urls: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """
+        Returns the audio urls parameters for the model.
+        """
+        if not cls.audio_urls_parameter and not cls.audio_url_parameter:
+            return {}
+
+        audio_uris = []
+        if audio_paths:
+            for audio_path in audio_paths:
+                audio_uris.append(path_to_data_uri(audio_path))
+        if audio_urls:
+            audio_uris.extend(audio_urls)
+
+        if cls.audio_urls_parameter:
+            return {
+                cls.audio_urls_parameter: audio_uris,
+            }
+        return {
+            cls.audio_url_parameter: audio_uris[0] if audio_uris else None,
+        }
+
+    @classmethod
+    def parameters(cls, **kwargs: Any) -> dict[str, Any]:
+        """
+        Returns the parameters for the model.
+        """
+        audio_paths: list[str] = []
+        audio_urls: list[str] = []
+
+        if "audio_paths" in kwargs:
+            audio_paths = kwargs["audio_paths"]
+        if "audio_path" in kwargs:
+            audio_paths.append(kwargs["audio_path"])
+        if "audio_urls" in kwargs:
+            audio_urls = kwargs["audio_urls"]
+        if "audio_url" in kwargs:
+            audio_urls.append(kwargs["audio_url"])
+
+        params: dict[str, Any] = {}
+        params.update(cls._get_audio_urls_parameters(audio_paths, audio_urls))
+
+        if cls.prompt_parameter:
+            prompt = kwargs.get("prompt", kwargs.get(cls.prompt_parameter, ""))
+            if prompt:
+                params[cls.prompt_parameter] = prompt
+        if cls.text_parameter:
+            text = kwargs.get("text", kwargs.get(cls.text_parameter, ""))
+            if text:
+                params[cls.text_parameter] = text
+        if cls.duration_parameter:
+            duration = kwargs.get("duration", kwargs.get(cls.duration_parameter, 0))
+            if duration:
+                params[cls.duration_parameter] = duration
+                if cls.duration_in_ms:
+                    params[cls.duration_parameter] = int(duration * 1000)
 
         return params

@@ -20,10 +20,10 @@ class FalAudioPropertyGroup(bpy.types.PropertyGroup):
 
     duration: bpy.props.FloatProperty(
         name="Duration",
-        description="Duration in seconds",
-        default=5.0,
-        min=1.0,
-        max=60.0,
+        description="Duration in seconds (0 for default/auto)",
+        default=0.0,
+        min=0.0,
+        max=300.0,
     )
 
     # ── TTS Mode ──────────────────────────────────────────────────────────

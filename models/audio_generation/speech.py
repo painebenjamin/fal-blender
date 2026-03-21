@@ -1,4 +1,4 @@
-from ..base import FalModel
+from ..base import AudioFalModel
 from typing import Any, ClassVar
 
 __all__ = [
@@ -6,9 +6,10 @@ __all__ = [
     "ElevenLabsSpeechGenerationModel",
 ]
 
-class SpeechGenerationModel(FalModel):
+class SpeechGenerationModel(AudioFalModel):
     supports_preset: ClassVar[bool] = False
     supports_clone: ClassVar[bool] = False
+    text_parameter = "text"
 
     @classmethod
     def enumerate(cls, **kwargs: Any) -> list[tuple[str, str, str]]:
@@ -33,6 +34,7 @@ class SpeechGenerationModel(FalModel):
         params = super().parameters(**kwargs)
         params["text"] = kwargs.get("text", None)
         return params
+
 
 class ElevenLabsSpeechGenerationModel(SpeechGenerationModel):
     endpoint = "fal-ai/elevenlabs/tts/turbo-v2.5"

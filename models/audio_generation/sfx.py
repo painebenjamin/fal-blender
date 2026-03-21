@@ -1,4 +1,4 @@
-from ..base import FalModel
+from ..base import AudioFalModel
 from typing import Any
 
 __all__ = [
@@ -6,16 +6,11 @@ __all__ = [
     "ElevenLabsSoundEffectsGenerationModel",
 ]
 
-class SoundEffectsGenerationModel(FalModel):
-    @classmethod
-    def parameters(cls, **kwargs: Any) -> dict[str, Any]:
-        """
-        Returns the parameters for the model.
-        """
-        params = super().parameters(**kwargs)
-        params["text"] = kwargs.get("text", "")
-        return params
+class SoundEffectsGenerationModel(AudioFalModel):
+    pass
 
 class ElevenLabsSoundEffectsGenerationModel(SoundEffectsGenerationModel):
     endpoint = "fal-ai/elevenlabs/sound-effects/v2"
     display_name = "ElevenLabs Sound Effects v2"
+    prompt_parameter = "text"  # non-standard
+    duration_parameter = "duration_seconds"  # non-standard

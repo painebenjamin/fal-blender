@@ -19,7 +19,7 @@ class FalAudioOperator(FalOperator):
     """
     Audio operator.
     """
-    label = "Audio"  # text in button in UI
+    label = "Generate Audio"  # text in button in UI
 
     @classmethod
     def enabled(
@@ -82,8 +82,6 @@ class FalAudioOperator(FalOperator):
         model = SOUND_EFFECTS_GENERATION_MODELS[props.sfx_endpoint]
         params = model.parameters(
             prompt=props.sfx_prompt,
-            expand_prompt=props.enable_prompt_expansion,
-            enable_prompt_expansion=props.enable_prompt_expansion,
             duration=props.duration,
         )   
 
