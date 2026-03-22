@@ -23,13 +23,11 @@ from .image_generation import (
     ZImageTurboDepthGuidedImageGenerationModel,
     ZImageTurboImageRefinementModel,
 )
-from .image_processing import ImageUpscalingModel, SeedVR29BImageUpscalingModel
-from .mesh_generation import (
-    ImageTo3DModel,
-    MeshyV5ImageTo3DModel,
-    MeshyV6ImageTo3DModel,
-    MeshyV6TextTo3DModel,
-    TextTo3DModel,
+from .image_processing import (
+    AuraSRImageUpscalingModel,
+    ClarityImageUpscalingModel,
+    ImageUpscalingModel,
+    SeedVR29BImageUpscalingModel,
 )
 from .material_generation import (
     MaterialGenerationModel,
@@ -38,6 +36,13 @@ from .material_generation import (
     PBREstimationModel,
     TilingTextureModel,
     ZImageTurboTilingTextureModel,
+)
+from .mesh_generation import (
+    ImageTo3DModel,
+    MeshyV5ImageTo3DModel,
+    MeshyV6ImageTo3DModel,
+    MeshyV6TextTo3DModel,
+    TextTo3DModel,
 )
 from .video_generation import (
     DepthVideoModel,
@@ -56,6 +61,8 @@ from .video_processing import SeedVR29BVideoUpscalingModel, VideoUpscalingModel
 
 __all__ = [
     "AudioFalModel",
+    "AuraSRImageUpscalingModel",
+    "ClarityImageUpscalingModel",
     "DepthGuidedImageGenerationModel",
     "ElevenLabsMusicGenerationModel",
     "ElevenLabsSoundEffectsGenerationModel",

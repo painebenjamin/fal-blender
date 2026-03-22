@@ -8,11 +8,7 @@ import bpy
 
 from ...importers import add_video_to_vse
 from ...job_queue import FalJob, JobManager
-from ...models import (
-    DepthVideoModel,
-    ImageToVideoModel,
-    TextToVideoModel,
-)
+from ...models import DepthVideoModel, ImageToVideoModel, TextToVideoModel
 from ...utils import (
     download_file,
     restore_compositor,
