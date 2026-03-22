@@ -24,6 +24,13 @@ from .image_generation import (
     ZImageTurboImageRefinementModel,
 )
 from .image_processing import ImageUpscalingModel, SeedVR29BImageUpscalingModel
+from .mesh_generation import (
+    ImageTo3DModel,
+    MeshyV5ImageTo3DModel,
+    MeshyV6ImageTo3DModel,
+    MeshyV6TextTo3DModel,
+    TextTo3DModel,
+)
 from .material_generation import (
     MaterialGenerationModel,
     PatinaMaterialGenerationModel,
@@ -58,8 +65,12 @@ __all__ = [
     "FLUX2Klein9BImageRefinementModel",
     "FalModel",
     "ImageRefinementModel",
+    "ImageTo3DModel",
     "ImageUpscalingModel",
     "MaterialGenerationModel",
+    "MeshyV5ImageTo3DModel",
+    "MeshyV6ImageTo3DModel",
+    "MeshyV6TextTo3DModel",
     "MusicGenerationModel",
     "NanoBanana2ImageRefinementModel",
     "NanoBanana2SketchGuidedImageGenerationModel",
@@ -75,6 +86,7 @@ __all__ = [
     "SketchGuidedImageGenerationModel",
     "SoundEffectsGenerationModel",
     "SpeechGenerationModel",
+    "TextTo3DModel",
     "TilingTextureModel",
     "VideoUpscalingModel",
     "VisualFalModel",
