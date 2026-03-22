@@ -1,8 +1,3 @@
-# SPDX-License-Identifier: Apache-2.0
-# Copyright 2026 Features and Labels, Inc.
-"""fal.ai Blender Extension — AI-powered generation suite."""
-
-# Add vendored dependencies to sys.path (e.g. Pillow installed via pip --target vendor/)
 import os as _os
 import sys as _sys
 
@@ -10,51 +5,56 @@ _vendor_dir = _os.path.join(_os.path.dirname(__file__), "vendor")
 if _os.path.isdir(_vendor_dir) and _vendor_dir not in _sys.path:
     _sys.path.insert(0, _vendor_dir)
 
-from . import preferences, endpoints  # noqa: F401
-from .core import job_queue  # noqa: F401
-from .ui import panels  # noqa: F401
-from .operators import (  # noqa: F401
-    texture,
-    generate_3d,
-    upscale,
-    neural_render,
-    realtime_refine,
-    video,
-    audio,
-    mesh_ops,
-    material,
+import bpy
+
+from .app import (
+    FAL_PT_3D_JobsPanel,
+    FAL_PT_3D_MainPanel,
+    FAL_PT_VSE_JobsPanel,
+    FAL_PT_VSE_MainPanel,
+    FalAI3DSceneProperties,
+    FalAIVSESceneProperties,
 )
-
-# Registration order matters!
-# 1. Preferences (API key)
-# 2. Endpoints (no bpy registration needed)
-# 3. Job queue core
-# 4. ALL operator modules (they register PropertyGroups on Scene)
-# 5. Panels LAST (they reference those PropertyGroups)
-_modules = [
-    preferences,
-    endpoints,
-    job_queue,
-    texture,
-    generate_3d,
-    upscale,
-    neural_render,
-    realtime_refine,
-    video,
-    audio,
-    mesh_ops,
-    material,
-    panels,  # MUST be last — panels reference operator PropertyGroups
-]
+from .controllers import FalController
+from .job_queue import JobManager
+from .preferences import FalPreferences
 
 
-def register():
-    for mod in _modules:
-        if hasattr(mod, "register"):
-            mod.register()
+def register() -> None:
+    """
+    Register the fal.ai addon.
+    """
+    bpy.utils.register_class(FalPreferences)
+    bpy.utils.register_class(FalAI3DSceneProperties)
+    bpy.utils.register_class(FalAIVSESceneProperties)
+    bpy.types.Scene.fal_3d = bpy.props.PointerProperty(type=FalAI3DSceneProperties)
+    bpy.types.Scene.fal_vse = bpy.props.PointerProperty(type=FalAIVSESceneProperties)
+    bpy.utils.register_class(FAL_PT_3D_MainPanel)
+    bpy.utils.register_class(FAL_PT_VSE_MainPanel)
+    FalController.register_all(
+        parent_id_3d=FAL_PT_3D_MainPanel.bl_idname,
+        parent_id_vse=FAL_PT_VSE_MainPanel.bl_idname,
+        parent_props_alias_3d="fal_3d",
+        parent_props_alias_vse="fal_vse",
+    )
+    bpy.utils.register_class(FAL_PT_3D_JobsPanel)
+    bpy.utils.register_class(FAL_PT_VSE_JobsPanel)
 
 
-def unregister():
-    for mod in reversed(_modules):
-        if hasattr(mod, "unregister"):
-            mod.unregister()
+def unregister() -> None:
+    """
+    Unregister the fal.ai addon.
+    """
+    bpy.utils.unregister_class(FalPreferences)
+    bpy.utils.unregister_class(FalAI3DSceneProperties)
+    bpy.utils.unregister_class(FalAIVSESceneProperties)
+    if hasattr(bpy.types.Scene, "fal_3d"):
+        del bpy.types.Scene.fal_3d
+    if hasattr(bpy.types.Scene, "fal_vse"):
+        del bpy.types.Scene.fal_vse
+    bpy.utils.unregister_class(FAL_PT_3D_MainPanel)
+    bpy.utils.unregister_class(FAL_PT_VSE_MainPanel)
+    FalController.unregister_all()
+    bpy.utils.unregister_class(FAL_PT_3D_JobsPanel)
+    bpy.utils.unregister_class(FAL_PT_VSE_JobsPanel)
+    JobManager.reset()
