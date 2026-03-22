@@ -81,45 +81,6 @@ zip -r fal_ai.zip . -x ".*" -x "__pycache__/*" -x "scripts/*" -x "tests/*"
 4. Choose an endpoint from the dropdown
 5. Fill in the parameters and click Generate
 
-### Sketch-to-Render with Labels
-
-A powerful feature for scene concepting:
-1. Create a simple blocky scene (cubes, basic shapes)
-2. Add text labels to objects: select object → Object Properties → Custom Properties → Add `fal_ai_label` with your description (e.g., "weathered oak bookshelf")
-3. Go to the Render tab, enable "Include Labels"
-4. Generate — the AI will interpret your labels and reimagine the scene
-
-### Audio in VSE
-
-Audio features (TTS, SFX, Music) are also accessible from the Video Sequence Editor sidebar for convenient access while editing video.
-
-## Project Structure
-
-```
-fal-blender/
-├── __init__.py              # Extension entry point
-├── blender_manifest.toml    # Blender extension metadata
-├── preferences.py           # API key, settings
-├── endpoints.py             # Endpoint registry (single source of truth)
-├── core/
-│   ├── api.py               # Resolution translation, upload helpers
-│   ├── job_queue.py         # Async job management
-│   └── importers.py         # Import results into Blender
-├── operators/
-│   ├── texture.py           # Text-to-Texture
-│   ├── generate_3d.py       # Text/Image-to-3D
-│   ├── upscale.py           # Image + Video upscale
-│   ├── neural_render.py     # Depth + Sketch rendering
-│   ├── video.py             # Video generation
-│   ├── audio.py             # TTS, SFX, Music
-│   └── mesh_ops.py          # Retexture, Remesh
-├── ui/
-│   └── panels.py            # N-Panel sidebar UI
-├── scripts/
-│   └── build_wheels.sh      # Download dependency wheels
-└── wheels/                  # Bundled Python dependencies
-```
-
 ## License
 
 Apache 2.0 — Copyright 2026 Features and Labels, Inc.
