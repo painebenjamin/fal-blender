@@ -3,6 +3,12 @@ from __future__ import annotations
 from typing import Any, ClassVar
 
 from ..base import VisualFalModel
+from .base import (
+    LTX2DistilledVideoModel,
+    LTX2VideoModel,
+    WanFun22A14BVideoModel,
+    WanVACE14BVideoModel,
+)
 
 __all__ = [
     "DepthVideoModel",
@@ -49,35 +55,31 @@ class DepthVideoModel(VisualFalModel):
         return params
 
 
-class LTX219BDistilledDepthVideoModel(DepthVideoModel):
+class LTX2DistilledDepthVideoModel(DepthVideoModel, LTX2DistilledVideoModel):
     """LTX-2 19B Distilled depth-conditioned video model."""
 
     endpoint = "fal-ai/ltx-2-19b/distilled/video-to-video"
-    display_name = "LTX-2 19B Distilled"
     description = "Faster depth video — fewer steps, good for simple camera moves"
     static_parameters: ClassVar[dict[str, Any]] = {"ic_lora": "depth"}
 
 
-class LTX219BDepthVideoModel(DepthVideoModel):
+class LTX2DepthVideoModel(DepthVideoModel, LTX2VideoModel):
     """LTX-2 19B depth-conditioned video model using IC-LoRA."""
 
     endpoint = "fal-ai/ltx-2-19b/video-to-video"
-    display_name = "LTX-2 19B"
     description = "Depth-conditioned video generation via IC-LoRA"
     static_parameters: ClassVar[dict[str, Any]] = {"ic_lora": "depth"}
 
 
-class WanVACE14BDepthVideoModel(DepthVideoModel):
+class WanVACE14BDepthVideoModel(DepthVideoModel, WanVACE14BVideoModel):
     """Wan-VACE 14B depth-conditioned video model."""
 
     endpoint = "fal-ai/wan-vace-14b/depth"
-    display_name = "Wan-VACE 14B"
     description = "Depth-conditioned video generation"
 
 
-class WanFun22A14BDepthVideoModel(DepthVideoModel):
+class WanFun22A14BDepthVideoModel(DepthVideoModel, WanFun22A14BVideoModel):
     """Wan-Fun 2.2 A14B depth-conditioned video model."""
 
     endpoint = "fal-ai/wan-22-vace-fun-a14b/depth"
-    display_name = "Wan-Fun 2.2 A14B"
     description = "Depth-conditioned video generation"

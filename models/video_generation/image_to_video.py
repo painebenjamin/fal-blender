@@ -3,11 +3,19 @@ from __future__ import annotations
 from typing import Any, ClassVar
 
 from ..base import VisualFalModel
+from .base import (
+    LTX2DistilledVideoModel,
+    LTX2VideoModel,
+    Wan22TurboVideoModel,
+    Wan22VideoModel,
+)
 
 __all__ = [
     "ImageToVideoModel",
-    "Kling3ProImageToVideoModel",
-    "Wan21ImageToVideoModel",
+    "Wan22ImageToVideoModel",
+    "Wan22TurboImageToVideoModel",
+    "LTX2ImageToVideoModel",
+    "LTX2DistilledImageToVideoModel",
 ]
 
 
@@ -38,15 +46,25 @@ class ImageToVideoModel(VisualFalModel):
         return params
 
 
-class Kling3ProImageToVideoModel(ImageToVideoModel):
-    """Kling 3.0 Pro image-to-video model."""
+class Wan22ImageToVideoModel(ImageToVideoModel, Wan22VideoModel):
+    """Wan 2.2 image-to-video model."""
 
-    endpoint = "fal-ai/kling-video/o3/pro/image-to-video"
-    display_name = "Kling 3.0 Pro"
+    endpoint = "fal-ai/wan/v2.2-a14b/image-to-video"
 
 
-class Wan21ImageToVideoModel(ImageToVideoModel):
-    """Wan 2.1 image-to-video model."""
+class Wan22TurboImageToVideoModel(ImageToVideoModel, Wan22TurboVideoModel):
+    """Wan 2.2 turbo image-to-video model."""
 
-    endpoint = "fal-ai/wan/v2.1/image-to-video"
-    display_name = "Wan 2.1"
+    endpoint = "fal-ai/wan/v2.2-a14b/image-to-video/turbo"
+
+
+class LTX2ImageToVideoModel(ImageToVideoModel, LTX2VideoModel):
+    """LTX-2 19B image-to-video model."""
+
+    endpoint = "fal-ai/ltx-2-19b/image-to-video"
+
+
+class LTX2DistilledImageToVideoModel(ImageToVideoModel, LTX2DistilledVideoModel):
+    """LTX-2 19B distilled image-to-video model."""
+
+    endpoint = "fal-ai/ltx-2-19b/distilled/image-to-video"

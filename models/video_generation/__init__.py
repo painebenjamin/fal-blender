@@ -1,31 +1,35 @@
 from .depth_video import (
     DepthVideoModel,
-    LTX219BDepthVideoModel,
-    LTX219BDistilledDepthVideoModel,
     WanFun22A14BDepthVideoModel,
     WanVACE14BDepthVideoModel,
 )
 from .image_to_video import (
     ImageToVideoModel,
-    Kling3ProImageToVideoModel,
-    Wan21ImageToVideoModel,
+    LTX2DistilledImageToVideoModel,
+    LTX2ImageToVideoModel,
+    Wan22ImageToVideoModel,
+    Wan22TurboImageToVideoModel,
 )
 from .text_to_video import (
-    Kling3ProTextToVideoModel,
+    LTX2DistilledTextToVideoModel,
+    LTX2TextToVideoModel,
     TextToVideoModel,
-    Wan21TextToVideoModel,
+    Wan22TextToVideoModel,
+    Wan22TurboTextToVideoModel,
 )
 
 __all__ = [
     "DepthVideoModel",
     "ImageToVideoModel",
-    "Kling3ProImageToVideoModel",
-    "Kling3ProTextToVideoModel",
-    "LTX219BDepthVideoModel",
-    "LTX219BDistilledDepthVideoModel",
+    "LTX2DistilledImageToVideoModel",
+    "LTX2DistilledTextToVideoModel",
+    "LTX2ImageToVideoModel",
+    "LTX2TextToVideoModel",
     "TextToVideoModel",
-    "Wan21ImageToVideoModel",
-    "Wan21TextToVideoModel",
+    "Wan22ImageToVideoModel",
+    "Wan22TextToVideoModel",
+    "Wan22TurboImageToVideoModel",
+    "Wan22TurboTextToVideoModel",
     "WanFun22A14BDepthVideoModel",
     "WanVACE14BDepthVideoModel",
 ]
