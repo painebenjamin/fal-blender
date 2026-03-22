@@ -35,6 +35,14 @@ from .audio_generation import (
     SoundEffectsGenerationModel,
     ElevenLabsSoundEffectsGenerationModel,
 )
+from .material_generation import (
+    MaterialGenerationModel,
+    PBREstimationModel,
+    PatinaMaterialGenerationModel,
+    PatinaPBREstimationModel,
+    TilingTextureModel,
+    ZImageTurboTilingTextureModel,
+)
 
 __all__ = [
     "AudioFalModel",
@@ -48,10 +56,14 @@ __all__ = [
     "FalModel",
     "ImageRefinementModel",
     "ImageUpscalingModel",
+    "MaterialGenerationModel",
     "MusicGenerationModel",
     "NanoBanana2ImageRefinementModel",
     "NanoBanana2SketchGuidedImageGenerationModel",
     "NanoBananaImageRefinementModel",
+    "PBREstimationModel",
+    "PatinaMaterialGenerationModel",
+    "PatinaPBREstimationModel",
     "NanoBananaProImageRefinementModel",
     "NanoBananaProSketchGuidedImageGenerationModel",
     "NanoBananaSketchGuidedImageGenerationModel",
@@ -60,8 +72,10 @@ __all__ = [
     "SketchGuidedImageGenerationModel",
     "SoundEffectsGenerationModel",
     "SpeechGenerationModel",
+    "TilingTextureModel",
     "VideoUpscalingModel",
     "VisualFalModel",
     "ZImageTurboDepthGuidedImageGenerationModel",
     "ZImageTurboImageRefinementModel",
+    "ZImageTurboTilingTextureModel",
 ]
