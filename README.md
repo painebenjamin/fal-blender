@@ -2,45 +2,79 @@
 
 AI-powered textures, 3D models, rendering, video and audio — directly inside Blender.
 
-**This is very much so a work-in-progress and not officially supported - many features likely do not work yet. If/when this is officially supported, the repository will be moved under fal's GitHub organization.**
+**This is very much so a work-in-progress and not officially supported. If/when this is officially supported, the repository will be moved under fal's GitHub organization.**
 
 ## Features
 
-### ✅ Implemented
+The addon is split across two editor contexts: the **3D Viewport** (for scene-oriented workflows) and the **Video Sequence Editor** (for timeline-oriented workflows). Each context has its own set of controllers selectable from a workflow dropdown.
 
-| Feature | Description | Endpoints |
-|---------|-------------|-----------|
-| **Text-to-Texture** | Generate textures from prompts, auto-apply to materials | Nano Banana Pro/2, FLUX, z-image |
-| **Text-to-3D** | Generate 3D models from text descriptions | Meshy v6 |
-| **Image-to-3D** | Convert images to 3D models | Meshy v5/v6 |
-| **AI Upscale (Image)** | Upscale textures and renders | SeedVR2, AuraSR, Clarity |
-| **AI Upscale (Video)** | Upscale video files | SeedVR2 Video |
-| **Neural Render: Depth** | Render depth pass → depth-controlled image generation | FLUX Depth ControlNet, z-image ControlNet |
-| **Neural Render: Sketch** | Render blocky scene → AI reimagines with optional text labels | Nano Banana Pro/2, FLUX |
-| **Text-to-Video** | Generate video from text prompts | Kling 3.0 Pro, Wan 2.1 |
-| **Image-to-Video** | Animate an image into video | Kling 3.0 Pro, Wan 2.1 |
-| **Depth-Cond Video** | Depth sequence → structural video guide | Wan-VACE, Wan-Fun, LTX-2 |
-| **TTS** | Text-to-speech with voice presets or voice cloning | (endpoints TBD) |
-| **SFX** | Generate sound effects from descriptions | (endpoints TBD) |
-| **Music** | Generate music from prompts | (endpoints TBD) |
-| **Retexture** | AI retexture existing 3D models | Meshy v5 |
-| **Remesh** | AI-powered mesh cleanup | Meshy v5 |
+### 3D Viewport Workflows
 
-### 🔜 Planned
+| Workflow | Description | Endpoints |
+|----------|-------------|-----------|
+| **Material** | Generate PBR materials from prompts, estimate PBR maps from images, or create tiling textures. Outputs a full Principled BSDF material. | Patina, Z-Image Turbo Tiling |
+| **3D Generation** | Text-to-3D and image-to-3D mesh generation. Imports GLB at the 3D cursor. | Meshy v5, Meshy v6 |
+| **Neural Render: Depth** | Render a Mist depth pass, then generate an AI image guided by scene depth. | FLUX.1 Dev ControlNet, Z-Image Turbo ControlNet |
+| **Neural Render: Sketch** | Render a Freestyle line drawing, optionally overlay object name labels, then AI reimagines the sketch. | Nano Banana, Nano Banana Pro, Nano Banana 2 |
+| **Neural Render: Refine** | Render the scene normally, then refine the result via image-to-image with an adjustable strength parameter. | Nano Banana, Nano Banana Pro, Nano Banana 2, Z-Image Turbo, FLUX.1 Dev, FLUX.2 Klein 9B |
+| **Upscale** | Upscale images (from file, render, or texture) or video files. | SeedVR2 9B, AuraSR, Clarity (image); SeedVR2 9B (video) |
+| **Depth Video** | Render a depth animation sequence from the scene, then generate a depth-conditioned video. Optionally supply a first-frame reference image. | Wan-VACE 14B, Wan-Fun 2.2A 14B, LTX-2 19B, LTX-2 19B Distilled |
 
-- Tiled/seamless texture generation (dedicated multi-diffusion endpoint)
-- PBR material generation (diffuse + normal + roughness + metallic)
-- Image → Grease Pencil → Curves (vector workflow)
-- Multi-Image-to-3D pipeline (Qwen multi-angle → Meshy)
+### VSE Workflows
+
+| Workflow | Description | Endpoints |
+|----------|-------------|-----------|
+| **Video** | Text-to-video and image-to-video generation. Adds result as a VSE strip. | Kling 3.0 Pro, Wan 2.1 |
+| **Audio: TTS** | Text-to-speech with voice presets. | ElevenLabs TTS Turbo v2.5 |
+| **Audio: SFX** | Generate sound effects from text descriptions. | ElevenLabs Sound Effects v2 |
+| **Audio: Music** | Generate music from prompts. | ElevenLabs Music |
+
+### Planned
+
+- Image-to-Grease Pencil-to-Curves (vector workflow)
+- Multi-Image-to-3D pipeline (multi-angle capture to mesh)
 - Real-time neural rendering preview
 - LoRA support for consistent styling
+- Voice cloning for TTS
 
 ## Architecture
 
-- **Async job queue** — API calls run in background threads, UI stays responsive
-- **Unified resolution interface** — Set pixels, backend handles aspect/resolution vs width/height translation per endpoint
-- **Multi-endpoint selection** — Every feature has a dropdown to choose which model to use
-- **VSE integration** — Audio and video results can auto-import into the Video Sequence Editor
+```
+controllers/          Blender-side workflows (UI, operators, properties)
+  base.py             FalController base class and registration
+  operators.py        FalOperator base class (background job submission)
+  ui.py               FalControllerPanel (declarative field layout)
+  audio/              TTS, SFX, Music (VSE only)
+  generate_3d/        Text/Image-to-3D (3D only)
+  material/           PBR material generation (3D only)
+  neural_render/      Depth, Sketch, Refine modes (3D only)
+  upscale/            Image and video upscaling (3D only)
+  video/              Text/Image-to-Video (VSE) + Depth Video (3D)
+
+models/               fal.ai endpoint definitions and parameter builders
+  base.py             FalModel, VisualFalModel, AudioFalModel
+  audio_generation/   ElevenLabs speech, SFX, music
+  image_generation/   Depth-guided, sketch-guided, refinement
+  image_processing/   Image upscaling
+  material_generation/ Material, PBR estimation, tiling
+  mesh_generation/    Text-to-3D, image-to-3D
+  video_generation/   Text/image-to-video, depth video
+  video_processing/   Video upscaling
+
+app.py                Main panels and scene properties for 3D and VSE
+job_queue.py          Async FalJob / JobManager (background threads + bpy timer)
+importers.py          GLB import, texture application, VSE strip helpers
+preferences.py        API key and output directory settings
+utils.py              Upload/download, compositor snapshot/restore, fonts
+```
+
+Key design points:
+
+- **Controller / Model separation** — Controllers handle Blender-side UI, operators, and scene interaction. Models define fal.ai endpoint URLs and parameter translation. Adding a new endpoint is typically a single new `FalModel` subclass.
+- **Declarative panel UI** — `FalControllerPanel` drives field layout, conditional visibility, and grouping from simple lists and lambdas — no manual `draw()` code per workflow.
+- **Async job queue** — API calls run in background threads via `fal_client.subscribe()`. A `bpy.app.timers` loop polls for completion, keeping the UI responsive.
+- **Multi-endpoint selection** — Every workflow exposes a dropdown to choose which model/endpoint to use.
+- **Dual-context panels** — Controllers declare `panel_3d`, `panel_vse`, or both, and are automatically registered in the appropriate editor sidebar.
 
 ## Requirements
 
@@ -75,11 +109,11 @@ zip -r fal_ai.zip . -x ".*" -x "__pycache__/*" -x "scripts/*" -x "tests/*"
 
 ## Usage
 
-1. Open the 3D Viewport sidebar (press `N`)
+1. Open the **3D Viewport** sidebar (press `N`) or the **Video Sequence Editor** sidebar
 2. Click the **fal.ai** tab
-3. Select a feature tab (Texture, 3D, Upscale, Render, Video, Audio, Mesh Ops)
-4. Choose an endpoint from the dropdown
-5. Fill in the parameters and click Generate
+3. Select a workflow from the dropdown
+4. Configure parameters and click **Generate**
+5. Monitor progress in the **Active Jobs** sub-panel
 
 ## License
 
@@ -87,4 +121,4 @@ Apache 2.0 — Copyright 2026 Features and Labels, Inc.
 
 ---
 
-Built with ❤️ by Benjamin Paine for [fal.ai](https://fal.ai)
+Built with love by Benjamin Paine for [fal.ai](https://fal.ai)
