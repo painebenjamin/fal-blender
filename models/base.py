@@ -11,6 +11,7 @@ __all__ = [
     "AudioFalModel",
 ]
 
+
 class FalModel(metaclass=ABCMeta):
     enabled: ClassVar[bool] = True
     endpoint: ClassVar[str]

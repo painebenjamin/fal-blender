@@ -103,7 +103,8 @@ class FalController(metaclass=ABCMeta):
             def poll(panel_cls, context: bpy.types.Context) -> bool:
                 return (
                     cls.is_available()
-                    and getattr(context.scene, parent_props_alias).active_controller == cls.__name__
+                    and getattr(context.scene, parent_props_alias).active_controller
+                    == cls.__name__
                 )
 
             def draw(self, context: bpy.types.Context) -> None:
@@ -273,8 +274,12 @@ class FalController(metaclass=ABCMeta):
             return
         cls.register_properties()
         cls.register_operator()
-        cls.register_panel_3d(parent_id=parent_id_3d, parent_props_alias=parent_props_alias_3d)
-        cls.register_panel_vse(parent_id=parent_id_vse, parent_props_alias=parent_props_alias_vse)
+        cls.register_panel_3d(
+            parent_id=parent_id_3d, parent_props_alias=parent_props_alias_3d
+        )
+        cls.register_panel_vse(
+            parent_id=parent_id_vse, parent_props_alias=parent_props_alias_vse
+        )
         cls.register_properties_pointer()
 
     @classmethod
@@ -344,7 +349,8 @@ class FalController(metaclass=ABCMeta):
                 _get_unique_id(),
             )
             for subcls in cls.__subclasses__()
-            if subcls.is_available() and (
+            if subcls.is_available()
+            and (
                 (for_3d_panel and subcls.is_3d_panel_available())
                 or (for_vse_panel and subcls.is_vse_panel_available())
                 or (not for_3d_panel and not for_vse_panel)

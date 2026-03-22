@@ -71,7 +71,8 @@ class FalNeuralRenderPropertyGroup(bpy.types.PropertyGroup):
 
     depth_endpoint: bpy.props.EnumProperty(
         name="Depth Endpoint",
-        items=DepthGuidedImageGenerationModel.enumerate() or [("NONE", "No Models Available", "")],
+        items=DepthGuidedImageGenerationModel.enumerate()
+        or [("NONE", "No Models Available", "")],
         description="Endpoint for depth-controlled generation",
     )
 
@@ -79,7 +80,8 @@ class FalNeuralRenderPropertyGroup(bpy.types.PropertyGroup):
 
     sketch_endpoint: bpy.props.EnumProperty(
         name="Sketch Endpoint",
-        items=SketchGuidedImageGenerationModel.enumerate() or [("NONE", "No Models Available", "")],
+        items=SketchGuidedImageGenerationModel.enumerate()
+        or [("NONE", "No Models Available", "")],
         description="Endpoint for sketch reimagining",
     )
 

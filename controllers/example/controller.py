@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from ..base import FalController
-from ..ui import FalControllerUI
 from .operator import FalExampleOperator
 from .props import FalExamplePropertyGroup
 

@@ -7,17 +7,17 @@ if _os.path.isdir(_vendor_dir) and _vendor_dir not in _sys.path:
 
 import bpy
 
-from .preferences import FalPreferences
 from .app import (
+    FAL_PT_3D_JobsPanel,
+    FAL_PT_3D_MainPanel,
+    FAL_PT_VSE_JobsPanel,
+    FAL_PT_VSE_MainPanel,
     FalAI3DSceneProperties,
     FalAIVSESceneProperties,
-    FAL_PT_3D_MainPanel,
-    FAL_PT_VSE_MainPanel,
-    FAL_PT_3D_JobsPanel,
-    FAL_PT_VSE_JobsPanel,
 )
 from .controllers import FalController
 from .job_queue import JobManager
+from .preferences import FalPreferences
 
 
 def register() -> None:

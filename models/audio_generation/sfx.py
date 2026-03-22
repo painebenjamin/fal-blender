@@ -1,13 +1,14 @@
 from ..base import AudioFalModel
-from typing import Any
 
 __all__ = [
     "SoundEffectsGenerationModel",
     "ElevenLabsSoundEffectsGenerationModel",
 ]
 
+
 class SoundEffectsGenerationModel(AudioFalModel):
     pass
+
 
 class ElevenLabsSoundEffectsGenerationModel(SoundEffectsGenerationModel):
     endpoint = "fal-ai/elevenlabs/sound-effects/v2"

@@ -1,5 +1,5 @@
 from .material import MaterialGenerationModel, PatinaMaterialGenerationModel
-from .pbr import PBREstimationModel, PatinaPBREstimationModel
+from .pbr import PatinaPBREstimationModel, PBREstimationModel
 from .tiling import TilingTextureModel, ZImageTurboTilingTextureModel
 
 __all__ = [

@@ -11,6 +11,7 @@ __all__ = [
     "resize_image_to_target",
     "import_image_to_editor",
     "add_audio_to_vse",
+    "add_video_to_vse",
 ]
 
 
@@ -182,6 +183,33 @@ def add_audio_to_vse(
         channel += 1
 
     strip = se.sequences.new_sound(
+        name=name,
+        filepath=filepath,
+        channel=channel,
+        frame_start=scene.frame_current,
+    )
+    return strip
+
+
+def add_video_to_vse(
+    filepath: str,
+    *,
+    name: str = "fal_video",
+) -> Any:
+    """Add a video file as a movie strip in the VSE."""
+    scene = bpy.context.scene
+
+    if not scene.sequence_editor:
+        scene.sequence_editor_create()
+
+    se = scene.sequence_editor
+
+    channel = 1
+    used_channels = {s.channel for s in se.sequences_all} if se.sequences_all else set()
+    while channel in used_channels:
+        channel += 1
+
+    strip = se.sequences.new_movie(
         name=name,
         filepath=filepath,
         channel=channel,

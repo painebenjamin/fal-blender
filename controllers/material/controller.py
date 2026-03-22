@@ -32,10 +32,13 @@ class FalMaterialController(FalController):
             "tiling_endpoint": lambda ctx, props: props.mode == "TILING_ONLY",
             "pbr_endpoint": lambda ctx, props: props.mode == "PBR_ONLY",
             "prompt": lambda ctx, props: props.mode in ("FULL", "TILING_ONLY"),
-            "enable_prompt_expansion": lambda ctx, props: props.mode in ("FULL", "TILING_ONLY"),
+            "enable_prompt_expansion": lambda ctx, props: props.mode
+            in ("FULL", "TILING_ONLY"),
             "image_source": lambda ctx, props: props.mode == "PBR_ONLY",
-            "image_path": lambda ctx, props: props.mode == "PBR_ONLY" and props.image_source == "FILE",
-            "texture_name": lambda ctx, props: props.mode == "PBR_ONLY" and props.image_source == "TEXTURE",
+            "image_path": lambda ctx, props: props.mode == "PBR_ONLY"
+            and props.image_source == "FILE",
+            "texture_name": lambda ctx, props: props.mode == "PBR_ONLY"
+            and props.image_source == "TEXTURE",
             "width": lambda ctx, props: props.mode in ("FULL", "TILING_ONLY"),
             "height": lambda ctx, props: props.mode in ("FULL", "TILING_ONLY"),
             "tiling_mode": lambda ctx, props: props.mode in ("FULL", "TILING_ONLY"),

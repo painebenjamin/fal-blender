@@ -12,6 +12,7 @@ if not CONTROLLERS_3D:
 if not CONTROLLERS_VSE:
     CONTROLLERS_VSE = [("NONE", "No Workflows Available", "")]
 
+
 # ---------------------------------------------------------------------------
 # Scene properties for UI state
 # ---------------------------------------------------------------------------
@@ -39,6 +40,7 @@ class FalAIVSESceneProperties(bpy.types.PropertyGroup):
         items=CONTROLLERS_VSE,
         default=CONTROLLERS_VSE[0][0],
     )
+
 
 # ---------------------------------------------------------------------------
 # Main Panels
@@ -163,6 +165,7 @@ class FAL_PT_3D_JobsPanel(BaseJobsPanel):
     """
     Jobs panel for fal.ai 3D UI.
     """
+
     bl_idname = "FAL_PT_3D_JobsPanel"
     bl_space_type = "VIEW_3D"
     bl_parent_id = FAL_PT_3D_MainPanel.bl_idname
@@ -172,6 +175,7 @@ class FAL_PT_VSE_JobsPanel(BaseJobsPanel):
     """
     Jobs panel for fal.ai VSE UI.
     """
+
     bl_idname = "FAL_PT_VSE_JobsPanel"
     bl_space_type = "SEQUENCE_EDITOR"
     bl_parent_id = FAL_PT_VSE_MainPanel.bl_idname

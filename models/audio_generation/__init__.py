@@ -1,6 +1,6 @@
-from .speech import SpeechGenerationModel, ElevenLabsSpeechGenerationModel
-from .music import MusicGenerationModel, ElevenLabsMusicGenerationModel
-from .sfx import SoundEffectsGenerationModel, ElevenLabsSoundEffectsGenerationModel
+from .music import ElevenLabsMusicGenerationModel, MusicGenerationModel
+from .sfx import ElevenLabsSoundEffectsGenerationModel, SoundEffectsGenerationModel
+from .speech import ElevenLabsSpeechGenerationModel, SpeechGenerationModel
 
 __all__ = [
     "SpeechGenerationModel",

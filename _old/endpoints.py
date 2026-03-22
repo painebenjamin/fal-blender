@@ -151,9 +151,7 @@ IMAGE_TO_3D_ENDPOINTS: list[EndpointDef] = [
 ]
 
 MULTI_IMAGE_TO_3D_ENDPOINTS: list[EndpointDef] = [
-    EndpointDef(
-        "fal-ai/meshy/v5/multi-image-to-3d", "Meshy v5 Multi-Image-to-3D"
-    ),
+    EndpointDef("fal-ai/meshy/v5/multi-image-to-3d", "Meshy v5 Multi-Image-to-3D"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -198,9 +196,7 @@ TEXT_TO_VIDEO_ENDPOINTS: list[EndpointDef] = [
         "fal-ai/kling-video/o3/pro/text-to-video",
         "Kling 3.0 Pro Text-to-Video",
     ),
-    EndpointDef(
-        "fal-ai/wan/v2.1/text-to-video", "Wan 2.1 Text-to-Video"
-    ),
+    EndpointDef("fal-ai/wan/v2.1/text-to-video", "Wan 2.1 Text-to-Video"),
 ]
 
 IMAGE_TO_VIDEO_ENDPOINTS: list[EndpointDef] = [
@@ -208,9 +204,7 @@ IMAGE_TO_VIDEO_ENDPOINTS: list[EndpointDef] = [
         "fal-ai/kling-video/o3/pro/image-to-video",
         "Kling 3.0 Pro Image-to-Video",
     ),
-    EndpointDef(
-        "fal-ai/wan/v2.1/image-to-video", "Wan 2.1 Image-to-Video"
-    ),
+    EndpointDef("fal-ai/wan/v2.1/image-to-video", "Wan 2.1 Image-to-Video"),
 ]
 
 DEPTH_VIDEO_ENDPOINTS: list[EndpointDef] = [
@@ -276,6 +270,7 @@ REALTIME_ENDPOINTS: list[EndpointDef] = [
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def endpoint_items(
     endpoints: list[EndpointDef],
 ) -> list[tuple[str, str, str]]:
@@ -289,9 +284,7 @@ def endpoint_items(
     ]
 
 
-def get_endpoint(
-    endpoints: list[EndpointDef], endpoint_id: str
-) -> EndpointDef | None:
+def get_endpoint(endpoints: list[EndpointDef], endpoint_id: str) -> EndpointDef | None:
     """Look up an endpoint definition by ID."""
     for ep in endpoints:
         if ep.endpoint_id == endpoint_id:
@@ -304,8 +297,19 @@ def get_endpoint(
 # ---------------------------------------------------------------------------
 
 ASPECT_RATIOS = [
-    "1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "9:21",
-    "3:2", "2:3", "4:5", "5:4", "16:21", "21:16",
+    "1:1",
+    "16:9",
+    "9:16",
+    "4:3",
+    "3:4",
+    "21:9",
+    "9:21",
+    "3:2",
+    "2:3",
+    "4:5",
+    "5:4",
+    "16:21",
+    "21:16",
 ]
 
 RESOLUTION_TIERS = {
@@ -316,9 +320,7 @@ RESOLUTION_TIERS = {
 }
 
 
-def pixels_to_aspect_resolution(
-    width: int, height: int
-) -> tuple[str, str]:
+def pixels_to_aspect_resolution(width: int, height: int) -> tuple[str, str]:
     """Convert pixel dimensions to closest aspect ratio + resolution tier."""
     target_ratio = width / height
 

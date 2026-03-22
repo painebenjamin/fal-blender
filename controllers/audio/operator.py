@@ -2,15 +2,20 @@ from __future__ import annotations
 
 import bpy
 
-from ..base import FalOperator
-from ...job_queue import FalJob, JobManager
 from ...importers import add_audio_to_vse
+from ...job_queue import FalJob, JobManager
+from ...models import (
+    MusicGenerationModel,
+    SoundEffectsGenerationModel,
+    SpeechGenerationModel,
+)
 from ...utils import download_file
-from ...models import SpeechGenerationModel, MusicGenerationModel, SoundEffectsGenerationModel
+from ..base import FalOperator
 
 SPEECH_GENERATION_MODELS = SpeechGenerationModel.catalog()
 MUSIC_GENERATION_MODELS = MusicGenerationModel.catalog()
 SOUND_EFFECTS_GENERATION_MODELS = SoundEffectsGenerationModel.catalog()
+
 
 # ---------------------------------------------------------------------------
 # Operator
@@ -19,6 +24,7 @@ class FalAudioOperator(FalOperator):
     """
     Audio operator.
     """
+
     label = "Generate Audio"  # text in button in UI
 
     @classmethod
@@ -30,7 +36,9 @@ class FalAudioOperator(FalOperator):
         """
         if props.mode == "TTS":
             if props.voice_mode == "CLONE":
-                if props.tts_clone_endpoint == "NONE" or not bool(props.voice_ref_path.strip()):
+                if props.tts_clone_endpoint == "NONE" or not bool(
+                    props.voice_ref_path.strip()
+                ):
                     return False
             elif props.voice_mode == "PRESET":
                 if props.tts_preset_endpoint == "NONE":
@@ -45,7 +53,9 @@ class FalAudioOperator(FalOperator):
                 return False
             return bool(props.music_prompt.strip())
 
-    def _tts(self, context: bpy.types.Context, props: bpy.types.PropertyGroup) -> set[str]:
+    def _tts(
+        self, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> set[str]:
         """
         Generate text-to-speech audio.
 
@@ -75,7 +85,9 @@ class FalAudioOperator(FalOperator):
         self.report({"INFO"}, "Generating speech...")
         return {"FINISHED"}
 
-    def _sfx(self, context: bpy.types.Context, props: bpy.types.PropertyGroup) -> set[str]:
+    def _sfx(
+        self, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> set[str]:
         """
         Generate sound effect audio.
         """
@@ -83,7 +95,7 @@ class FalAudioOperator(FalOperator):
         params = model.parameters(
             prompt=props.sfx_prompt,
             duration=props.duration,
-        )   
+        )
 
         def on_complete(job: FalJob) -> None:
             _handle_audio_result(job, "fal_sfx")
@@ -98,7 +110,9 @@ class FalAudioOperator(FalOperator):
         self.report({"INFO"}, "Generating sound effect...")
         return {"FINISHED"}
 
-    def _music(self, context: bpy.types.Context, props: bpy.types.PropertyGroup) -> set[str]:
+    def _music(
+        self, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> set[str]:
         """
         Generate music audio.
         """

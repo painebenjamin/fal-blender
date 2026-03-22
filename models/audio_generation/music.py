@@ -1,10 +1,12 @@
-from ..base import AudioFalModel
 from typing import Any
+
+from ..base import AudioFalModel
 
 __all__ = [
     "MusicGenerationModel",
     "ElevenLabsMusicGenerationModel",
 ]
+
 
 class MusicGenerationModel(AudioFalModel):
     prompt_parameter = "prompt"
@@ -17,6 +19,7 @@ class MusicGenerationModel(AudioFalModel):
         params = super().parameters(**kwargs)
         params["prompt"] = params.get("prompt", "")
         return params
+
 
 class ElevenLabsMusicGenerationModel(MusicGenerationModel):
     endpoint = "fal-ai/elevenlabs/music"

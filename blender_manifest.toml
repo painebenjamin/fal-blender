@@ -12,15 +12,15 @@ tags = ["3D View", "Material", "Mesh", "Import-Export", "Render"]
 blender_version_min = "4.5.0"
 
 license = [
-  "SPDX:Apache-2.0",
+    "SPDX:Apache-2.0",
 ]
 copyright = [
-  "2026 Features and Labels, Inc.",
+    "2026 Features and Labels, Inc.",
 ]
 
 # Python wheel dependencies
 wheels = [
-  "./wheels/pillow-12.1.1-cp311-cp311-macosx_11_0_arm64.whl",
+    "./wheels/pillow-12.1.1-cp311-cp311-macosx_11_0_arm64.whl",
 ]
 
 [permissions]
@@ -29,10 +29,10 @@ files = "Save generated textures, models, and audio to disk"
 
 [build]
 paths_exclude_pattern = [
-  "__pycache__/",
-  ".*",
-  "*.zip",
-  "scripts/",
-  "tests/",
-  "*.md",
+    "__pycache__/",
+    ".*",
+    "*.zip",
+    "scripts/",
+    "tests/",
+    "*.md",
 ]

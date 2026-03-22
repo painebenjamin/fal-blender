@@ -1,10 +1,11 @@
 import bpy
 
 from ...models import (
-    SpeechGenerationModel,
     MusicGenerationModel,
     SoundEffectsGenerationModel,
+    SpeechGenerationModel,
 )
+
 
 class FalAudioPropertyGroup(bpy.types.PropertyGroup):
     # ── Common ──────────────────────────────────────────────────────────
@@ -30,13 +31,15 @@ class FalAudioPropertyGroup(bpy.types.PropertyGroup):
 
     tts_preset_endpoint: bpy.props.EnumProperty(
         name="Endpoint",
-        items=SpeechGenerationModel.enumerate(for_preset=True) or [("NONE", "No Models Available", "")],
+        items=SpeechGenerationModel.enumerate(for_preset=True)
+        or [("NONE", "No Models Available", "")],
         description="Which model to use for TTS",
     )
 
     tts_clone_endpoint: bpy.props.EnumProperty(
         name="Endpoint",
-        items=SpeechGenerationModel.enumerate(for_clone=True) or [("NONE", "No Models Available", "")],
+        items=SpeechGenerationModel.enumerate(for_clone=True)
+        or [("NONE", "No Models Available", "")],
         description="Which model to use for TTS",
     )
 
@@ -72,7 +75,8 @@ class FalAudioPropertyGroup(bpy.types.PropertyGroup):
 
     sfx_endpoint: bpy.props.EnumProperty(
         name="Endpoint",
-        items=SoundEffectsGenerationModel.enumerate() or [("NONE", "No Models Available", "")],
+        items=SoundEffectsGenerationModel.enumerate()
+        or [("NONE", "No Models Available", "")],
         description="Which model to use for SFX",
     )
 

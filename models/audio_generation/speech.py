@@ -1,10 +1,12 @@
-from ..base import AudioFalModel
 from typing import Any, ClassVar
+
+from ..base import AudioFalModel
 
 __all__ = [
     "SpeechGenerationModel",
     "ElevenLabsSpeechGenerationModel",
 ]
+
 
 class SpeechGenerationModel(AudioFalModel):
     supports_preset: ClassVar[bool] = False
@@ -21,9 +23,9 @@ class SpeechGenerationModel(AudioFalModel):
         return [
             (subcls.__name__, subcls.display_name, subcls.description)
             for subcls in cls.__subclasses__()
-            if subcls.is_available() and \
-            ((for_preset and subcls.supports_preset) or not for_preset) and \
-            ((for_clone and subcls.supports_clone) or not for_clone)
+            if subcls.is_available()
+            and ((for_preset and subcls.supports_preset) or not for_preset)
+            and ((for_clone and subcls.supports_clone) or not for_clone)
         ]
 
     @classmethod

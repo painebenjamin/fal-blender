@@ -1,10 +1,6 @@
 import bpy  # type: ignore[import-not-found]
 
-from ...models import (
-    MaterialGenerationModel,
-    PBREstimationModel,
-    TilingTextureModel,
-)
+from ...models import MaterialGenerationModel, PBREstimationModel, TilingTextureModel
 
 
 class FalMaterialPropertyGroup(bpy.types.PropertyGroup):
@@ -22,7 +18,8 @@ class FalMaterialPropertyGroup(bpy.types.PropertyGroup):
 
     full_endpoint: bpy.props.EnumProperty(
         name="Model",
-        items=MaterialGenerationModel.enumerate() or [("NONE", "No Models Available", "")],
+        items=MaterialGenerationModel.enumerate()
+        or [("NONE", "No Models Available", "")],
         description="Model for full material generation pipeline",
     )
 
@@ -53,12 +50,20 @@ class FalMaterialPropertyGroup(bpy.types.PropertyGroup):
     )
 
     width: bpy.props.IntProperty(
-        name="W", default=1024, min=512, max=2048, step=16,
+        name="W",
+        default=1024,
+        min=512,
+        max=2048,
+        step=16,
         description="Texture width in pixels",
     )
 
     height: bpy.props.IntProperty(
-        name="H", default=1024, min=512, max=2048, step=16,
+        name="H",
+        default=1024,
+        min=512,
+        max=2048,
+        step=16,
         description="Texture height in pixels",
     )
 
@@ -74,7 +79,10 @@ class FalMaterialPropertyGroup(bpy.types.PropertyGroup):
     )
 
     seed: bpy.props.IntProperty(
-        name="Seed", default=-1, min=-1, max=2147483647,
+        name="Seed",
+        default=-1,
+        min=-1,
+        max=2147483647,
         description="Random seed (-1 for random)",
     )
 

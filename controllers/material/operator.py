@@ -2,15 +2,11 @@ from __future__ import annotations
 
 import bpy  # type: ignore[import-not-found]
 
-from ..operators import FalOperator
 from ...importers import import_image_as_texture
 from ...job_queue import FalJob, JobManager
-from ...models import (
-    MaterialGenerationModel,
-    PBREstimationModel,
-    TilingTextureModel,
-)
-from ...utils import download_file, upload_blender_image, upload_file
+from ...models import MaterialGenerationModel, PBREstimationModel, TilingTextureModel
+from ...utils import download_file
+from ..operators import FalOperator
 
 TILING_MODELS = TilingTextureModel.catalog()
 PBR_MODELS = PBREstimationModel.catalog()
@@ -61,9 +57,7 @@ class FalMaterialOperator(FalOperator):
             tiling_mode=props.tiling_mode,
         )
 
-        target_obj_name = (
-            context.active_object.name if context.active_object else None
-        )
+        target_obj_name = context.active_object.name if context.active_object else None
         prompt_short = props.prompt[:20]
 
         def on_complete(job: FalJob):
@@ -98,9 +92,7 @@ class FalMaterialOperator(FalOperator):
             output_format=props.output_format,
         )
 
-        target_obj_name = (
-            context.active_object.name if context.active_object else None
-        )
+        target_obj_name = context.active_object.name if context.active_object else None
         label = props.texture_name[:20] or "pbr"
 
         def on_complete(job: FalJob):
@@ -132,9 +124,7 @@ class FalMaterialOperator(FalOperator):
             tiling_mode=props.tiling_mode,
         )
 
-        target_obj_name = (
-            context.active_object.name if context.active_object else None
-        )
+        target_obj_name = context.active_object.name if context.active_object else None
         prompt_short = props.prompt[:20]
 
         def on_complete(job: FalJob):

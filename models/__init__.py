@@ -1,48 +1,51 @@
-from .base import (
-    FalModel,
-    VisualFalModel,
-    AudioFalModel,
-)
-from .image_generation import (
-    SketchGuidedImageGenerationModel,
-    NanoBananaSketchGuidedImageGenerationModel,
-    NanoBananaProSketchGuidedImageGenerationModel,
-    NanoBanana2SketchGuidedImageGenerationModel,
-    DepthGuidedImageGenerationModel,
-    ZImageTurboDepthGuidedImageGenerationModel,
-    FLUX1DevDepthGuidedImageGenerationModel,
-    ImageRefinementModel,
-    NanoBananaImageRefinementModel,
-    NanoBananaProImageRefinementModel,
-    NanoBanana2ImageRefinementModel,
-    ZImageTurboImageRefinementModel,
-    FLUX1DevImageRefinementModel,
-    FLUX2Klein9BImageRefinementModel,
-)
-from .image_processing import (
-    ImageUpscalingModel,
-    SeedVR29BImageUpscalingModel,
-)
-from .video_processing import (
-    VideoUpscalingModel,
-    SeedVR29BVideoUpscalingModel,
-)
 from .audio_generation import (
-    SpeechGenerationModel,
+    ElevenLabsMusicGenerationModel,
+    ElevenLabsSoundEffectsGenerationModel,
     ElevenLabsSpeechGenerationModel,
     MusicGenerationModel,
-    ElevenLabsMusicGenerationModel,
     SoundEffectsGenerationModel,
-    ElevenLabsSoundEffectsGenerationModel,
+    SpeechGenerationModel,
 )
+from .base import AudioFalModel, FalModel, VisualFalModel
+from .image_generation import (
+    DepthGuidedImageGenerationModel,
+    FLUX1DevDepthGuidedImageGenerationModel,
+    FLUX1DevImageRefinementModel,
+    FLUX2Klein9BImageRefinementModel,
+    ImageRefinementModel,
+    NanoBanana2ImageRefinementModel,
+    NanoBanana2SketchGuidedImageGenerationModel,
+    NanoBananaImageRefinementModel,
+    NanoBananaProImageRefinementModel,
+    NanoBananaProSketchGuidedImageGenerationModel,
+    NanoBananaSketchGuidedImageGenerationModel,
+    SketchGuidedImageGenerationModel,
+    ZImageTurboDepthGuidedImageGenerationModel,
+    ZImageTurboImageRefinementModel,
+)
+from .image_processing import ImageUpscalingModel, SeedVR29BImageUpscalingModel
 from .material_generation import (
     MaterialGenerationModel,
-    PBREstimationModel,
     PatinaMaterialGenerationModel,
     PatinaPBREstimationModel,
+    PBREstimationModel,
     TilingTextureModel,
     ZImageTurboTilingTextureModel,
 )
+from .video_generation import (
+    DepthVideoModel,
+    ImageToVideoModel,
+    Kling3ProImageToVideoModel,
+    Kling3ProTextToVideoModel,
+    LTX219BDepthVideoModel,
+    LTX219BDistilledDepthVideoModel,
+    TextToVideoModel,
+    Wan21ImageToVideoModel,
+    Wan21TextToVideoModel,
+    WanFun22A14BDepthVideoModel,
+    WanVACE14BDepthVideoModel,
+)
+from .video_processing import SeedVR29BVideoUpscalingModel, VideoUpscalingModel
 
 __all__ = [
     "AudioFalModel",
@@ -78,4 +81,15 @@ __all__ = [
     "ZImageTurboDepthGuidedImageGenerationModel",
     "ZImageTurboImageRefinementModel",
     "ZImageTurboTilingTextureModel",
+    "DepthVideoModel",
+    "ImageToVideoModel",
+    "Kling3ProImageToVideoModel",
+    "Kling3ProTextToVideoModel",
+    "LTX219BDepthVideoModel",
+    "LTX219BDistilledDepthVideoModel",
+    "TextToVideoModel",
+    "Wan21ImageToVideoModel",
+    "Wan21TextToVideoModel",
+    "WanFun22A14BDepthVideoModel",
+    "WanVACE14BDepthVideoModel",
 ]
