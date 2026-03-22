@@ -84,17 +84,17 @@ class FalMaterialOperator(FalOperator):
 
     def _pbr_only(self, context, props) -> set[str]:
         if props.image_source == "FILE":
-            image_url = upload_file(props.image_path)
+            image_path = props.image_path
         else:
             img = bpy.data.images.get(props.texture_name)
             if not img:
                 self.report({"ERROR"}, f"Image '{props.texture_name}' not found")
                 return {"CANCELLED"}
-            image_url = upload_blender_image(img)
+            image_path = img.filepath_raw
 
         model = PBR_MODELS[props.pbr_endpoint]
         params = model.parameters(
-            image_url=image_url,
+            image_path=image_path,
             output_format=props.output_format,
         )
 
