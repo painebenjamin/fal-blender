@@ -9,6 +9,8 @@ __all__ = [
 
 
 class MusicGenerationModel(AudioFalModel):
+    """Base model for prompt-driven music generation."""
+
     prompt_parameter = "prompt"
 
     @classmethod
@@ -22,5 +24,7 @@ class MusicGenerationModel(AudioFalModel):
 
 
 class ElevenLabsMusicGenerationModel(MusicGenerationModel):
+    """ElevenLabs music generation model."""
+
     endpoint = "fal-ai/elevenlabs/music"
     display_name = "ElevenLabs Music"

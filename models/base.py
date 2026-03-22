@@ -13,6 +13,8 @@ __all__ = [
 
 
 class FalModel(metaclass=ABCMeta):
+    """Abstract base class for all fal.ai model integrations."""
+
     enabled: ClassVar[bool] = True
     endpoint: ClassVar[str]
     display_name: ClassVar[str]
@@ -22,6 +24,7 @@ class FalModel(metaclass=ABCMeta):
     @classmethod
     @abstractmethod
     def parameters(cls, **kwargs: Any) -> dict[str, Any]:
+        """Build and return the API request parameters for this model."""
         pass
 
     @classmethod
@@ -58,6 +61,8 @@ class FalModel(metaclass=ABCMeta):
 
 
 class VisualFalModel(FalModel):
+    """Base class for visual (image/video) fal.ai models with size and media URL handling."""
+
     use_resolution_aspect_ratio: ClassVar[bool] = False
     aspect_ratios: ClassVar[list[str]] = []
     resolutions: ClassVar[dict[str, int]] = {}
@@ -241,6 +246,8 @@ class VisualFalModel(FalModel):
 
 
 class AudioFalModel(FalModel):
+    """Base class for audio fal.ai models with prompt, text, and audio URL handling."""
+
     # 'Text' is for TTS, 'prompt' is for everything
     # (including TTS that allows prompting the speaker)
     prompt_parameter: ClassVar[str | None] = None

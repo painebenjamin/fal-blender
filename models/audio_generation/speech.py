@@ -9,6 +9,8 @@ __all__ = [
 
 
 class SpeechGenerationModel(AudioFalModel):
+    """Base model for text-to-speech generation."""
+
     supports_preset: ClassVar[bool] = False
     supports_clone: ClassVar[bool] = False
     text_parameter = "text"
@@ -39,6 +41,8 @@ class SpeechGenerationModel(AudioFalModel):
 
 
 class ElevenLabsSpeechGenerationModel(SpeechGenerationModel):
+    """ElevenLabs TTS Turbo v2.5 speech generation model."""
+
     endpoint = "fal-ai/elevenlabs/tts/turbo-v2.5"
     display_name = "ElevenLabs TTS Turbo v2.5"
     supports_preset = True

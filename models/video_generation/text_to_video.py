@@ -12,10 +12,13 @@ __all__ = [
 
 
 class TextToVideoModel(VisualFalModel):
+    """Base model for text-to-video generation."""
+
     prompt_expansion_parameter: ClassVar[str | None] = "enable_prompt_expansion"
 
     @classmethod
     def parameters(cls, **kwargs: Any) -> dict[str, Any]:
+        """Build API parameters for text-to-video generation."""
         params: dict[str, Any] = dict(cls.static_parameters)
         prompt = kwargs.get("prompt", "")
         if prompt:
@@ -30,10 +33,14 @@ class TextToVideoModel(VisualFalModel):
 
 
 class Kling3ProTextToVideoModel(TextToVideoModel):
+    """Kling 3.0 Pro text-to-video model."""
+
     endpoint = "fal-ai/kling-video/o3/pro/text-to-video"
     display_name = "Kling 3.0 Pro"
 
 
 class Wan21TextToVideoModel(TextToVideoModel):
+    """Wan 2.1 text-to-video model."""
+
     endpoint = "fal-ai/wan/v2.1/text-to-video"
     display_name = "Wan 2.1"

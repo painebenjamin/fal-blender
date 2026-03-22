@@ -17,12 +17,15 @@ PBR_DOWNLOAD_KEYS = [f"{name}.url" for name in PBR_MAP_NAMES]
 
 
 class FalMaterialOperator(FalOperator):
+    """Operator for generating PBR materials via fal.ai."""
+
     label = "Generate Material"
 
     @classmethod
     def enabled(
         cls, context: bpy.types.Context, props: bpy.types.PropertyGroup
     ) -> bool:
+        """Check whether the operator can be invoked given current property state."""
         if props.mode in ("FULL", "TILING_ONLY"):
             return bool(props.prompt.strip())
         if props.image_source == "FILE":
@@ -36,6 +39,7 @@ class FalMaterialOperator(FalOperator):
         event: bpy.types.Event | None = None,
         invoke: bool = False,
     ) -> set[str]:
+        """Dispatch material generation based on the selected mode."""
         if props.mode == "FULL":
             return self._full_pipeline(context, props)
         elif props.mode == "PBR_ONLY":
@@ -44,7 +48,10 @@ class FalMaterialOperator(FalOperator):
 
     # ── Full Pipeline ──────────────────────────────────────────────────
 
-    def _full_pipeline(self, context, props) -> set[str]:
+    def _full_pipeline(
+        self, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> set[str]:
+        """Run the full material generation pipeline (texture + PBR maps)."""
         model = MATERIAL_MODELS[props.full_endpoint]
         seed = props.seed if props.seed >= 0 else None
         params = model.parameters(
@@ -76,7 +83,10 @@ class FalMaterialOperator(FalOperator):
 
     # ── PBR Only ───────────────────────────────────────────────────────
 
-    def _pbr_only(self, context, props) -> set[str]:
+    def _pbr_only(
+        self, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> set[str]:
+        """Extract PBR maps from an existing image."""
         if props.image_source == "FILE":
             image_path = props.image_path
         else:
@@ -111,7 +121,10 @@ class FalMaterialOperator(FalOperator):
 
     # ── Tiling Only ────────────────────────────────────────────────────
 
-    def _tiling_only(self, context, props) -> set[str]:
+    def _tiling_only(
+        self, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> set[str]:
+        """Generate a seamless tiling texture without PBR extraction."""
         model = TILING_MODELS[props.tiling_endpoint]
         seed = props.seed if props.seed >= 0 else None
         params = model.parameters(
@@ -150,6 +163,7 @@ def _handle_pbr_result(
     target_obj_name: str | None,
     name: str,
 ) -> None:
+    """Handle completed PBR generation job and apply material to target object."""
     if job.status == "error":
         print(f"fal.ai: PBR generation failed: {job.error}")
         return
@@ -180,6 +194,7 @@ def _handle_tiling_result(
     target_obj_name: str | None,
     name: str,
 ) -> None:
+    """Handle completed tiling texture job and apply to target object."""
     if job.status == "error":
         print(f"fal.ai: Tiling generation failed: {job.error}")
         return

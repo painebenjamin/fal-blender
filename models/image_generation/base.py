@@ -12,6 +12,8 @@ __all__ = [
 
 
 class NanoBanana(VisualFalModel):
+    """Nano Banana image generation model with 1K resolution support."""
+
     display_name = "Nano Banana"
     use_resolution_aspect_ratio = True
     aspect_ratios = [
@@ -30,6 +32,8 @@ class NanoBanana(VisualFalModel):
 
 
 class NanoBananaPro(VisualFalModel):
+    """Nano Banana Pro image generation model with 1K/2K/4K resolution support."""
+
     display_name = "Nano Banana Pro"
     use_resolution_aspect_ratio = True
     aspect_ratios = [
@@ -52,6 +56,8 @@ class NanoBananaPro(VisualFalModel):
 
 
 class NanoBanana2(VisualFalModel):
+    """Nano Banana 2 image generation model with extended aspect ratios and 0.5K-4K resolution support."""
+
     display_name = "Nano Banana 2"
     use_resolution_aspect_ratio = True
     aspect_ratios = [
@@ -79,20 +85,28 @@ class NanoBanana2(VisualFalModel):
 
 
 class ZImageTurbo(VisualFalModel):
+    """Z-Image Turbo image generation model optimized for speed."""
+
     display_name = "Z-Image Turbo"
     size_parameter = "image_size"
 
 
 class ZImageBase(VisualFalModel):
+    """Z-Image Base image generation model."""
+
     display_name = "Z-Image Base"
     size_parameter = "image_size"
 
 
 class FLUX1Dev(VisualFalModel):
+    """FLUX.1 [dev] image generation model."""
+
     display_name = "FLUX.1 [dev]"
     size_parameter = "image_size"
 
 
 class FLUX2Klein9B(VisualFalModel):
+    """FLUX.2 Klein 9B image generation model."""
+
     display_name = "FLUX.2 Klein 9B"
     size_parameter = "image_size"

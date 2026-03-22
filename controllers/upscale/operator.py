@@ -15,6 +15,8 @@ VIDEO_UPSCALING_MODELS = VideoUpscalingModel.catalog()
 
 
 class FalUpscaleOperator(FalOperator):
+    """Operator that submits image or video upscaling jobs to fal.ai."""
+
     label = "Upscale"
     description = "Upscale an image or video using fal.ai"
 
@@ -22,6 +24,7 @@ class FalUpscaleOperator(FalOperator):
     def enabled(
         cls, context: bpy.types.Context, props: bpy.types.PropertyGroup
     ) -> bool:
+        """Return whether a valid source is configured for upscaling."""
         if props.source == "FILE":
             return bool(props.image_path.strip())
         elif props.source == "RENDER":
@@ -37,6 +40,7 @@ class FalUpscaleOperator(FalOperator):
         event: bpy.types.Event | None = None,
         invoke: bool = False,
     ) -> set[str]:
+        """Submit an upscaling job based on the current mode and source settings."""
         is_video = props.mode == "VIDEO"
 
         try:

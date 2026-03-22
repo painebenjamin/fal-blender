@@ -8,6 +8,8 @@ from ...models import (
 
 
 class FalNeuralRenderPropertyGroup(bpy.types.PropertyGroup):
+    """Property group for neural rendering settings."""
+
     # ── Common ──────────────────────────────────────────────────────────
     mode: bpy.props.EnumProperty(
         name="Mode",

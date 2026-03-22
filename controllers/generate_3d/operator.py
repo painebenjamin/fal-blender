@@ -55,6 +55,8 @@ def _handle_3d_result(job: FalJob, name: str) -> None:
 
 
 class FalGenerate3DOperator(FalOperator):
+    """Operator that submits text-to-3D or image-to-3D generation jobs to fal.ai."""
+
     label = "Generate 3D Model"
     description = "Generate a 3D model using fal.ai"
 
@@ -62,6 +64,7 @@ class FalGenerate3DOperator(FalOperator):
     def enabled(
         cls, context: bpy.types.Context, props: bpy.types.PropertyGroup
     ) -> bool:
+        """Return whether a valid prompt or image source is configured."""
         if props.mode == "TEXT":
             return bool(props.prompt.strip())
         else:
@@ -74,12 +77,16 @@ class FalGenerate3DOperator(FalOperator):
         event: bpy.types.Event | None = None,
         invoke: bool = False,
     ) -> set[str]:
+        """Dispatch to text-to-3D or image-to-3D based on the current mode."""
         if props.mode == "TEXT":
             return self._text_to_3d(context, props)
         else:
             return self._image_to_3d(context, props)
 
-    def _text_to_3d(self, context, props) -> set[str]:
+    def _text_to_3d(
+        self, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> set[str]:
+        """Submit a text-to-3D generation job."""
         model = TEXT_TO_3D_MODELS[props.text_endpoint]
         params = model.parameters(
             prompt=props.prompt,
@@ -87,7 +94,7 @@ class FalGenerate3DOperator(FalOperator):
         )
         name = props.prompt[:30]
 
-        def on_complete(job: FalJob):
+        def on_complete(job: FalJob) -> None:
             _handle_3d_result(job, name)
 
         job = FalJob(
@@ -100,7 +107,10 @@ class FalGenerate3DOperator(FalOperator):
         self.report({"INFO"}, "Generating 3D model...")
         return {"FINISHED"}
 
-    def _image_to_3d(self, context, props) -> set[str]:
+    def _image_to_3d(
+        self, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> set[str]:
+        """Submit an image-to-3D generation job."""
         if props.image_source == "RENDER":
             render_img = bpy.data.images.get("Render Result")
             if not render_img:
@@ -119,7 +129,7 @@ class FalGenerate3DOperator(FalOperator):
         model = IMAGE_TO_3D_MODELS[props.image_endpoint]
         params = model.parameters(image_url=image_url)
 
-        def on_complete(job: FalJob):
+        def on_complete(job: FalJob) -> None:
             _handle_3d_result(job, "image_model")
 
         job = FalJob(

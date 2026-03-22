@@ -9,6 +9,8 @@ from .ui import FalControllerPanel
 
 
 class FalController(metaclass=ABCMeta):
+    """Base class for all fal.ai controller integrations in Blender."""
+
     enabled: ClassVar[bool] = True
     display_name: ClassVar[str | None] = None
     description: ClassVar[str | None] = None
@@ -89,6 +91,8 @@ class FalController(metaclass=ABCMeta):
         operator_class = cls.operator()
 
         class Panel(bpy.types.Panel):
+            """Dynamically generated panel for a FalController."""
+
             bl_idname = f"FAL_PT_{space_type.upper()}_{snake_case(cls.__name__)}"
             bl_label = getattr(operator_class, "label", operator_class.__name__)
             bl_description = str(
@@ -101,6 +105,7 @@ class FalController(metaclass=ABCMeta):
 
             @classmethod
             def poll(panel_cls, context: bpy.types.Context) -> bool:
+                """Return whether this panel should be visible."""
                 return (
                     cls.is_available()
                     and getattr(context.scene, parent_props_alias).active_controller
@@ -108,6 +113,7 @@ class FalController(metaclass=ABCMeta):
                 )
 
             def draw(self, context: bpy.types.Context) -> None:
+                """Draw the panel UI elements."""
                 layout = self.layout
                 props = getattr(context.scene, cls.get_props_alias())
                 ui.draw(

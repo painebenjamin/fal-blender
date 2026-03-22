@@ -12,6 +12,8 @@ __all__ = [
 
 
 class SketchGuidedImageGenerationModel(VisualFalModel):
+    """Base class for sketch-guided image generation models that transform sketches into images."""
+
     @classmethod
     def parameters(cls, **kwargs: Any) -> dict[str, Any]:
         """
@@ -31,6 +33,8 @@ class SketchGuidedImageGenerationModel(VisualFalModel):
 class NanoBananaSketchGuidedImageGenerationModel(
     SketchGuidedImageGenerationModel, NanoBanana
 ):
+    """Sketch-guided image generation using the Nano Banana model."""
+
     endpoint = "fal-ai/nano-banana/edit"
     image_urls_parameter = "image_urls"
 
@@ -38,6 +42,8 @@ class NanoBananaSketchGuidedImageGenerationModel(
 class NanoBananaProSketchGuidedImageGenerationModel(
     SketchGuidedImageGenerationModel, NanoBananaPro
 ):
+    """Sketch-guided image generation using the Nano Banana Pro model."""
+
     endpoint = "fal-ai/nano-banana-pro/edit"
     image_urls_parameter = "image_urls"
 
@@ -45,6 +51,8 @@ class NanoBananaProSketchGuidedImageGenerationModel(
 class NanoBanana2SketchGuidedImageGenerationModel(
     SketchGuidedImageGenerationModel, NanoBanana2
 ):
+    """Sketch-guided image generation using the Nano Banana 2 model."""
+
     endpoint = "fal-ai/nano-banana-2/edit"
     image_urls_parameter = "image_urls"
 

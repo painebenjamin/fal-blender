@@ -109,7 +109,7 @@ def upload_blender_image(image: bpy.types.Image) -> str:
 # ---------------------------------------------------------------------------
 
 
-def snapshot_compositor(tree) -> list[dict]:
+def snapshot_compositor(tree: bpy.types.NodeTree) -> list[dict]:
     """Snapshot compositor node tree for later restoration."""
     snapshot = []
     for node in tree.nodes:
@@ -132,7 +132,7 @@ def snapshot_compositor(tree) -> list[dict]:
     return [{"nodes": snapshot, "links": links}]
 
 
-def restore_compositor(tree, saved: list[dict]) -> None:
+def restore_compositor(tree: bpy.types.NodeTree, saved: list[dict]) -> None:
     """Restore compositor node tree from snapshot."""
     if not saved or not saved[0].get("nodes"):
         return
@@ -163,7 +163,7 @@ def restore_compositor(tree, saved: list[dict]) -> None:
 
 
 @contextmanager
-def snapshot_compositor_context(tree) -> Iterator[None]:
+def snapshot_compositor_context(tree: bpy.types.NodeTree) -> Iterator[None]:
     """Context manager for snapshotting and restoring compositor node tree."""
     saved = snapshot_compositor(tree)
     try:
@@ -177,7 +177,7 @@ def snapshot_compositor_context(tree) -> Iterator[None]:
 # ---------------------------------------------------------------------------
 
 
-def get_world_color(world) -> tuple[float, float, float]:
+def get_world_color(world: bpy.types.World) -> tuple[float, float, float]:
     """Get current world background color, from nodes or fallback."""
     if world.use_nodes and world.node_tree:
         for node in world.node_tree.nodes:
@@ -187,7 +187,7 @@ def get_world_color(world) -> tuple[float, float, float]:
     return tuple(world.color)
 
 
-def set_world_color(world, color: tuple[float, float, float]) -> None:
+def set_world_color(world: bpy.types.World, color: tuple[float, float, float]) -> None:
     """Set world background color, updating nodes if present."""
     if world.use_nodes and world.node_tree:
         for node in world.node_tree.nodes:

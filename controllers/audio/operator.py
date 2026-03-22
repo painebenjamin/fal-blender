@@ -156,7 +156,7 @@ class FalAudioOperator(FalOperator):
 # ---------------------------------------------------------------------------
 # Result handler (module-level — must not reference operator self)
 # ---------------------------------------------------------------------------
-def _handle_audio_result(job: FalJob, name: str):
+def _handle_audio_result(job: FalJob, name: str) -> None:
     """Download audio result and add to VSE."""
     if job.status == "error":
         print(f"fal.ai: Audio generation failed: {job.error}")

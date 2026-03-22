@@ -5,6 +5,8 @@ from .props import FalMaterialPropertyGroup
 
 
 class FalMaterialController(FalController):
+    """Controller for PBR material generation via fal.ai."""
+
     display_name = "Material"
     description = "Generate PBR materials using fal.ai"
     icon = "MATERIAL"

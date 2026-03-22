@@ -9,6 +9,8 @@ ConditionFunc: TypeAlias = Callable[[bpy.types.Context, bpy.types.PropertyGroup]
 
 @dataclass
 class FalControllerPanel:
+    """Declarative UI layout definition for a fal.ai controller panel."""
+
     field_orders: list[str] = field(default_factory=list)
     field_separators: list[str] = field(default_factory=list)
     field_conditions: dict[str, ConditionFunc] = field(default_factory=dict)

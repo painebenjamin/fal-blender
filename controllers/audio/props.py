@@ -8,6 +8,8 @@ from ...models import (
 
 
 class FalAudioPropertyGroup(bpy.types.PropertyGroup):
+    """Property group for audio generation settings."""
+
     # ── Common ──────────────────────────────────────────────────────────
     mode: bpy.props.EnumProperty(
         name="Mode",

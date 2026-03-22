@@ -24,13 +24,15 @@ IMAGE_TO_VIDEO_MODELS = ImageToVideoModel.catalog()
 DEPTH_VIDEO_MODELS = DepthVideoModel.catalog()
 
 
-def _get_scene_duration(scene) -> float:
+def _get_scene_duration(scene: bpy.types.Scene) -> float:
+    """Calculate the scene duration in seconds from frame range and FPS."""
     fps = scene.render.fps / scene.render.fps_base
     frames = scene.frame_end - scene.frame_start + 1
     return frames / fps
 
 
-def _get_scene_dimensions(scene) -> tuple[int, int]:
+def _get_scene_dimensions(scene: bpy.types.Scene) -> tuple[int, int]:
+    """Return the effective render resolution as (width, height)."""
     scale = scene.render.resolution_percentage / 100.0
     return (
         int(scene.render.resolution_x * scale),
@@ -42,6 +44,8 @@ def _get_scene_dimensions(scene) -> tuple[int, int]:
 # VSE operator: text-to-video and image-to-video (fire-and-forget)
 # ---------------------------------------------------------------------------
 class FalVideoOperator(FalOperator):
+    """Operator for text-to-video and image-to-video generation via fal.ai."""
+
     label = "Generate Video"
     description = "Generate a video using fal.ai"
 
@@ -49,6 +53,7 @@ class FalVideoOperator(FalOperator):
     def enabled(
         cls, context: bpy.types.Context, props: bpy.types.PropertyGroup
     ) -> bool:
+        """Return whether a valid prompt or image source is configured."""
         if props.mode == "TEXT":
             return bool(props.prompt.strip())
         else:  # IMAGE
@@ -61,17 +66,24 @@ class FalVideoOperator(FalOperator):
         event: bpy.types.Event | None = None,
         invoke: bool = False,
     ) -> set[str]:
+        """Dispatch to text-to-video or image-to-video based on the current mode."""
         if props.mode == "TEXT":
             return self._text_to_video(context, props)
         else:
             return self._image_to_video(context, props)
 
-    def _get_duration(self, context, props) -> int:
+    def _get_duration(
+        self, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> int:
+        """Return the target video duration in seconds."""
         if props.use_scene_duration:
             return max(1, int(round(_get_scene_duration(context.scene))))
         return int(props.duration)
 
-    def _text_to_video(self, context, props) -> set[str]:
+    def _text_to_video(
+        self, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> set[str]:
+        """Submit a text-to-video generation job."""
         model = TEXT_TO_VIDEO_MODELS[props.text_endpoint]
         duration = self._get_duration(context, props)
         params = model.parameters(
@@ -80,7 +92,7 @@ class FalVideoOperator(FalOperator):
             duration=duration,
         )
 
-        def on_complete(job: FalJob):
+        def on_complete(job: FalJob) -> None:
             _handle_video_result(job)
 
         job = FalJob(
@@ -93,7 +105,10 @@ class FalVideoOperator(FalOperator):
         self.report({"INFO"}, f"Generating {duration}s video...")
         return {"FINISHED"}
 
-    def _image_to_video(self, context, props) -> set[str]:
+    def _image_to_video(
+        self, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> set[str]:
+        """Submit an image-to-video generation job."""
         if props.image_source == "RENDER":
             render_img = bpy.data.images.get("Render Result")
             if not render_img:
@@ -118,7 +133,7 @@ class FalVideoOperator(FalOperator):
             duration=duration,
         )
 
-        def on_complete(job: FalJob):
+        def on_complete(job: FalJob) -> None:
             _handle_video_result(job)
 
         job = FalJob(
@@ -136,6 +151,8 @@ class FalVideoOperator(FalOperator):
 # 3D panel operator: depth-conditioned video (modal render + API call)
 # ---------------------------------------------------------------------------
 class FalDepthVideoOperator(FalOperator):
+    """Modal operator that renders a depth animation then submits it to fal.ai for video generation."""
+
     label = "Generate Depth Video"
     description = "Render depth animation and generate video via fal.ai"
 
@@ -145,6 +162,7 @@ class FalDepthVideoOperator(FalOperator):
     def enabled(
         cls, context: bpy.types.Context, props: bpy.types.PropertyGroup
     ) -> bool:
+        """Return whether depth video generation can start (requires prompt and camera)."""
         if cls._rendering:
             return False
         return bool(props.prompt.strip()) and context.scene.camera is not None
@@ -156,6 +174,7 @@ class FalDepthVideoOperator(FalOperator):
         event: bpy.types.Event | None = None,
         invoke: bool = False,
     ) -> set[str]:
+        """Set up and start a modal depth-render followed by fal.ai video generation."""
         if not invoke:
             self.report({"ERROR"}, "Depth video must be invoked from UI")
             return {"CANCELLED"}
@@ -242,6 +261,7 @@ class FalDepthVideoOperator(FalOperator):
         props: bpy.types.PropertyGroup,
         event: bpy.types.Event,
     ) -> set[str]:
+        """Poll for render completion and finalize the depth video pipeline."""
         if event.type != "TIMER":
             return {"PASS_THROUGH"}
 
@@ -261,12 +281,15 @@ class FalDepthVideoOperator(FalOperator):
     # ── Render handlers ────────────────────────────────────────────────
 
     def _on_complete(self, *_args: Any) -> None:
+        """Blender render-complete handler callback."""
         self._render_done = True
 
     def _on_cancel(self, *_args: Any) -> None:
+        """Blender render-cancel handler callback."""
         self._render_cancelled = True
 
     def _cleanup_modal(self, context: bpy.types.Context) -> None:
+        """Remove the modal timer and render handlers."""
         type(self)._rendering = False
         if self._timer is not None:
             context.window_manager.event_timer_remove(self._timer)
@@ -283,6 +306,7 @@ class FalDepthVideoOperator(FalOperator):
     # ── Depth animation setup / finish ─────────────────────────────────
 
     def _setup_depth_animation(self, context: bpy.types.Context) -> None:
+        """Configure Blender to render a mist/depth pass animation as video."""
         scene = context.scene
         view_layer = context.view_layer
         world = scene.world
@@ -361,6 +385,7 @@ class FalDepthVideoOperator(FalOperator):
         scene.render.filepath = self._output_path
 
     def _finish_depth_animation(self, context: bpy.types.Context) -> None:
+        """Upload the rendered depth video and submit the fal.ai generation job."""
         result_path = self._output_path + ".mp4"
         if not os.path.exists(result_path) and self._tmp_dir:
             for f in os.listdir(self._tmp_dir):
@@ -387,7 +412,7 @@ class FalDepthVideoOperator(FalOperator):
             resolution=self._resolution,
         )
 
-        def on_complete(job: FalJob):
+        def on_complete(job: FalJob) -> None:
             _handle_video_result(job)
 
         job = FalJob(
@@ -400,6 +425,7 @@ class FalDepthVideoOperator(FalOperator):
         self.report({"INFO"}, "Depth rendered — generating video...")
 
     def _restore_state(self, context: bpy.types.Context) -> None:
+        """Restore all scene render settings saved before the depth render."""
         scene = context.scene
         view_layer = context.view_layer
         world = scene.world

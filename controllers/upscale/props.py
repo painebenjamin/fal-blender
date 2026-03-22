@@ -4,6 +4,8 @@ from ...models import ImageUpscalingModel, VideoUpscalingModel
 
 
 class FalUpscalePropertyGroup(bpy.types.PropertyGroup):
+    """Properties for image and video upscaling configuration."""
+
     mode: bpy.props.EnumProperty(
         name="Mode",
         items=[

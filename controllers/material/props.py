@@ -4,6 +4,8 @@ from ...models import MaterialGenerationModel, PBREstimationModel, TilingTexture
 
 
 class FalMaterialPropertyGroup(bpy.types.PropertyGroup):
+    """Property group for material generation settings."""
+
     mode: bpy.props.EnumProperty(
         name="Mode",
         items=[

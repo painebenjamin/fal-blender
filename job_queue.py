@@ -186,7 +186,7 @@ class FalJob:
             )
             traceback.print_exc()
 
-    def _download_results(self, result: dict[str, Any]):
+    def _download_results(self, result: dict[str, Any]) -> None:
         """
         Download URLs from result dict to local temp files.
 

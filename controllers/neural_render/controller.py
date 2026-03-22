@@ -5,6 +5,8 @@ from .props import FalNeuralRenderPropertyGroup
 
 
 class FalNeuralRenderController(FalController):
+    """Controller for neural rendering workflows via fal.ai."""
+
     display_name = "Neural Render"
     description = "Render scene data and generates AI images via fal.ai"
     icon = "RENDER_RESULT"

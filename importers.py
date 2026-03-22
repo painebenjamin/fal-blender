@@ -36,7 +36,7 @@ def import_image_as_texture(
     return img
 
 
-def apply_texture_to_object(obj: bpy.types.Object, img: bpy.types.Image):
+def apply_texture_to_object(obj: bpy.types.Object, img: bpy.types.Image) -> None:
     """Create or update a Principled BSDF material with the image as base color."""
     # Ensure the object has a material
     if not obj.data.materials:

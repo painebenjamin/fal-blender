@@ -5,6 +5,8 @@ from .props import FalUpscalePropertyGroup
 
 
 class FalUpscaleController(FalController):
+    """Controller for image and video upscaling via fal.ai."""
+
     display_name = "Upscale"
     description = "Upscale images and videos using fal.ai"
     icon = "FULLSCREEN_ENTER"

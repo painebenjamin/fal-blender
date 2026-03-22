@@ -11,12 +11,16 @@ __all__ = [
 
 
 class DepthGuidedImageGenerationModel(VisualFalModel):
+    """Base class for depth-guided image generation models."""
+
     pass
 
 
 class ZImageTurboDepthGuidedImageGenerationModel(
     DepthGuidedImageGenerationModel, ZImageTurbo
 ):
+    """Depth-guided image generation using the Z-Image Turbo model."""
+
     endpoint = "fal-ai/z-image/turbo/controlnet"
     image_url_parameter = "image_url"
     prompt_expansion_parameter = "enable_prompt_expansion"
@@ -25,6 +29,8 @@ class ZImageTurboDepthGuidedImageGenerationModel(
 class FLUX1DevDepthGuidedImageGenerationModel(
     DepthGuidedImageGenerationModel, FLUX1Dev
 ):
+    """Depth-guided image generation using the FLUX.1 [dev] model with ControlNet unions."""
+
     endpoint = "fal-ai/flux-general"
     image_url_parameter = "image_url"
 

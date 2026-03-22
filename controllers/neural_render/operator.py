@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import tempfile
-from typing import ClassVar
+from typing import Any, ClassVar
 
 import bpy
 

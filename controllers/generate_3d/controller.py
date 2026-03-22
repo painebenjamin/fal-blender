@@ -5,6 +5,8 @@ from .props import FalGenerate3DPropertyGroup
 
 
 class FalGenerate3DController(FalController):
+    """Controller for text-to-3D and image-to-3D model generation via fal.ai."""
+
     display_name = "3D Generation"
     description = "Generate 3D models from text or images using fal.ai"
     icon = "MESH_MONKEY"

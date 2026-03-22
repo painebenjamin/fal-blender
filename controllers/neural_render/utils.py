@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 from ...utils import get_default_font
+
+if TYPE_CHECKING:
+    import bpy
 
 __all__ = [
     "get_dimensions",
@@ -10,7 +15,9 @@ __all__ = [
 ]
 
 
-def get_dimensions(context, props) -> tuple[int, int]:
+def get_dimensions(
+    context: bpy.types.Context, props: bpy.types.PropertyGroup
+) -> tuple[int, int]:
     """Get render dimensions — from scene settings or manual override."""
     if props.use_scene_resolution:
         scene = context.scene
@@ -22,7 +29,9 @@ def get_dimensions(context, props) -> tuple[int, int]:
     return (props.width, props.height)
 
 
-def overlay_labels(context, image_path: str, width: int, height: int):
+def overlay_labels(
+    context: bpy.types.Context, image_path: str, width: int, height: int
+) -> None:
     """Overlay text labels on the rendered image using Pillow.
 
     Finds objects with 'fal_ai_label' custom property, projects their
@@ -75,7 +84,8 @@ def overlay_labels(context, image_path: str, width: int, height: int):
     view_matrix = cam_obj.matrix_world.normalized().inverted()
     projection_matrix = cam_obj.calc_matrix_camera(depsgraph, x=width, y=height)
 
-    def project_3d_to_2d(world_pos):
+    def project_3d_to_2d(world_pos: Any) -> tuple[int, int] | None:
+        """Project a 3D world position to 2D pixel coordinates, clamped to image bounds."""
         co = (
             projection_matrix
             @ view_matrix
@@ -91,7 +101,8 @@ def overlay_labels(context, image_path: str, width: int, height: int):
             return (px, py)
         return None
 
-    def project_3d_to_2d_unclamped(world_pos):
+    def project_3d_to_2d_unclamped(world_pos: Any) -> tuple[float, float] | None:
+        """Project a 3D world position to 2D coordinates without clamping."""
         co = (
             projection_matrix
             @ view_matrix
@@ -246,7 +257,13 @@ def overlay_labels(context, image_path: str, width: int, height: int):
 # Occlusion testing for labels
 # ---------------------------------------------------------------------------
 def is_occluded(
-    scene, depsgraph, camera, obj, width: int, height: int, override_pos=None
+    scene: bpy.types.Scene,
+    depsgraph: bpy.types.Depsgraph,
+    camera: bpy.types.Object,
+    obj: bpy.types.Object,
+    width: int,
+    height: int,
+    override_pos: Any = None,
 ) -> bool:
     """Check if a point (default: object origin) is occluded from camera's view."""
 
@@ -278,7 +295,7 @@ def is_occluded(
 # ---------------------------------------------------------------------------
 # Edge detection from render passes (PIL-based)
 # ---------------------------------------------------------------------------
-def render_to_sketch(render_path: str, width: int, height: int):
+def render_to_sketch(render_path: str, width: int, height: int) -> None:
     """Convert a shaded render with freestyle lines into a clean sketch."""
     from PIL import Image, ImageChops, ImageFilter
 
@@ -311,7 +328,9 @@ def render_to_sketch(render_path: str, width: int, height: int):
 # ---------------------------------------------------------------------------
 # Scene depth analysis
 # ---------------------------------------------------------------------------
-def calc_scene_depth_bounds(scene, camera) -> tuple[float | None, float | None]:
+def calc_scene_depth_bounds(
+    scene: bpy.types.Scene, camera: bpy.types.Object
+) -> tuple[float | None, float | None]:
     """Calculate the actual near/far depth of scene geometry from camera."""
     from mathutils import Vector  # type: ignore[import-not-found]
 

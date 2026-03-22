@@ -6,8 +6,11 @@ from ..base import VisualFalModel
 
 
 class TilingTextureModel(VisualFalModel):
+    """Base model for seamlessly tiling texture generation."""
+
     @classmethod
     def parameters(cls, **kwargs: Any) -> dict[str, Any]:
+        """Build API parameters, forwarding output format and tiling mode."""
         params = super().parameters(**kwargs)
         for key in ("output_format", "tiling_mode"):
             if key in kwargs:
@@ -16,6 +19,8 @@ class TilingTextureModel(VisualFalModel):
 
 
 class ZImageTurboTilingTextureModel(TilingTextureModel):
+    """Z-Image Turbo tiling texture model."""
+
     endpoint = "fal-ai/z-image/turbo/tiling"
     display_name = "Z-Image Turbo Tiling"
     prompt_expansion_parameter = "enable_prompt_expansion"

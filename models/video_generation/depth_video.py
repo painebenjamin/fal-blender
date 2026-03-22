@@ -14,11 +14,14 @@ __all__ = [
 
 
 class DepthVideoModel(VisualFalModel):
+    """Base model for depth-conditioned video generation."""
+
     video_url_parameter: ClassVar[str | None] = "video_url"
     prompt_expansion_parameter: ClassVar[str | None] = "enable_prompt_expansion"
 
     @classmethod
     def parameters(cls, **kwargs: Any) -> dict[str, Any]:
+        """Build API parameters for depth-conditioned video generation."""
         params: dict[str, Any] = dict(cls.static_parameters)
         prompt = kwargs.get("prompt", "")
         if prompt:
@@ -47,6 +50,8 @@ class DepthVideoModel(VisualFalModel):
 
 
 class LTX219BDistilledDepthVideoModel(DepthVideoModel):
+    """LTX-2 19B Distilled depth-conditioned video model."""
+
     endpoint = "fal-ai/ltx-2-19b/distilled/video-to-video"
     display_name = "LTX-2 19B Distilled"
     description = "Faster depth video — fewer steps, good for simple camera moves"
@@ -54,6 +59,8 @@ class LTX219BDistilledDepthVideoModel(DepthVideoModel):
 
 
 class LTX219BDepthVideoModel(DepthVideoModel):
+    """LTX-2 19B depth-conditioned video model using IC-LoRA."""
+
     endpoint = "fal-ai/ltx-2-19b/video-to-video"
     display_name = "LTX-2 19B"
     description = "Depth-conditioned video generation via IC-LoRA"
@@ -61,12 +68,16 @@ class LTX219BDepthVideoModel(DepthVideoModel):
 
 
 class WanVACE14BDepthVideoModel(DepthVideoModel):
+    """Wan-VACE 14B depth-conditioned video model."""
+
     endpoint = "fal-ai/wan-vace-14b/depth"
     display_name = "Wan-VACE 14B"
     description = "Depth-conditioned video generation"
 
 
 class WanFun22A14BDepthVideoModel(DepthVideoModel):
+    """Wan-Fun 2.2 A14B depth-conditioned video model."""
+
     endpoint = "fal-ai/wan-22-vace-fun-a14b/depth"
     display_name = "Wan-Fun 2.2 A14B"
     description = "Depth-conditioned video generation"

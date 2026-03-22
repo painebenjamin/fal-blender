@@ -9,12 +9,15 @@ from ..utils import snake_case
 
 
 class FalOperator(metaclass=ABCMeta):
+    """Abstract base class for fal.ai Blender operators."""
+
     label: ClassVar[str]
     description: ClassVar[str]
     _operator_class: ClassVar[type[bpy.types.Operator]]
     _operator_instance: bpy.types.Operator
 
     def __init__(self, operator_instance: bpy.types.Operator) -> None:
+        """Initialize with a reference to the Blender operator instance."""
         self._operator_instance = operator_instance
 
     @classmethod
@@ -61,6 +64,7 @@ class FalOperator(metaclass=ABCMeta):
         event: bpy.types.Event | None = None,
         invoke: bool = False,
     ) -> set[str]:
+        """Execute the operator logic and return a Blender status set."""
         pass
 
     @classmethod
@@ -74,6 +78,8 @@ class FalOperator(metaclass=ABCMeta):
         if not hasattr(cls, "_operator_class"):
 
             class Operator(bpy.types.Operator):
+                """Blender operator wrapper generated for a FalOperator subclass."""
+
                 bl_idname = cls.get_name()
                 bl_label = getattr(cls, "label", cls.__name__)
                 bl_description = str(getattr(cls, "description", cls.__doc__))
@@ -81,21 +87,25 @@ class FalOperator(metaclass=ABCMeta):
 
                 @classmethod
                 def poll(operator_cls, context: bpy.types.Context) -> bool:
+                    """Return whether the operator can be executed in the current context."""
                     props = getattr(context.scene, props_alias)
                     return cls.enabled(context, props)
 
                 def _get_operator_instance(self) -> FalOperator:
+                    """Return the cached FalOperator instance, creating it if needed."""
                     if not hasattr(self, "_operator_instance"):
                         self._operator_instance = cls(self)
                     return self._operator_instance
 
                 def execute(self, context: bpy.types.Context) -> set[str]:
+                    """Execute the operator."""
                     props = getattr(context.scene, props_alias)
                     return self._get_operator_instance()(context, props)
 
                 def invoke(
                     self, context: bpy.types.Context, event: bpy.types.Event
                 ) -> set[str]:
+                    """Invoke the operator with the triggering event."""
                     props = getattr(context.scene, props_alias)
                     return self._get_operator_instance()(
                         context, props, event, invoke=True
@@ -104,6 +114,7 @@ class FalOperator(metaclass=ABCMeta):
                 def modal(
                     self, context: bpy.types.Context, event: bpy.types.Event
                 ) -> set[str]:
+                    """Handle modal events during long-running operations."""
                     props = getattr(context.scene, props_alias)
                     return self._get_operator_instance().modal(context, props, event)
 

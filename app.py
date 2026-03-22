@@ -57,6 +57,7 @@ class FAL_PT_3D_MainPanel(bpy.types.Panel):
     bl_category = "fal.ai"
 
     def draw(self, context: bpy.types.Context) -> None:
+        """Draw the 3D viewport panel with workflow selector."""
         layout = self.layout
         scene = context.scene
         fal_3d = scene.fal_3d
@@ -78,6 +79,7 @@ class FAL_PT_VSE_MainPanel(bpy.types.Panel):
     bl_category = "fal.ai"
 
     def draw(self, context: bpy.types.Context) -> None:
+        """Draw the VSE panel with workflow selector."""
         layout = self.layout
         scene = context.scene
         fal_vse = scene.fal_vse
