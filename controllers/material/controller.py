@@ -26,6 +26,7 @@ class FalMaterialController(FalController):
             "width",
             "height",
             "tiling_mode",
+            "upscale_factor",
             "output_format",
             "seed",
         ],
@@ -44,6 +45,7 @@ class FalMaterialController(FalController):
             "width": lambda ctx, props: props.mode in ("FULL", "TILING_ONLY"),
             "height": lambda ctx, props: props.mode in ("FULL", "TILING_ONLY"),
             "tiling_mode": lambda ctx, props: props.mode in ("FULL", "TILING_ONLY"),
+            "upscale_factor": lambda ctx, props: props.mode in ("FULL", "PBR_ONLY"),
             "seed": lambda ctx, props: props.mode in ("FULL", "TILING_ONLY"),
         },
         field_groupings=[

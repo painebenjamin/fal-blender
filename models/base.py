@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 from typing import Any, ClassVar
 
 from ..utils import path_to_data_uri
@@ -19,13 +19,12 @@ class FalModel(metaclass=ABCMeta):
     endpoint: ClassVar[str]
     display_name: ClassVar[str]
     description: ClassVar[str] = ""
-    static_parameters: ClassVar[dict[str, Any]] = {}
+    static_parameters: ClassVar[dict[str, Any] | None] = None
 
     @classmethod
-    @abstractmethod
     def parameters(cls, **kwargs: Any) -> dict[str, Any]:
         """Build and return the API request parameters for this model."""
-        pass
+        return cls.static_parameters or {}
 
     @classmethod
     def catalog(cls) -> dict[str, FalModel]:

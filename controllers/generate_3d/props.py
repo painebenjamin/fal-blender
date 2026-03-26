@@ -54,3 +54,9 @@ class FalGenerate3DPropertyGroup(bpy.types.PropertyGroup):
         subtype="FILE_PATH",
         default="",
     )
+
+    generate_materials: bpy.props.BoolProperty(
+        name="Generate Materials",
+        description="Generate materials for the 3D model",
+        default=True,
+    )

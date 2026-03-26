@@ -4,6 +4,7 @@
 set -euo pipefail
 
 WHEEL_DIR="wheels"
+PYTHON_VERSION=3.13
 rm -rf "$WHEEL_DIR"
 mkdir -p "$WHEEL_DIR"
 
@@ -19,7 +20,7 @@ echo "=== Downloading pure-Python wheels ==="
 pip download \
     --dest "$WHEEL_DIR" \
     --only-binary :all: \
-    --python-version 3.11 \
+    --python-version $PYTHON_VERSION \
     --no-deps \
     fal-client httpx httpx-sse httpcore certifi idna sniffio anyio h11 websockets
 
@@ -31,7 +32,7 @@ for plat in "${PLATFORMS[@]}"; do
         --dest "$WHEEL_DIR" \
         --only-binary :all: \
         --platform "$plat" \
-        --python-version 3.11 \
+        --python-version $PYTHON_VERSION \
         --no-deps \
         msgpack Pillow || echo "    (skipped $plat)"
 done

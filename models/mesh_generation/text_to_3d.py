@@ -1,36 +1,39 @@
 from __future__ import annotations
 
-from typing import Any, ClassVar
-
-from ..base import FalModel
+from .base import (
+    Hunyuan3DV31ProModel,
+    Hunyuan3DV31RapidModel,
+    MeshGenerationModel,
+    MeshyV6PreviewModel,
+)
 
 __all__ = [
     "TextTo3DModel",
-    "MeshyV6TextTo3DModel",
+    "MeshyV6PreviewTextTo3DModel",
+    "Hunyuan3DV31ProTextTo3DModel",
+    "Hunyuan3DV31RapidTextTo3DModel",
 ]
 
 
-class TextTo3DModel(FalModel):
+class TextTo3DModel(MeshGenerationModel):
     """Base model for text-to-3D mesh generation."""
 
-    prompt_expansion_parameter: ClassVar[str | None] = "enable_prompt_expansion"
-
-    @classmethod
-    def parameters(cls, **kwargs: Any) -> dict[str, Any]:
-        """Build the API parameters from a text prompt and expansion settings."""
-        params: dict[str, Any] = dict(cls.static_parameters)
-        prompt = kwargs.get("prompt", "")
-        if prompt:
-            params["prompt"] = prompt
-        if cls.prompt_expansion_parameter:
-            params[cls.prompt_expansion_parameter] = kwargs.get(
-                "enable_prompt_expansion", True
-            )
-        return params
+    pass
 
 
-class MeshyV6TextTo3DModel(TextTo3DModel):
-    """Meshy v6 text-to-3D model."""
+class MeshyV6PreviewTextTo3DModel(TextTo3DModel, MeshyV6PreviewModel):
+    """Meshy v6 preview text-to-3D model."""
 
-    endpoint = "fal-ai/meshy/v6/text-to-3d"
-    display_name = "Meshy v6"
+    endpoint = "fal-ai/meshy/v6-preview/text-to-3d"
+
+
+class Hunyuan3DV31ProTextTo3DModel(TextTo3DModel, Hunyuan3DV31ProModel):
+    """Hunyuan 3D v3.1 Pro text-to-3D model."""
+
+    endpoint = "fal-ai/hunyuan-3d/v3.1/pro/text-to-3d"
+
+
+class Hunyuan3DV31RapidTextTo3DModel(TextTo3DModel, Hunyuan3DV31RapidModel):
+    """Hunyuan 3D v3.1 Rapid text-to-3D model."""
+
+    endpoint = "fal-ai/hunyuan-3d/v3.1/rapid/text-to-3d"

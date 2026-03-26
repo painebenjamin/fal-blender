@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import os
 import tempfile
+import urllib.request
 
 import bpy
 
-from ...importers import import_glb
+from ...importers import import_glb, import_obj
 from ...job_queue import FalJob, JobManager
 from ...models import ImageTo3DModel, TextTo3DModel
 from ...utils import download_file, upload_file
@@ -14,44 +16,105 @@ TEXT_TO_3D_MODELS = TextTo3DModel.catalog()
 IMAGE_TO_3D_MODELS = ImageTo3DModel.catalog()
 
 
+def _extract_url(val: object) -> str | None:
+    """Extract a URL string from a response value (dict with ``url`` key or bare string)."""
+    if isinstance(val, dict) and "url" in val:
+        return val["url"]
+    if isinstance(val, str) and val.startswith("http"):
+        return val
+    return None
+
+
+def _find_glb_url(result: dict) -> str | None:
+    """Return a GLB/glTF model URL from *result*, or ``None``."""
+    for key in ["model_glb", "model_mesh", "model", "output", "mesh", "glb"]:
+        url = _extract_url(result.get(key))
+        if url:
+            return url
+
+    urls = result.get("model_urls")
+    if isinstance(urls, dict):
+        url = _extract_url(urls.get("glb"))
+        if url:
+            return url
+
+    return None
+
+
+def _find_obj_info(result: dict) -> dict:
+    """Return ``{obj: …, mtl: …, texture: …}`` file-info dicts present in *result*."""
+    info: dict = {}
+
+    for key, target in [("model_obj", "obj"), ("material_mtl", "mtl"), ("texture", "texture")]:
+        val = result.get(key)
+        if isinstance(val, dict) and "url" in val:
+            info[target] = val
+
+    urls = result.get("model_urls")
+    if isinstance(urls, dict):
+        for key in ["obj", "mtl", "texture"]:
+            val = urls.get(key)
+            if isinstance(val, dict) and "url" in val:
+                info.setdefault(key, val)
+
+    return info
+
+
+def _download_obj_bundle(info: dict) -> str:
+    """Download OBJ + MTL + texture into a shared temp directory.
+
+    Files are saved with their original names so that the MTL's texture
+    references resolve correctly.  Returns the path to the OBJ file.
+    """
+    tmp_dir = tempfile.mkdtemp(prefix="fal_obj_")
+    obj_path = None
+
+    for key in ["obj", "mtl", "texture"]:
+        entry = info.get(key)
+        if not entry:
+            continue
+        url = entry["url"]
+        filename = entry.get("file_name") or os.path.basename(url.split("?")[0])
+        local = os.path.join(tmp_dir, filename)
+        urllib.request.urlretrieve(url, local)
+        if key == "obj":
+            obj_path = local
+
+    return obj_path
+
+
 def _handle_3d_result(job: FalJob, name: str) -> None:
-    """Download GLB result and import into the scene."""
+    """Download 3D result and import into the scene, falling back to OBJ if GLB fails."""
     if job.status == "error":
         print(f"fal.ai: 3D generation failed: {job.error}")
         return
 
     result = job.result or {}
-    model_url = None
-
-    for key in ["model_glb", "model_mesh", "model", "output", "mesh", "glb"]:
-        val = result.get(key)
-        if isinstance(val, dict) and "url" in val:
-            model_url = val["url"]
-            break
-        elif isinstance(val, str) and val.startswith("http"):
-            model_url = val
-            break
-
-    if not model_url and "model_urls" in result:
-        urls = result["model_urls"]
-        if isinstance(urls, dict):
-            for fmt in ("glb", "obj", "fbx", "usdz"):
-                fmt_val = urls.get(fmt)
-                if isinstance(fmt_val, dict) and "url" in fmt_val:
-                    model_url = fmt_val["url"]
-                    break
-                elif isinstance(fmt_val, str) and fmt_val.startswith("http"):
-                    model_url = fmt_val
-                    break
-
-    if not model_url:
-        print(f"fal.ai: No 3D model URL found in response keys: {list(result.keys())}")
-        return
-
-    local_path = download_file(model_url, suffix=".glb")
     cursor_loc = tuple(bpy.context.scene.cursor.location)
-    objects = import_glb(local_path, name=f"fal_{name}", location=cursor_loc)
-    print(f"fal.ai: Imported {len(objects)} object(s) from 3D generation")
+
+    # --- Try GLB first ---
+    glb_url = _find_glb_url(result)
+    if glb_url:
+        try:
+            local_path = download_file(glb_url, suffix=".glb")
+            objects = import_glb(local_path, name=f"fal_{name}", location=cursor_loc)
+            print(f"fal.ai: Imported {len(objects)} object(s) from 3D generation")
+            return
+        except Exception as e:
+            print(f"fal.ai: GLB import failed ({e}), trying OBJ fallback...")
+
+    # --- Fall back to OBJ/MTL ---
+    obj_info = _find_obj_info(result)
+    if obj_info.get("obj"):
+        try:
+            obj_path = _download_obj_bundle(obj_info)
+            objects = import_obj(obj_path, name=f"fal_{name}", location=cursor_loc)
+            print(f"fal.ai: Imported {len(objects)} object(s) from OBJ fallback")
+            return
+        except Exception as e:
+            print(f"fal.ai: OBJ import also failed: {e}")
+
+    print(f"fal.ai: No importable 3D model found in response keys: {list(result.keys())}")
 
 
 class FalGenerate3DOperator(FalOperator):
@@ -91,6 +154,7 @@ class FalGenerate3DOperator(FalOperator):
         params = model.parameters(
             prompt=props.prompt,
             enable_prompt_expansion=props.enable_prompt_expansion,
+            generate_materials=props.generate_materials,
         )
         name = props.prompt[:30]
 
@@ -119,15 +183,14 @@ class FalGenerate3DOperator(FalOperator):
             tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
             tmp.close()
             render_img.save_render(tmp.name)
-            image_url = upload_file(tmp.name)
+            image_path = tmp.name
         elif props.image_path:
-            image_url = upload_file(bpy.path.abspath(props.image_path))
+            image_path = bpy.path.abspath(props.image_path)
         else:
             self.report({"ERROR"}, "No image specified")
             return {"CANCELLED"}
-
         model = IMAGE_TO_3D_MODELS[props.image_endpoint]
-        params = model.parameters(image_url=image_url)
+        params = model.parameters(image_path=image_path)
 
         def on_complete(job: FalJob) -> None:
             _handle_3d_result(job, "image_model")

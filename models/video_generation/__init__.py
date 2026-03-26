@@ -1,5 +1,7 @@
 from .depth_video import (
     DepthVideoModel,
+    LTX2DepthVideoModel,
+    LTX2DistilledDepthVideoModel,
     WanFun22A14BDepthVideoModel,
     WanVACE14BDepthVideoModel,
 )
@@ -20,6 +22,8 @@ from .text_to_video import (
 
 __all__ = [
     "DepthVideoModel",
+    "LTX2DistilledDepthVideoModel",
+    "LTX2DepthVideoModel",
     "ImageToVideoModel",
     "LTX2DistilledImageToVideoModel",
     "LTX2DistilledTextToVideoModel",

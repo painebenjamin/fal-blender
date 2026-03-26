@@ -8,6 +8,7 @@ __all__ = [
     "apply_texture_to_object",
     "import_image_as_texture",
     "import_glb",
+    "import_obj",
     "resize_image_to_target",
     "import_image_to_editor",
     "add_audio_to_vse",
@@ -112,6 +113,36 @@ def import_glb(
     return new_objects
 
 
+def import_obj(
+    filepath: str,
+    *,
+    name: str = "fal_model",
+    location: tuple[float, float, float] | None = None,
+) -> list[bpy.types.Object]:
+    """Import an OBJ file into the scene.
+
+    Returns list of imported objects.
+    """
+    before = set(bpy.data.objects)
+
+    bpy.ops.wm.obj_import(filepath=filepath)
+
+    after = set(bpy.data.objects)
+    new_objects = list(after - before)
+
+    for i, obj in enumerate(new_objects):
+        if obj.parent is None:
+            suffix = f"_{i}" if i > 0 else ""
+            obj.name = f"{name}{suffix}"
+
+    if location is not None:
+        for obj in new_objects:
+            if obj.parent is None:
+                obj.location = location
+
+    return new_objects
+
+
 def resize_image_to_target(
     image_path: str,
     target_width: int,
@@ -196,7 +227,13 @@ def add_video_to_vse(
     *,
     name: str = "fal_video",
 ) -> Any:
-    """Add a video file as a movie strip in the VSE."""
+    """Add a video file as a movie + sound strip pair in the VSE.
+
+    If the video contains an audio track, a sound strip is placed on
+    the channel directly above the movie strip (mirroring Blender's
+    native drag-and-drop behaviour).  Videos without audio produce
+    only the movie strip.
+    """
     scene = bpy.context.scene
 
     if not scene.sequence_editor:
@@ -204,15 +241,37 @@ def add_video_to_vse(
 
     se = scene.sequence_editor
 
-    channel = 1
     used_channels = {s.channel for s in se.sequences_all} if se.sequences_all else set()
+    channel = 1
     while channel in used_channels:
         channel += 1
+
+    frame_start = scene.frame_current
 
     strip = se.sequences.new_movie(
         name=name,
         filepath=filepath,
         channel=channel,
-        frame_start=scene.frame_current,
+        frame_start=frame_start,
     )
+
+    sound_channel = channel + 1
+    while sound_channel in used_channels:
+        sound_channel += 1
+
+    try:
+        sound_strip = se.sequences.new_sound(
+            name=f"{name}_audio",
+            filepath=filepath,
+            channel=sound_channel,
+            frame_start=frame_start,
+        )
+        if sound_strip.frame_duration <= 1:
+            se.sequences.remove(sound_strip)
+            sound_strip = None
+        elif sound_strip.frame_final_end != strip.frame_final_end:
+            sound_strip.frame_final_end = strip.frame_final_end
+    except Exception:
+        sound_strip = None
+
     return strip

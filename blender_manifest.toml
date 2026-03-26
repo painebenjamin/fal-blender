@@ -20,7 +20,6 @@ copyright = [
 
 # Python wheel dependencies
 wheels = [
-    "./wheels/pillow-12.1.1-cp311-cp311-macosx_11_0_arm64.whl",
 ]
 
 [permissions]

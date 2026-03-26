@@ -98,6 +98,16 @@ class FalMaterialPropertyGroup(bpy.types.PropertyGroup):
         default="png",
     )
 
+    upscale_factor: bpy.props.EnumProperty(
+        name="Upscale Factor",
+        items=[
+            ("NONE", "None", "No upscale"),
+            ("2", "2x", "2x"),
+            ("4", "4x", "4x"),
+        ],
+        default="NONE",
+    )
+
     # ── PBR-only image source ──────────────────────────────────────────
 
     image_source: bpy.props.EnumProperty(

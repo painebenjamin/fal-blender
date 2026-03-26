@@ -13,6 +13,12 @@ if not CONTROLLERS_VSE:
     CONTROLLERS_VSE = [("NONE", "No Workflows Available", "")]
 
 
+def _on_active_controller_update(self, context: bpy.types.Context) -> None:
+    """Force a full region redraw so child panels re-evaluate poll()."""
+    if context.area:
+        context.area.tag_redraw()
+
+
 # ---------------------------------------------------------------------------
 # Scene properties for UI state
 # ---------------------------------------------------------------------------
@@ -26,6 +32,7 @@ class FalAI3DSceneProperties(bpy.types.PropertyGroup):
         name="Workflow",
         items=CONTROLLERS_3D,
         default=CONTROLLERS_3D[0][0],
+        update=_on_active_controller_update,
     )
 
 
@@ -39,6 +46,7 @@ class FalAIVSESceneProperties(bpy.types.PropertyGroup):
         name="Workflow",
         items=CONTROLLERS_VSE,
         default=CONTROLLERS_VSE[0][0],
+        update=_on_active_controller_update,
     )
 
 

@@ -12,8 +12,8 @@ from .base import (
 
 __all__ = [
     "DepthVideoModel",
-    "LTX219BDistilledDepthVideoModel",
-    "LTX219BDepthVideoModel",
+    "LTX2DistilledDepthVideoModel",
+    "LTX2DepthVideoModel",
     "WanVACE14BDepthVideoModel",
     "WanFun22A14BDepthVideoModel",
 ]
@@ -28,7 +28,7 @@ class DepthVideoModel(VisualFalModel):
     @classmethod
     def parameters(cls, **kwargs: Any) -> dict[str, Any]:
         """Build API parameters for depth-conditioned video generation."""
-        params: dict[str, Any] = dict(cls.static_parameters)
+        params: dict[str, Any] = super().parameters(**kwargs)
         prompt = kwargs.get("prompt", "")
         if prompt:
             params["prompt"] = prompt

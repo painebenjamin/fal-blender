@@ -27,7 +27,7 @@ class TextToVideoModel(VisualFalModel):
     @classmethod
     def parameters(cls, **kwargs: Any) -> dict[str, Any]:
         """Build API parameters for text-to-video generation."""
-        params: dict[str, Any] = dict(cls.static_parameters)
+        params: dict[str, Any] = super().parameters(**kwargs)
         prompt = kwargs.get("prompt", "")
         if prompt:
             params["prompt"] = prompt

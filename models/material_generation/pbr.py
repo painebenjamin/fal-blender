@@ -14,11 +14,16 @@ class PBREstimationModel(VisualFalModel):
         params = super().parameters(**kwargs)
         if "output_format" in kwargs:
             params["output_format"] = kwargs["output_format"]
+        if "upscale_factor" in kwargs:
+            try:
+                params["upscale_factor"] = int(kwargs["upscale_factor"])
+            except ValueError:
+                print(f"fal.ai: Invalid upscale factor: {kwargs['upscale_factor']}")
         return params
 
 
 class PatinaPBREstimationModel(PBREstimationModel):
     """Patina PBR estimation model."""
 
-    endpoint = "PATINA/patina"
+    endpoint = "fal-ai/patina"
     display_name = "Patina"

@@ -302,6 +302,56 @@ class FalController(metaclass=ABCMeta):
         cls.unregister_properties_pointer()
 
     @classmethod
+    def _create_dispatch_panel_class(
+        cls,
+        space_type: str,
+        parent_id: str,
+        parent_props_alias: str,
+        panel_attr: str,
+    ) -> type[bpy.types.Panel]:
+        """Create a single dispatch panel that renders the active controller's UI.
+
+        Instead of one Panel per controller (toggled via poll()), a single
+        headerless panel looks up the active controller and delegates to its
+        FalControllerPanel.draw().  This avoids a Blender quirk where
+        child-panel visibility doesn't refresh in some editor types (e.g.
+        SEQUENCE_EDITOR) when poll() transitions from False to True.
+        """
+
+        class DispatchPanel(bpy.types.Panel):
+            bl_idname = f"FAL_PT_{space_type.upper()}_active_controller"
+            bl_label = "Controller"
+            bl_space_type = space_type
+            bl_region_type = "UI"
+            bl_category = "fal.ai"
+            bl_parent_id = parent_id
+            bl_options = {"HIDE_HEADER"}
+
+            def draw(self, context: bpy.types.Context) -> None:
+                layout = self.layout
+                active_name = getattr(
+                    context.scene, parent_props_alias
+                ).active_controller
+
+                for subcls in cls.__subclasses__():
+                    if subcls.__name__ != active_name or not subcls.is_available():
+                        continue
+                    ui = getattr(subcls, panel_attr, None)
+                    if ui is None:
+                        break
+                    props = getattr(context.scene, subcls.get_props_alias())
+                    ui.draw(
+                        layout,
+                        context,
+                        props,
+                        operator_name=subcls.operator_class.get_name(),
+                        operator_icon=subcls.icon,
+                    )
+                    break
+
+        return DispatchPanel
+
+    @classmethod
     def register_all(
         cls,
         parent_id_3d: str,
@@ -310,25 +360,47 @@ class FalController(metaclass=ABCMeta):
         parent_props_alias_vse: str,
     ) -> None:
         """
-        Register all controllers.
+        Register all controllers and create dispatch panels.
         """
         for subcls in cls.__subclasses__():
             if subcls.is_available():
-                subcls.register(
-                    parent_id_3d=parent_id_3d,
-                    parent_props_alias_3d=parent_props_alias_3d,
-                    parent_id_vse=parent_id_vse,
-                    parent_props_alias_vse=parent_props_alias_vse,
-                )
+                subcls.register_properties()
+                subcls.register_operator()
+                subcls.register_properties_pointer()
+
+        cls._dispatch_panel_3d_class = cls._create_dispatch_panel_class(
+            space_type="VIEW_3D",
+            parent_id=parent_id_3d,
+            parent_props_alias=parent_props_alias_3d,
+            panel_attr="panel_3d",
+        )
+        bpy.utils.register_class(cls._dispatch_panel_3d_class)
+
+        cls._dispatch_panel_vse_class = cls._create_dispatch_panel_class(
+            space_type="SEQUENCE_EDITOR",
+            parent_id=parent_id_vse,
+            parent_props_alias=parent_props_alias_vse,
+            panel_attr="panel_vse",
+        )
+        bpy.utils.register_class(cls._dispatch_panel_vse_class)
 
     @classmethod
     def unregister_all(cls) -> None:
         """
-        Unregister all controllers.
+        Unregister all controllers and dispatch panels.
         """
+        if hasattr(cls, "_dispatch_panel_3d_class"):
+            bpy.utils.unregister_class(cls._dispatch_panel_3d_class)
+            del cls._dispatch_panel_3d_class
+        if hasattr(cls, "_dispatch_panel_vse_class"):
+            bpy.utils.unregister_class(cls._dispatch_panel_vse_class)
+            del cls._dispatch_panel_vse_class
+
         for subcls in cls.__subclasses__():
             if subcls.is_available():
-                subcls.unregister()
+                subcls.unregister_properties_pointer()
+                subcls.unregister_operator()
+                subcls.unregister_properties()
 
     @classmethod
     def enumerate(

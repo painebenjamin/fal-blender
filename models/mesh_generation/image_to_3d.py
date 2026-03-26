@@ -1,38 +1,39 @@
 from __future__ import annotations
 
-from typing import Any
-
-from ..base import FalModel
+from .base import (
+    Hunyuan3DV31ProModel,
+    Hunyuan3DV31RapidModel,
+    MeshGenerationModel,
+    MeshyV6PreviewModel,
+)
 
 __all__ = [
     "ImageTo3DModel",
-    "MeshyV6ImageTo3DModel",
-    "MeshyV5ImageTo3DModel",
+    "MeshyV6PreviewImageTo3DModel",
+    "Hunyuan3DV31ProImageTo3DModel",
+    "Hunyuan3DV31RapidImageTo3DModel",
 ]
 
 
-class ImageTo3DModel(FalModel):
+class ImageTo3DModel(MeshGenerationModel):
     """Base model for image-to-3D mesh generation."""
 
-    @classmethod
-    def parameters(cls, **kwargs: Any) -> dict[str, Any]:
-        """Build the API parameters from static defaults and an optional image URL."""
-        params: dict[str, Any] = dict(cls.static_parameters)
-        image_url = kwargs.get("image_url")
-        if image_url:
-            params["image_url"] = image_url
-        return params
+    pass
 
 
-class MeshyV6ImageTo3DModel(ImageTo3DModel):
-    """Meshy v6 image-to-3D model."""
+class MeshyV6PreviewImageTo3DModel(ImageTo3DModel, MeshyV6PreviewModel):
+    """Meshy v6 preview image-to-3D model."""
 
-    endpoint = "fal-ai/meshy/v6/image-to-3d"
-    display_name = "Meshy v6"
+    endpoint = "fal-ai/meshy/v6-preview/image-to-3d"
 
 
-class MeshyV5ImageTo3DModel(ImageTo3DModel):
-    """Meshy v5 image-to-3D model."""
+class Hunyuan3DV31ProImageTo3DModel(ImageTo3DModel, Hunyuan3DV31ProModel):
+    """Hunyuan 3D v3.1 Pro image-to-3D model."""
 
-    endpoint = "fal-ai/meshy/v5/image-to-3d"
-    display_name = "Meshy v5"
+    endpoint = "fal-ai/hunyuan-3d/v3.1/pro/image-to-3d"
+
+
+class Hunyuan3DV31RapidImageTo3DModel(ImageTo3DModel, Hunyuan3DV31RapidModel):
+    """Hunyuan 3D v3.1 Rapid image-to-3D model."""
+
+    endpoint = "fal-ai/hunyuan-3d/v3.1/rapid/image-to-3d"

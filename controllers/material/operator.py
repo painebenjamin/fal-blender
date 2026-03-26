@@ -13,7 +13,7 @@ PBR_MODELS = PBREstimationModel.catalog()
 MATERIAL_MODELS = MaterialGenerationModel.catalog()
 
 PBR_MAP_NAMES = ("basecolor", "normal", "roughness", "metalness", "height")
-PBR_DOWNLOAD_KEYS = [f"{name}.url" for name in PBR_MAP_NAMES]
+PBR_DOWNLOAD_KEYS = [f"images.{i}.url" for i in range(len(PBR_MAP_NAMES) + 1)]
 
 
 class FalMaterialOperator(FalOperator):
@@ -62,6 +62,7 @@ class FalMaterialOperator(FalOperator):
             enable_prompt_expansion=props.enable_prompt_expansion,
             output_format=props.output_format,
             tiling_mode=props.tiling_mode,
+            upscale_factor=props.upscale_factor,
         )
 
         target_obj_name = context.active_object.name if context.active_object else None
@@ -100,6 +101,7 @@ class FalMaterialOperator(FalOperator):
         params = model.parameters(
             image_path=image_path,
             output_format=props.output_format,
+            upscale_factor=props.upscale_factor,
         )
 
         target_obj_name = context.active_object.name if context.active_object else None
@@ -169,10 +171,10 @@ def _handle_pbr_result(
         return
 
     paths: dict[str, str] = {}
-    for map_name in PBR_MAP_NAMES:
-        local_path = job.downloaded_files.get(f"{map_name}.url")
-        if local_path:
-            paths[map_name] = local_path
+    for i in range(len(job.result["images"])):
+        map_type = job.result["images"][i].get("map_type", None)
+        if map_type:
+            paths[map_type] = job.downloaded_files.get(f"images.{i}.url")
 
     required = {"basecolor", "normal", "roughness", "metalness"}
     missing = required - paths.keys()
@@ -286,7 +288,10 @@ def _apply_pbr_material(
         disp.location = (0, -400)
         links.new(tex_height.outputs["Color"], disp.inputs["Height"])
         links.new(disp.outputs["Displacement"], output.inputs["Displacement"])
-        mat.cycles.displacement_method = "BOTH"
+        if hasattr(mat, "displacement_method"):
+            mat.displacement_method = "BOTH"
+        elif hasattr(mat, "cycles") and hasattr(mat.cycles, "displacement_method"):
+            mat.cycles.displacement_method = "BOTH"
 
     if obj.data.materials:
         obj.data.materials[0] = mat
