@@ -10,8 +10,6 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import fal_client
-
 # from .preferences import ensure_api_key
 
 if TYPE_CHECKING:
@@ -82,6 +80,8 @@ def upload_file(filepath: str) -> str:
     :param filepath: path to the file
     :return: URL of the uploaded file
     """
+    import fal_client
+
     ensure_api_key()
     url = fal_client.upload_file(filepath)
     print(f"fal.ai: Uploaded video {filepath} -> {url}")
