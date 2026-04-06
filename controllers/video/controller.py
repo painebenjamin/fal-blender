@@ -1,3 +1,4 @@
+from ...models import DepthVideoModel, ImageToVideoModel, TextToVideoModel
 from ..base import FalController
 from ..ui import FalControllerPanel
 from .operator import FalDepthVideoOperator, FalVideoOperator
@@ -32,6 +33,10 @@ class FalVideoController(FalController):
             and props.image_source == "FILE",
             "duration": lambda ctx, props: not props.use_scene_duration,
         },
+        endpoint_models={
+            "text_endpoint": TextToVideoModel,
+            "image_endpoint": ImageToVideoModel,
+        },
     )
 
 
@@ -63,5 +68,8 @@ class FalDepthVideoController(FalController):
             and props.depth_image_source == "FILE",
             "depth_texture_name": lambda ctx, props: props.depth_use_first_frame
             and props.depth_image_source == "TEXTURE",
+        },
+        endpoint_models={
+            "depth_endpoint": DepthVideoModel,
         },
     )

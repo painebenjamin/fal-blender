@@ -1,8 +1,13 @@
+from __future__ import annotations
+
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TypeAlias
+from typing import TYPE_CHECKING, TypeAlias
 
 import bpy
+
+if TYPE_CHECKING:
+    from ..models.base import FalModel
 
 ConditionFunc: TypeAlias = Callable[[bpy.types.Context, bpy.types.PropertyGroup], bool]
 
@@ -15,6 +20,7 @@ class FalControllerPanel:
     field_separators: list[str] = field(default_factory=list)
     field_conditions: dict[str, ConditionFunc] = field(default_factory=dict)
     field_groupings: list[set[str]] = field(default_factory=list)
+    endpoint_models: dict[str, type[FalModel]] = field(default_factory=dict)
 
     _current_group_seen: set[str] = field(default_factory=set)
     _current_group: set[str] | None = None
@@ -103,6 +109,41 @@ class FalControllerPanel:
                 if field_name in self.field_separators:
                     layout.separator()
 
+    def _get_active_model(
+        self,
+        context: bpy.types.Context,
+        props: bpy.types.PropertyGroup,
+    ) -> type[FalModel] | None:
+        """Resolve the currently-visible endpoint property to its model class."""
+        for field_name, model_base in self.endpoint_models.items():
+            if not self.show_field(context, props, field_name):
+                continue
+            model_key = getattr(props, field_name, None)
+            if not model_key:
+                continue
+            catalog = model_base.catalog()
+            return catalog.get(model_key)
+        return None
+
+    def draw_pricing(
+        self,
+        layout: bpy.types.UILayout,
+        context: bpy.types.Context,
+        props: bpy.types.PropertyGroup,
+    ) -> None:
+        """Display pricing for the currently selected endpoint."""
+        if not self.endpoint_models:
+            return
+        model = self._get_active_model(context, props)
+        if model is None:
+            return
+        pricing = model.get_pricing()
+        if pricing:
+            row = layout.row()
+            row.alignment = "CENTER"
+            row.scale_y = 0.7
+            row.label(text=pricing, icon="INFO")
+
     def draw_status(
         self,
         layout: bpy.types.UILayout,
@@ -157,6 +198,7 @@ class FalControllerPanel:
             self.draw_field(layout, context, props, field_name)
             visited_fields.add(field_name)
 
+        self.draw_pricing(layout, context, props)
         self.draw_status(layout, context, props)
         self.draw_operator(
             layout, context, props, operator_name, operator_icon, operator_size

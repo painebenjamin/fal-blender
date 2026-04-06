@@ -1,3 +1,4 @@
+from ...models import ImageTo3DModel, TextTo3DModel
 from ..base import FalController
 from ..ui import FalControllerPanel
 from .operator import FalGenerate3DOperator
@@ -31,5 +32,9 @@ class FalGenerate3DController(FalController):
             "image_source": lambda ctx, props: props.mode == "IMAGE",
             "image_path": lambda ctx, props: props.mode == "IMAGE"
             and props.image_source == "FILE",
+        },
+        endpoint_models={
+            "text_endpoint": TextTo3DModel,
+            "image_endpoint": ImageTo3DModel,
         },
     )

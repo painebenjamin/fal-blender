@@ -1,3 +1,4 @@
+from ...models import MaterialGenerationModel, PBREstimationModel, TilingTextureModel
 from ..base import FalController
 from ..ui import FalControllerPanel
 from .operator import FalMaterialOperator
@@ -52,4 +53,9 @@ class FalMaterialController(FalController):
             {"width", "height"},
         ],
         field_separators=["mode"],
+        endpoint_models={
+            "full_endpoint": MaterialGenerationModel,
+            "tiling_endpoint": TilingTextureModel,
+            "pbr_endpoint": PBREstimationModel,
+        },
     )
