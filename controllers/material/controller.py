@@ -1,4 +1,5 @@
-from ...models import MaterialGenerationModel, PBREstimationModel, TilingTextureModel
+from ...models import (MaterialGenerationModel, PBREstimationModel,
+                       TilingTextureModel)
 from ..base import FalController
 from ..ui import FalControllerPanel
 from .operator import FalMaterialOperator

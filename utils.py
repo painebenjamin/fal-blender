@@ -236,6 +236,7 @@ def get_default_font(size: int) -> ImageFont.ImageFont:
 # Pricing helpers
 # ---------------------------------------------------------------------------
 
+
 def get_endpoint_pricing(endpoint: str, max_retries: int = 3) -> str:
     """
     Returns the pricing for a model.
@@ -254,14 +255,19 @@ def get_endpoint_pricing(endpoint: str, max_retries: int = 3) -> str:
             print(f"fal.ai: Could not get pricing for {endpoint}: {e}")
             if retry_num == max_retries - 1:
                 raise
-            time.sleep(0.5 * 2 ** retry_num)
+            time.sleep(0.5 * 2**retry_num)
 
     # Look for text between '## Pricing' and 'For more details, see [fal.ai pricing]'
     needle_start = "## Pricing"
     needle_end = "For more details, see [fal.ai pricing]"
+    default_needle_start = "- **Price**: "
     pricing_start = llms_txt.find(needle_start) + len(needle_start)
     pricing_end = llms_txt.find(needle_end)
     if pricing_start == -1 or pricing_end == -1:
         raise ValueError(f"Could not find pricing for {endpoint}")
     pricing_text = llms_txt[pricing_start:pricing_end].strip()
+    if pricing_text.startswith(default_needle_start):
+        # Remove the default needle start
+        pricing_text = pricing_text[len(default_needle_start) :].strip()
+
     return pricing_text

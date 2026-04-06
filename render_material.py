@@ -38,7 +38,6 @@ from pathlib import Path
 
 import bpy  # type: ignore[import-not-found]
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -57,9 +56,9 @@ CAMERA_PRESETS = {
         "description": "Gentle forward drift with slight lateral sway",
         "distance_start": 1.8,
         "distance_end": 1.65,
-        "angle_start": 55,    # degrees from horizontal
+        "angle_start": 55,  # degrees from horizontal
         "angle_end": 53,
-        "orbit_start": 0,     # degrees around Y axis
+        "orbit_start": 0,  # degrees around Y axis
         "orbit_end": 8,
         "lens": 85,
     },
@@ -434,8 +433,7 @@ def create_sweep_light(frames: int) -> bpy.types.Object:
         # Ease in/out for smooth motion
         t_ease = _ease_in_out(t)
         angle = math.radians(
-            SWEEP_ARC_START_DEG
-            + (SWEEP_ARC_END_DEG - SWEEP_ARC_START_DEG) * t_ease
+            SWEEP_ARC_START_DEG + (SWEEP_ARC_END_DEG - SWEEP_ARC_START_DEG) * t_ease
         )
 
         x = SWEEP_LIGHT_RADIUS * math.sin(angle)
@@ -472,9 +470,7 @@ def create_fill_light() -> bpy.types.Object:
 
 def create_rim_light() -> bpy.types.Object:
     """Create a subtle backlight for edge definition."""
-    bpy.ops.object.light_add(
-        type="AREA", location=(0, 2.5, 1.0)
-    )
+    bpy.ops.object.light_add(type="AREA", location=(0, 2.5, 1.0))
     light = bpy.context.active_object
     light.name = "RimLight"
     light.data.name = "RimLight"
@@ -514,7 +510,9 @@ def create_camera(
     bpy.context.scene.camera = cam
 
     # Track constraint — always look at plane center
-    focus_target = _get_or_create_empty("CameraTarget", (0, 0, DISPLACEMENT_SCALE * 0.25))
+    focus_target = _get_or_create_empty(
+        "CameraTarget", (0, 0, DISPLACEMENT_SCALE * 0.25)
+    )
     track = cam.constraints.new("TRACK_TO")
     track.target = focus_target
     track.track_axis = "TRACK_NEGATIVE_Z"
@@ -728,9 +726,7 @@ def parse_args() -> argparse.Namespace:
     else:
         argv = []
 
-    parser = argparse.ArgumentParser(
-        description="Cinematic PBR material renderer"
-    )
+    parser = argparse.ArgumentParser(description="Cinematic PBR material renderer")
 
     # Input — individual maps
     parser.add_argument("--basecolor", type=str, help="Path to basecolor map")
@@ -754,7 +750,9 @@ def parse_args() -> argparse.Namespace:
     )
 
     # Scene
-    parser.add_argument("--name", type=str, default="CinematicPBR", help="Material name")
+    parser.add_argument(
+        "--name", type=str, default="CinematicPBR", help="Material name"
+    )
     parser.add_argument("--hdri", type=str, help="HDRI environment map for reflections")
     parser.add_argument(
         "--displacement-scale",

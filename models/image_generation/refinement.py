@@ -1,14 +1,8 @@
 from typing import Any
 
 from ..base import VisualFalModel
-from .base import (
-    FLUX1Dev,
-    FLUX2Klein9B,
-    NanoBanana,
-    NanoBanana2,
-    NanoBananaPro,
-    ZImageTurbo,
-)
+from .base import (FLUX1Dev, FLUX2Klein9B, NanoBanana, NanoBanana2,
+                   NanoBananaPro, ZImageTurbo)
 
 __all__ = [
     "ImageRefinementModel",
