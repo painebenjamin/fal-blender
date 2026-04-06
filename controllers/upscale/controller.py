@@ -1,3 +1,4 @@
+from ...models import ImageUpscalingModel, VideoUpscalingModel
 from ..base import FalController
 from ..ui import FalControllerPanel
 from .operator import FalUpscaleOperator
@@ -28,4 +29,8 @@ class FalUpscaleController(FalController):
             "texture_name": lambda ctx, props: props.source == "TEXTURE",
         },
         field_separators=["mode"],
+        endpoint_models={
+            "image_endpoint": ImageUpscalingModel,
+            "video_endpoint": VideoUpscalingModel,
+        },
     )

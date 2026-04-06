@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING
 
 import fal_client
 
-from .preferences import ensure_api_key
+# from .preferences import ensure_api_key
 
 if TYPE_CHECKING:
     import bpy
@@ -30,6 +30,7 @@ __all__ = [
     "get_world_color",
     "set_world_color",
     "get_default_font",
+    "get_endpoint_pricing",
 ]
 
 
@@ -229,3 +230,44 @@ def get_default_font(size: int) -> ImageFont.ImageFont:
 
     print("fal.ai: No system fonts found, using default (labels may be small)")
     return ImageFont.load_default()
+
+
+# ---------------------------------------------------------------------------
+# Pricing helpers
+# ---------------------------------------------------------------------------
+
+
+def get_endpoint_pricing(endpoint: str, max_retries: int = 3) -> str:
+    """
+    Returns the pricing for a model.
+    :param model: model name
+    :return: pricing for the model
+    """
+    import urllib.request
+
+    url = f"https://fal.ai/models/{endpoint.strip('/')}/llms.txt"
+    for retry_num in range(max_retries):
+        try:
+            with urllib.request.urlopen(url) as response:
+                llms_txt = response.read().decode("utf-8")
+                break
+        except Exception as e:
+            print(f"fal.ai: Could not get pricing for {endpoint}: {e}")
+            if retry_num == max_retries - 1:
+                raise
+            time.sleep(0.5 * 2**retry_num)
+
+    # Look for text between '## Pricing' and 'For more details, see [fal.ai pricing]'
+    needle_start = "## Pricing"
+    needle_end = "For more details, see [fal.ai pricing]"
+    default_needle_start = "- **Price**: "
+    pricing_start = llms_txt.find(needle_start) + len(needle_start)
+    pricing_end = llms_txt.find(needle_end)
+    if pricing_start == -1 or pricing_end == -1:
+        raise ValueError(f"Could not find pricing for {endpoint}")
+    pricing_text = llms_txt[pricing_start:pricing_end].strip()
+    if pricing_text.startswith(default_needle_start):
+        # Remove the default needle start
+        pricing_text = pricing_text[len(default_needle_start) :].strip()
+
+    return pricing_text

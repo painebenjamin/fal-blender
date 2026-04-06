@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABCMeta
 from typing import Any, ClassVar
 
-from ..utils import path_to_data_uri
+from ..utils import get_endpoint_pricing, path_to_data_uri
 
 __all__ = [
     "FalModel",
@@ -25,6 +25,19 @@ class FalModel(metaclass=ABCMeta):
     def parameters(cls, **kwargs: Any) -> dict[str, Any]:
         """Build and return the API request parameters for this model."""
         return cls.static_parameters or {}
+
+    @classmethod
+    def get_pricing(cls) -> str:
+        """
+        Returns the pricing for the model.
+        """
+        if not hasattr(cls, "_pricing"):
+            try:
+                cls._pricing = get_endpoint_pricing(cls.endpoint)
+            except Exception as e:
+                print(f"fal.ai: Could not get pricing for {cls.endpoint}: {e}")
+                return "Pricing not available"
+        return cls._pricing
 
     @classmethod
     def catalog(cls) -> dict[str, FalModel]:

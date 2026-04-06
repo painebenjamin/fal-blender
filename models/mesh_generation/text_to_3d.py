@@ -1,11 +1,7 @@
 from __future__ import annotations
 
-from .base import (
-    Hunyuan3DV31ProModel,
-    Hunyuan3DV31RapidModel,
-    MeshGenerationModel,
-    MeshyV6PreviewModel,
-)
+from .base import (Hunyuan3DV31ProModel, Hunyuan3DV31RapidModel,
+                   MeshGenerationModel, MeshyV6PreviewModel)
 
 __all__ = [
     "TextTo3DModel",

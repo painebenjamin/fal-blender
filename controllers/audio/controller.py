@@ -1,3 +1,5 @@
+from ...models import (MusicGenerationModel, SoundEffectsGenerationModel,
+                       SpeechGenerationModel)
 from ..base import FalController
 from ..ui import FalControllerPanel
 from .operator import FalAudioOperator
@@ -11,7 +13,7 @@ class FalAudioController(FalController):
 
     display_name = "Audio"
     description = "Generate audio using fal.ai"
-    icon = f"SPEAKER"
+    icon = "SPEAKER"
     operator_class = FalAudioOperator
     properties_class = FalAudioPropertyGroup
     panel_vse = FalControllerPanel(
@@ -46,5 +48,11 @@ class FalAudioController(FalController):
             "text": lambda context, props: props.mode == "TTS",
             "duration": lambda context, props: props.mode == "SFX"
             or props.mode == "MUSIC",
+        },
+        endpoint_models={
+            "tts_preset_endpoint": SpeechGenerationModel,
+            "tts_clone_endpoint": SpeechGenerationModel,
+            "sfx_endpoint": SoundEffectsGenerationModel,
+            "music_endpoint": MusicGenerationModel,
         },
     )

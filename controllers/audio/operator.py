@@ -4,11 +4,8 @@ import bpy
 
 from ...importers import add_audio_to_vse
 from ...job_queue import FalJob, JobManager
-from ...models import (
-    MusicGenerationModel,
-    SoundEffectsGenerationModel,
-    SpeechGenerationModel,
-)
+from ...models import (MusicGenerationModel, SoundEffectsGenerationModel,
+                       SpeechGenerationModel)
 from ...utils import download_file
 from ..base import FalOperator
 

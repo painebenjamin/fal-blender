@@ -1,3 +1,5 @@
+from ...models import (DepthGuidedImageGenerationModel, ImageRefinementModel,
+                       SketchGuidedImageGenerationModel)
 from ..base import FalController
 from ..ui import FalControllerPanel
 from .operator import FalNeuralRenderOperator
@@ -46,4 +48,9 @@ class FalNeuralRenderController(FalController):
         field_groupings=[
             {"width", "height"},
         ],
+        endpoint_models={
+            "depth_endpoint": DepthGuidedImageGenerationModel,
+            "sketch_endpoint": SketchGuidedImageGenerationModel,
+            "refine_endpoint": ImageRefinementModel,
+        },
     )
