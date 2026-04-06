@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import textwrap
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypeAlias
@@ -130,6 +131,7 @@ class FalControllerPanel:
         layout: bpy.types.UILayout,
         context: bpy.types.Context,
         props: bpy.types.PropertyGroup,
+        wrap_width: int = 40,
     ) -> None:
         """Display pricing for the currently selected endpoint."""
         if not self.endpoint_models:
@@ -138,11 +140,16 @@ class FalControllerPanel:
         if model is None:
             return
         pricing = model.get_pricing()
-        if pricing:
-            row = layout.row()
-            row.alignment = "CENTER"
-            row.scale_y = 0.7
-            row.label(text=pricing, icon="INFO")
+        if not pricing:
+            return
+        box = layout.box()
+        col = box.column(align=True)
+        col.scale_y = 0.7
+        for line in pricing.splitlines():
+            if not line.strip():
+                continue
+            for wrapped in textwrap.wrap(line, wrap_width) or [""]:
+                col.label(text=wrapped)
 
     def draw_status(
         self,
