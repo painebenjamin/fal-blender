@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import tempfile
 import traceback
 import uuid
@@ -9,6 +8,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 import bpy  # type: ignore[import-not-found]
+
+from .utils import requires_internet_access
 
 # ---------------------------------------------------------------------------
 # Thread pool — shared across all jobs
@@ -111,6 +112,7 @@ class FalJob:
 
     # ── Lifecycle ──────────────────────────────────────────────────────
 
+    @requires_internet_access
     def submit(self) -> None:
         """
         Submit the job to the thread pool.
@@ -118,9 +120,15 @@ class FalJob:
         MUST be called from the main thread — caches the API key
         before spawning the background thread.
         """
-        from .preferences import ensure_api_key
+        from .preferences import get_api_key
 
-        self._api_key = ensure_api_key()
+        self._api_key = get_api_key()
+        if not self._api_key:
+            self.error = "No API key set"
+            self.status = "error"
+            print(f"fal.ai: {self.error}")
+            return
+
         self.status = "running"
         self._future = _executor.submit(self._run)
 
@@ -136,10 +144,8 @@ class FalJob:
             print(f"fal.ai: {self.error}")
             return
 
-        if self._api_key:
-            os.environ["FAL_KEY"] = self._api_key
-
         try:
+            client = fal_client.Client(key=self._api_key)
 
             def _on_queue_update(update) -> None:
                 if isinstance(update, fal_client.InProgress):
@@ -160,7 +166,7 @@ class FalJob:
                 f"fal.ai: Calling {self.endpoint} "
                 f"with {list(self.arguments.keys())}"
             )
-            result = fal_client.subscribe(
+            result = client.subscribe(
                 self.endpoint,
                 arguments=self.arguments,
                 with_logs=True,
@@ -186,6 +192,7 @@ class FalJob:
             )
             traceback.print_exc()
 
+    @requires_internet_access
     def _download_results(self, result: dict[str, Any]) -> None:
         """
         Download URLs from result dict to local temp files.
@@ -306,7 +313,7 @@ class JobManager:
             The submitted job.
         """
         self.jobs[job.job_id] = job
-        job.submit()
+        job.submit()  # raises RuntimeError if internet access is not allowed
         if not self._timer_running:
             bpy.app.timers.register(self._poll, first_interval=0.5)
             self._timer_running = True

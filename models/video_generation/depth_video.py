@@ -3,8 +3,12 @@ from __future__ import annotations
 from typing import Any, ClassVar
 
 from ..base import VisualFalModel
-from .base import (LTX2DistilledVideoModel, LTX2VideoModel,
-                   WanFun22A14BVideoModel, WanVACE14BVideoModel)
+from .base import (
+    LTX2DistilledVideoModel,
+    LTX2VideoModel,
+    WanFun22A14BVideoModel,
+    WanVACE14BVideoModel,
+)
 
 __all__ = [
     "DepthVideoModel",

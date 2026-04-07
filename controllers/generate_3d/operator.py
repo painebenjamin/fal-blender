@@ -9,7 +9,7 @@ import bpy
 from ...importers import import_glb, import_obj
 from ...job_queue import FalJob, JobManager
 from ...models import ImageTo3DModel, TextTo3DModel
-from ...utils import download_file, upload_file
+from ...utils import download_file
 from ..operators import FalOperator
 
 TEXT_TO_3D_MODELS = TextTo3DModel.catalog()
@@ -45,7 +45,11 @@ def _find_obj_info(result: dict) -> dict:
     """Return ``{obj: …, mtl: …, texture: …}`` file-info dicts present in *result*."""
     info: dict = {}
 
-    for key, target in [("model_obj", "obj"), ("material_mtl", "mtl"), ("texture", "texture")]:
+    for key, target in [
+        ("model_obj", "obj"),
+        ("material_mtl", "mtl"),
+        ("texture", "texture"),
+    ]:
         val = result.get(key)
         if isinstance(val, dict) and "url" in val:
             info[target] = val
@@ -114,7 +118,9 @@ def _handle_3d_result(job: FalJob, name: str) -> None:
         except Exception as e:
             print(f"fal.ai: OBJ import also failed: {e}")
 
-    print(f"fal.ai: No importable 3D model found in response keys: {list(result.keys())}")
+    print(
+        f"fal.ai: No importable 3D model found in response keys: {list(result.keys())}"
+    )
 
 
 class FalGenerate3DOperator(FalOperator):

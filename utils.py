@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-# from .preferences import ensure_api_key
+from .preferences import get_api_key
 
 if TYPE_CHECKING:
     import bpy
@@ -59,6 +59,7 @@ def path_to_data_uri(path: str, mime_type: str | None = None) -> str:
         return f"data:{mime_type};base64,{base64.b64encode(f.read()).decode('utf-8')}"
 
 
+@requires_internet_access
 def download_file(url: str, suffix: str = ".bin") -> str:
     """
     Download a URL to a temp file, return local path.
@@ -74,6 +75,7 @@ def download_file(url: str, suffix: str = ".bin") -> str:
         return f.name
 
 
+@requires_internet_access
 def upload_file(filepath: str) -> str:
     """
     Upload a file to fal CDN and return the URL.
@@ -82,12 +84,17 @@ def upload_file(filepath: str) -> str:
     """
     import fal_client
 
-    ensure_api_key()
-    url = fal_client.upload_file(filepath)
+    key = get_api_key()
+    if not key:
+        raise RuntimeError("No API key set")
+
+    client = fal_client.Client(key=key)
+    url = client.upload_file(filepath)
     print(f"fal.ai: Uploaded video {filepath} -> {url}")
     return url
 
 
+@requires_internet_access
 def upload_blender_image(image: bpy.types.Image) -> str:
     """
     Save a Blender image to temp file and upload to fal CDN.
@@ -233,10 +240,36 @@ def get_default_font(size: int) -> ImageFont.ImageFont:
 
 
 # ---------------------------------------------------------------------------
+# Compliance helpers
+# ---------------------------------------------------------------------------
+
+
+def internet_access_allowed() -> bool:
+    """
+    Check if internet access is allowed.
+    :see: https://developer.blender.org/docs/handbook/extensions/addon_guidelines/
+    """
+    return bpy.app.online_access
+
+
+def requires_internet_access(fn: Callable) -> Callable:
+    """Decorator to check if the function requires internet access."""
+
+    @wraps(fn)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        if not internet_access_allowed():
+            raise RuntimeError("This function requires internet access.")
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
+# ---------------------------------------------------------------------------
 # Pricing helpers
 # ---------------------------------------------------------------------------
 
 
+@requires_internet_access
 def get_endpoint_pricing(endpoint: str, max_retries: int = 3) -> str:
     """
     Returns the pricing for a model.

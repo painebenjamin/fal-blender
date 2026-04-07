@@ -1,7 +1,10 @@
 import bpy
 
-from ...models import (MusicGenerationModel, SoundEffectsGenerationModel,
-                       SpeechGenerationModel)
+from ...models import (
+    MusicGenerationModel,
+    SoundEffectsGenerationModel,
+    SpeechGenerationModel,
+)
 
 
 class FalAudioPropertyGroup(bpy.types.PropertyGroup):

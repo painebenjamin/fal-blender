@@ -1,5 +1,9 @@
-from .upscaling import (AuraSRImageUpscalingModel, ClarityImageUpscalingModel,
-                        ImageUpscalingModel, SeedVR29BImageUpscalingModel)
+from .upscaling import (
+    AuraSRImageUpscalingModel,
+    ClarityImageUpscalingModel,
+    ImageUpscalingModel,
+    SeedVR29BImageUpscalingModel,
+)
 
 __all__ = [
     "ImageUpscalingModel",
