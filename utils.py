@@ -4,11 +4,13 @@ import base64
 import mimetypes
 import re
 import tempfile
+import time
 import warnings
 from collections.abc import Iterator
 from contextlib import contextmanager
+from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable
 
 from .preferences import get_api_key
 
@@ -59,7 +61,6 @@ def path_to_data_uri(path: str, mime_type: str | None = None) -> str:
         return f"data:{mime_type};base64,{base64.b64encode(f.read()).decode('utf-8')}"
 
 
-
 # ---------------------------------------------------------------------------
 # Compliance helpers
 # ---------------------------------------------------------------------------
@@ -84,9 +85,11 @@ def requires_internet_access(fn: Callable) -> Callable:
 
     return wrapper
 
+
 # ---------------------------------------------------------------------------
 # File download/upload helpers
 # ---------------------------------------------------------------------------
+
 
 @requires_internet_access
 def download_file(url: str, suffix: str = ".bin") -> str:
