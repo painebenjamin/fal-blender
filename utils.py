@@ -71,6 +71,8 @@ def internet_access_allowed() -> bool:
     Check if internet access is allowed.
     :see: https://developer.blender.org/docs/handbook/extensions/addon_guidelines/
     """
+    import bpy
+
     return bpy.app.online_access
 
 
