@@ -59,6 +59,35 @@ def path_to_data_uri(path: str, mime_type: str | None = None) -> str:
         return f"data:{mime_type};base64,{base64.b64encode(f.read()).decode('utf-8')}"
 
 
+
+# ---------------------------------------------------------------------------
+# Compliance helpers
+# ---------------------------------------------------------------------------
+
+
+def internet_access_allowed() -> bool:
+    """
+    Check if internet access is allowed.
+    :see: https://developer.blender.org/docs/handbook/extensions/addon_guidelines/
+    """
+    return bpy.app.online_access
+
+
+def requires_internet_access(fn: Callable) -> Callable:
+    """Decorator to check if the function requires internet access."""
+
+    @wraps(fn)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        if not internet_access_allowed():
+            raise RuntimeError("This function requires internet access.")
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+# ---------------------------------------------------------------------------
+# File download/upload helpers
+# ---------------------------------------------------------------------------
+
 @requires_internet_access
 def download_file(url: str, suffix: str = ".bin") -> str:
     """
@@ -237,31 +266,6 @@ def get_default_font(size: int) -> ImageFont.ImageFont:
 
     print("fal.ai: No system fonts found, using default (labels may be small)")
     return ImageFont.load_default()
-
-
-# ---------------------------------------------------------------------------
-# Compliance helpers
-# ---------------------------------------------------------------------------
-
-
-def internet_access_allowed() -> bool:
-    """
-    Check if internet access is allowed.
-    :see: https://developer.blender.org/docs/handbook/extensions/addon_guidelines/
-    """
-    return bpy.app.online_access
-
-
-def requires_internet_access(fn: Callable) -> Callable:
-    """Decorator to check if the function requires internet access."""
-
-    @wraps(fn)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        if not internet_access_allowed():
-            raise RuntimeError("This function requires internet access.")
-        return fn(*args, **kwargs)
-
-    return wrapper
 
 
 # ---------------------------------------------------------------------------
