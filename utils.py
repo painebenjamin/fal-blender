@@ -4,6 +4,7 @@ import base64
 import mimetypes
 import re
 import tempfile
+import time
 import warnings
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -236,6 +237,31 @@ def get_default_font(size: int) -> ImageFont.ImageFont:
 # Pricing helpers
 # ---------------------------------------------------------------------------
 
+_PRICE_LINE_PREFIXES = ("- **Price**: ", "- Price: ")
+
+
+def _strip_markdown_for_display(text: str) -> str:
+    """Turn llms.txt-style markdown into plain text for Blender UI labels."""
+    lines_out: list[str] = []
+    for line in text.splitlines():
+        s = line
+        s = re.sub(r"\[([^\]]+)\]\([^)]*\)", r"\1", s)
+        s = re.sub(r"`([^`]+)`", r"\1", s)
+        while "**" in s:
+            next_s = re.sub(r"\*\*(.+?)\*\*", r"\1", s, count=1)
+            if next_s == s:
+                break
+            s = next_s
+        while "__" in s:
+            next_s = re.sub(r"__(.+?)__", r"\1", s, count=1)
+            if next_s == s:
+                break
+            s = next_s
+        s = re.sub(r"(?<![*`])\*([^*\n]+)\*(?![*`])", r"\1", s)
+        s = re.sub(r"^#+\s*", "", s)
+        lines_out.append(s)
+    return "\n".join(lines_out)
+
 
 def get_endpoint_pricing(endpoint: str, max_retries: int = 3) -> str:
     """
@@ -260,14 +286,14 @@ def get_endpoint_pricing(endpoint: str, max_retries: int = 3) -> str:
     # Look for text between '## Pricing' and 'For more details, see [fal.ai pricing]'
     needle_start = "## Pricing"
     needle_end = "For more details, see [fal.ai pricing]"
-    default_needle_start = "- **Price**: "
     pricing_start = llms_txt.find(needle_start) + len(needle_start)
     pricing_end = llms_txt.find(needle_end)
     if pricing_start == -1 or pricing_end == -1:
         raise ValueError(f"Could not find pricing for {endpoint}")
     pricing_text = llms_txt[pricing_start:pricing_end].strip()
-    if pricing_text.startswith(default_needle_start):
-        # Remove the default needle start
-        pricing_text = pricing_text[len(default_needle_start) :].strip()
+    for prefix in _PRICE_LINE_PREFIXES:
+        if pricing_text.startswith(prefix):
+            pricing_text = pricing_text[len(prefix) :].strip()
+            break
 
-    return pricing_text
+    return _strip_markdown_for_display(pricing_text)
