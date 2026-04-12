@@ -8,8 +8,10 @@ build/
 *.zip
 .venv/
 .env
-# Keep committed wheels, ignore downloaded temp ones
-
+# Generated from blender_manifest.toml.template (make sync-manifest)
+blender_manifest.toml
+# No wheels
+wheels/
 # Vendored pip packages (installed locally, not committed)
 vendor/*
 !vendor/.gitkeep

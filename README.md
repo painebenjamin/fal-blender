@@ -96,8 +96,8 @@ Key design points:
 git clone https://github.com/painebenjamin/fal-blender.git
 cd fal-blender
 
-# Download dependency wheels
-bash scripts/build_wheels.sh
+# Download wheels and generate blender_manifest.toml from blender_manifest.toml.template
+make all
 
 # Option A: Symlink into Blender's extensions directory
 ln -s $(pwd) ~/.config/blender/4.5/extensions/fal_ai

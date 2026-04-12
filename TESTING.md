@@ -17,7 +17,8 @@ cd ~/fal-blender  # or wherever you cloned it
 # Download wheel dependencies
 bash scripts/build_wheels.sh
 
-# Update blender_manifest.toml with the wheel paths (script outputs them)
+# Generate blender_manifest.toml from the template (wheel list)
+make sync-manifest
 # Then create the zip:
 zip -r fal_ai-0.1.0.zip . \
   -x ".*" -x "__pycache__/*" -x "scripts/*" -x "tests/*" -x "*.md" -x ".git/*"
