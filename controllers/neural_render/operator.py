@@ -9,8 +9,8 @@ from ...importers import import_image_to_editor, resize_image_to_target
 from ...job_queue import FalJob, JobManager
 from ...models import (DepthGuidedImageGenerationModel, ImageRefinementModel,
                        SketchGuidedImageGenerationModel)
-from ...utils import (download_file, get_world_color, restore_compositor,
-                      set_world_color, snapshot_compositor)
+from ...utils import (download_file, get_eevee_engine, get_world_color,
+                      restore_compositor, set_world_color, snapshot_compositor)
 from ..operators import FalOperator
 from .utils import (calc_scene_depth_bounds, get_dimensions, overlay_labels,
                     render_to_sketch)
@@ -218,7 +218,7 @@ class FalNeuralRenderOperator(FalOperator):
             self._saved["mist_depth"] = world.mist_settings.depth
 
         # Configure render
-        scene.render.engine = "BLENDER_EEVEE_NEXT"
+        scene.render.engine = get_eevee_engine()
         scene.render.resolution_x = self._render_w
         scene.render.resolution_y = self._render_h
         scene.render.resolution_percentage = 100
@@ -383,7 +383,7 @@ class FalNeuralRenderOperator(FalOperator):
                 self._old_materials[obj.name].append((-1, None))
 
         # Configure render
-        scene.render.engine = "BLENDER_EEVEE_NEXT"
+        scene.render.engine = get_eevee_engine()
         scene.render.resolution_x = self._render_w
         scene.render.resolution_y = self._render_h
         scene.render.resolution_percentage = 100

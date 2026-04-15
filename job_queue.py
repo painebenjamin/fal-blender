@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import os
 import tempfile
+import time
 import traceback
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable
 
@@ -106,6 +108,8 @@ class FalJob:
         self.downloaded_files: dict[str, str] = {}  # key → local path
         self.error: str | None = None
         self.request_id: str | None = None  # fal request ID for server-side debugging
+        self.start_time: float | None = None  # time.time() when job started
+        self.end_time: float | None = None  # time.time() when job completed
         self._future = None
         self._api_key: str | None = None  # cached on main thread before submit
 
@@ -122,6 +126,7 @@ class FalJob:
 
         self._api_key = ensure_api_key()
         self.status = "running"
+        self.start_time = time.time()
         self._future = _executor.submit(self._run)
 
     def _run(self) -> None:
@@ -175,12 +180,14 @@ class FalJob:
 
             self._download_results(result)
             self.status = "complete"
+            self.end_time = time.time()
 
         except Exception as e:
             self.error = _format_error(e)
             self.status = "error"
             if self.request_id:
                 self.error = f"[{self.request_id}] {self.error}"
+            self.end_time = time.time()
             print(
                 f"fal.ai: Job {self.job_id} [{self.request_id or '?'}] failed: {self.error}"
             )
@@ -252,6 +259,42 @@ class FalJob:
     def is_done(self) -> bool:
         """Check if the job is done."""
         return self.status in ("complete", "error")
+
+    @property
+    def duration_seconds(self) -> float | None:
+        """Get job duration in seconds, or None if not completed."""
+        if self.start_time is None:
+            return None
+        end = self.end_time or time.time()
+        return end - self.start_time
+
+    @property
+    def duration_str(self) -> str:
+        """Get formatted duration string like '1.2s' or '1m 23s'."""
+        dur = self.duration_seconds
+        if dur is None:
+            return ""
+        if dur < 60:
+            return f"{dur:.1f}s"
+        mins = int(dur // 60)
+        secs = int(dur % 60)
+        return f"{mins}m {secs}s"
+
+    @property
+    def start_time_str(self) -> str:
+        """Get formatted start time like '6:45 PM'."""
+        if self.start_time is None:
+            return ""
+        return datetime.fromtimestamp(self.start_time).strftime("%-I:%M %p")
+
+    @property
+    def endpoint_short(self) -> str:
+        """Get shortened endpoint name (last component)."""
+        parts = self.endpoint.strip("/").split("/")
+        # e.g. fal-ai/flux-2/klein/9b/edit -> klein/9b/edit or just the last 2-3 parts
+        if len(parts) > 2:
+            return "/".join(parts[-2:])
+        return parts[-1] if parts else self.endpoint
 
 
 # ---------------------------------------------------------------------------

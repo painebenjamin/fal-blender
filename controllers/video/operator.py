@@ -9,8 +9,8 @@ import bpy
 from ...importers import add_video_to_vse
 from ...job_queue import FalJob, JobManager
 from ...models import DepthVideoModel, ImageToVideoModel, TextToVideoModel
-from ...utils import (download_file, restore_compositor, snapshot_compositor,
-                      upload_blender_image, upload_file)
+from ...utils import (download_file, get_eevee_engine, restore_compositor,
+                      snapshot_compositor, upload_blender_image, upload_file)
 from ..neural_render.utils import calc_scene_depth_bounds
 from ..operators import FalOperator
 
@@ -335,7 +335,7 @@ class FalDepthVideoOperator(FalOperator):
         self._tmp_dir = tempfile.mkdtemp(prefix="fal_depth_video_")
         self._output_path = os.path.join(self._tmp_dir, "depth")
 
-        scene.render.engine = "BLENDER_EEVEE_NEXT"
+        scene.render.engine = get_eevee_engine()
         scene.render.film_transparent = False
         scene.render.use_compositing = True
 

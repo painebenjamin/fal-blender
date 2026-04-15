@@ -149,10 +149,11 @@ class BaseJobsPanel(bpy.types.Panel):
                 row.label(text=job.label, icon="ERROR")
             else:
                 row.label(text=job.label, icon="TIME")
-                row.label(text=job.status)
-            if job.request_id:
-                row = box.row(align=True)
-                row.label(text=f"ID: ...{job.request_id[-12:]}")
+                row.label(text=f"{job.duration_str}")
+            # Show endpoint
+            row = box.row()
+            row.scale_y = 0.7
+            row.label(text=f"{job.endpoint_short}", icon="BLANK1")
             if job.error:
                 _draw_error(box, job.error)
             elif job.progress_message:
@@ -164,11 +165,21 @@ class BaseJobsPanel(bpy.types.Panel):
             layout.label(text="Recent:", icon="TIME")
             for job in reversed(mgr.history[-5:]):
                 box = layout.box()
+                # Title row with status icon and label
                 row = box.row()
                 icon = "CHECKMARK" if job.status == "complete" else "ERROR"
                 row.label(text=job.label, icon=icon)
+                # Metadata row: endpoint, time, duration
+                row = box.row()
+                row.scale_y = 0.7
+                meta_parts = [job.endpoint_short]
+                if job.start_time_str:
+                    meta_parts.append(job.start_time_str)
+                if job.duration_str:
+                    meta_parts.append(f"({job.duration_str})")
+                row.label(text=" · ".join(meta_parts), icon="BLANK1")
+                # Playground link
                 if job.request_id:
-                    # Playground link
                     row = box.row(align=True)
                     row.scale_y = 0.9
                     playground_url = get_request_playground_url(
@@ -176,7 +187,7 @@ class BaseJobsPanel(bpy.types.Panel):
                     )
                     op = row.operator(
                         "wm.url_open",
-                        text=f"View on fal.ai",
+                        text="View on fal.ai",
                         icon="URL",
                     )
                     op.url = playground_url

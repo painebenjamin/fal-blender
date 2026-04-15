@@ -35,6 +35,7 @@ __all__ = [
     "get_playground_url",
     "get_request_playground_url",
     "open_folder",
+    "get_eevee_engine",
 ]
 
 
@@ -400,3 +401,17 @@ def open_folder(path: str) -> None:
         subprocess.run(["explorer", path])
     else:
         subprocess.run(["xdg-open", path])
+
+
+def get_eevee_engine() -> str:
+    """
+    Get the correct EEVEE engine name for the current Blender version.
+
+    Blender 4.x uses 'BLENDER_EEVEE', Blender 5.x uses 'BLENDER_EEVEE_NEXT'.
+    """
+    import bpy
+
+    # Check Blender version (bpy.app.version is a tuple like (5, 2, 0))
+    if bpy.app.version >= (5, 0, 0):
+        return "BLENDER_EEVEE_NEXT"
+    return "BLENDER_EEVEE"
