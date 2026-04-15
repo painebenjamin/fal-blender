@@ -1,0 +1,132 @@
+# Build and optionally publish the fal.ai Blender extension.
+#
+# Triggers:
+#   - Push a version tag (v*) → build + GitHub Release + Blender Extensions upload
+#   - Manual dispatch → build only (or publish if checkbox ticked)
+#
+# Secrets:
+#   BLENDER_EXTENSIONS_TOKEN — API token from https://extensions.blender.org/settings/tokens/
+
+name: Build & Release Extension
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish to Blender Extensions platform"
+        type: boolean
+        default: false
+      release_notes:
+        description: "Release notes (for Blender Extensions upload)"
+        type: string
+        default: ""
+
+env:
+  EXTENSION_ID: fal_ai
+  BLENDER_VERSION: "4.4.0"   # minimum that supports `--command extension build`
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Blender
+        run: |
+          set -euo pipefail
+          # Grab the latest Blender 4.4 LTS tarball (needed for `extension build`)
+          BLENDER_TARBALL="blender-${BLENDER_VERSION}-linux-x64.tar.xz"
+          BLENDER_URL="https://download.blender.org/release/Blender${BLENDER_VERSION%.*}/${BLENDER_TARBALL}"
+          echo "Downloading $BLENDER_URL"
+          curl -fSL "$BLENDER_URL" -o /tmp/blender.tar.xz
+          mkdir -p /opt/blender
+          tar -xf /tmp/blender.tar.xz -C /opt/blender --strip-components=1
+          echo "/opt/blender" >> "$GITHUB_PATH"
+
+      - name: Download wheels (all platforms × Python 3.11 + 3.13)
+        run: |
+          WHEEL_FRESH=1 make wheels
+
+      - name: Generate manifest
+        run: make sync-manifest
+
+      - name: Build per-platform packages
+        run: |
+          mkdir -p dist
+          blender --background --command extension build --split-platforms \
+            --source-dir . --output-dir dist
+
+      - name: List build artifacts
+        run: ls -lh dist/
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: blender-extension-packages
+          path: dist/*.zip
+          retention-days: 90
+
+  # ── Publish (only on tag push, or manual with publish=true) ────────────
+  publish:
+    needs: build
+    if: >-
+      startsWith(github.ref, 'refs/tags/v')
+      || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish == 'true')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write          # create GitHub releases
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: blender-extension-packages
+          path: dist
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
+
+      - name: Publish to Blender Extensions
+        if: env.HAS_TOKEN == 'true'
+        env:
+          HAS_TOKEN: ${{ secrets.BLENDER_EXTENSIONS_TOKEN != '' }}
+          BLENDER_EXTENSIONS_TOKEN: ${{ secrets.BLENDER_EXTENSIONS_TOKEN }}
+          RELEASE_NOTES: ${{ github.event.inputs.release_notes || '' }}
+        run: |
+          set -euo pipefail
+          API="https://extensions.blender.org/api/v1/extensions/${EXTENSION_ID}/versions/upload/"
+
+          for zip in dist/*.zip; do
+            echo "Uploading $(basename "$zip") …"
+            HTTP_CODE=$(curl -s -o /tmp/upload_response.json -w "%{http_code}" \
+              -X POST "$API" \
+              -H "Authorization: bearer ${BLENDER_EXTENSIONS_TOKEN}" \
+              -F "version_file=@${zip}" \
+              -F "release_notes=${RELEASE_NOTES}")
+
+            echo "HTTP $HTTP_CODE"
+            cat /tmp/upload_response.json
+            echo ""
+
+            if [ "$HTTP_CODE" -ge 400 ]; then
+              echo "::error::Upload failed for $(basename "$zip") with HTTP $HTTP_CODE"
+              exit 1
+            fi
+
+            # Small delay between uploads to be kind to the API
+            sleep 2
+          done
+
+          echo "All platform packages uploaded successfully!"
