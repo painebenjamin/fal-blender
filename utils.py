@@ -11,7 +11,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-# from .preferences import ensure_api_key
+from .preferences import ensure_api_key
 
 if TYPE_CHECKING:
     import bpy

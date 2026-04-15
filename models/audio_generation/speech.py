@@ -14,9 +14,15 @@ class SpeechGenerationModel(AudioFalModel):
 
     supports_preset: ClassVar[bool] = False
     supports_clone: ClassVar[bool] = False
+    clone_endpoint: ClassVar[str | None] = None
     text_parameter = "text"
     voice_presets: ClassVar[list[str]] = []
     voice_parameter: ClassVar[str] = "voice"
+
+    @classmethod
+    def clone_parameters(cls, audio_url: str, text: str, **kwargs: Any) -> dict[str, Any]:
+        """Build parameters for voice cloning. Override in subclasses with different APIs."""
+        return {"audio_url": audio_url, "text": text}
 
     @classmethod
     def enumerate(cls, **kwargs: Any) -> list[tuple[str, str, str]]:
@@ -77,11 +83,13 @@ class ElevenLabsSpeechGenerationModel(SpeechGenerationModel):
 
 
 class MiniMaxSpeechGenerationModel(SpeechGenerationModel):
-    """MiniMax Speech 2.8 Turbo text-to-speech model."""
+    """MiniMax Speech Turbo text-to-speech model."""
 
     endpoint = "fal-ai/minimax/speech-2.8-turbo"
-    display_name = "MiniMax Speech 2.8 Turbo"
+    clone_endpoint = "fal-ai/minimax/voice-clone"
+    display_name = "MiniMax Speech Turbo"
     supports_preset = True
+    supports_clone = True
     voice_presets = [
         "Wise_Woman", "Friendly_Person", "Inspirational_girl", "Deep_Voice_Man",
         "Calm_Woman", "Casual_Guy", "Lively_Girl", "Patient_Man",

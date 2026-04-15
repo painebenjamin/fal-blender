@@ -6,7 +6,7 @@ from ...importers import add_audio_to_vse
 from ...job_queue import FalJob, JobManager
 from ...models import (MusicGenerationModel, SoundEffectsGenerationModel,
                        SpeechGenerationModel)
-from ...utils import download_file
+from ...utils import download_file, upload_file
 from ..base import FalOperator
 
 SPEECH_GENERATION_MODELS = SpeechGenerationModel.catalog()
@@ -53,15 +53,17 @@ class FalAudioOperator(FalOperator):
     def _tts(
         self, context: bpy.types.Context, props: bpy.types.PropertyGroup
     ) -> set[str]:
-        """
-        Generate text-to-speech audio.
-
-        TODO: Implement voice cloning
-        """
+        """Generate text-to-speech audio (preset or clone mode)."""
         if props.voice_mode == "PRESET":
-            model = SPEECH_GENERATION_MODELS[props.tts_preset_endpoint]
+            return self._tts_preset(context, props)
         else:
-            model = SPEECH_GENERATION_MODELS[props.tts_clone_endpoint]
+            return self._tts_clone(context, props)
+
+    def _tts_preset(
+        self, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> set[str]:
+        """Generate TTS using a preset voice."""
+        model = SPEECH_GENERATION_MODELS[props.tts_preset_endpoint]
 
         # Resolve voice: use custom text if "Custom" selected, else the preset name
         voice = (
@@ -86,6 +88,42 @@ class FalAudioOperator(FalOperator):
         )
         JobManager.get().submit(job)
         self.report({"INFO"}, "Generating speech...")
+        return {"FINISHED"}
+
+    def _tts_clone(
+        self, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> set[str]:
+        """Generate TTS using a cloned voice from reference audio."""
+        model = SPEECH_GENERATION_MODELS[props.tts_clone_endpoint]
+
+        if not model.clone_endpoint:
+            self.report({"ERROR"}, f"{model.display_name} does not support voice cloning")
+            return {"CANCELLED"}
+
+        # Upload reference audio to get a URL
+        ref_path = bpy.path.abspath(props.voice_ref_path)
+        try:
+            audio_url = upload_file(ref_path)
+        except Exception as e:
+            self.report({"ERROR"}, f"Failed to upload reference audio: {e}")
+            return {"CANCELLED"}
+
+        params = model.clone_parameters(
+            audio_url=audio_url,
+            text=props.text,
+        )
+
+        def on_complete(job: FalJob) -> None:
+            _handle_audio_result(job, "fal_tts_clone")
+
+        job = FalJob(
+            endpoint=model.clone_endpoint,
+            arguments=params,
+            on_complete=on_complete,
+            label=f"TTS Clone: {props.text[:30]}",
+        )
+        JobManager.get().submit(job)
+        self.report({"INFO"}, "Cloning voice and generating speech...")
         return {"FINISHED"}
 
     def _sfx(
