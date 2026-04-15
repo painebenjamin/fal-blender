@@ -4,6 +4,15 @@ from ...models import (MusicGenerationModel, SoundEffectsGenerationModel,
                        SpeechGenerationModel)
 
 
+def _voice_preset_items(
+    self: "FalAudioPropertyGroup",
+    context: bpy.types.Context,
+) -> list[tuple[str, str, str]]:
+    """Dynamic callback: return voice presets for the currently selected TTS model."""
+    model_key = self.tts_preset_endpoint
+    return SpeechGenerationModel.get_voice_presets_for_model(model_key)
+
+
 class FalAudioPropertyGroup(bpy.types.PropertyGroup):
     """Property group for audio generation settings."""
 
@@ -59,10 +68,8 @@ class FalAudioPropertyGroup(bpy.types.PropertyGroup):
 
     voice_preset: bpy.props.EnumProperty(
         name="Voice",
-        items=SpeechGenerationModel.enumerate_voice_presets()
-        or [("__CUSTOM__", "Custom", "Enter a custom voice ID")],
+        items=_voice_preset_items,
         description="Select a voice preset",
-        default="Aria",
     )
 
     voice_custom: bpy.props.StringProperty(

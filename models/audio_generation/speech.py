@@ -33,22 +33,17 @@ class SpeechGenerationModel(AudioFalModel):
         ]
 
     @classmethod
-    def enumerate_voice_presets(cls) -> list[tuple[str, str, str]]:
-        """Return Blender EnumProperty items for voice presets.
+    def get_voice_presets_for_model(cls, model_key: str) -> list[tuple[str, str, str]]:
+        """Return Blender EnumProperty items for a specific model's voice presets.
 
-        Each model subclass defines ``voice_presets``.  This helper merges
-        all presets from all preset-capable subclasses, de-duplicates, and
-        appends a *Custom* sentinel that lets the user type a free-form ID.
+        Looks up the model subclass by class name, reads its ``voice_presets``,
+        and appends a *Custom* sentinel for free-form IDs.
         """
-        seen: set[str] = set()
+        catalog = cls.catalog()
+        model = catalog.get(model_key)
         items: list[tuple[str, str, str]] = []
-        for subcls in cls.__subclasses__():
-            if not subcls.is_available() or not subcls.supports_preset:
-                continue
-            for name in subcls.voice_presets:
-                if name in seen:
-                    continue
-                seen.add(name)
+        if model and hasattr(model, "voice_presets"):
+            for name in model.voice_presets:
                 items.append((name, name, f"Preset voice: {name}"))
         items.append(("__CUSTOM__", "Custom", "Enter a custom voice ID"))
         return items
