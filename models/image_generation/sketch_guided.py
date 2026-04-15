@@ -21,7 +21,8 @@ class SketchGuidedImageGenerationModel(VisualFalModel):
         """
         params = super().parameters(**kwargs)
         prompt = params.pop("prompt", "")
-        system_prompt = params.pop("system_prompt", "")
+        # system_prompt comes from kwargs, not params (parent doesn't pass it through)
+        system_prompt = kwargs.get("system_prompt", "")
         if system_prompt and prompt:
             prompt = f"{system_prompt}\n\nFollow the user's prompt: {prompt}"
         elif system_prompt and not prompt:
