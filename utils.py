@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import mimetypes
+import os
 import re
 import tempfile
 import time
@@ -11,7 +12,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .preferences import ensure_api_key
+from .preferences import ensure_api_key, get_output_dir
 
 if TYPE_CHECKING:
     import bpy
@@ -60,19 +61,30 @@ def path_to_data_uri(path: str, mime_type: str | None = None) -> str:
         return f"data:{mime_type};base64,{base64.b64encode(f.read()).decode('utf-8')}"
 
 
-def download_file(url: str, suffix: str = ".bin") -> str:
+def download_file(url: str, suffix: str = ".bin", to_temp: bool = False) -> str:
     """
-    Download a URL to a temp file, return local path.
+    Download a URL to the output directory (or temp if specified).
+
     :param url: URL of the file
-    :param suffix: suffix of the file
+    :param suffix: suffix/extension of the file
+    :param to_temp: if True, save to temp directory instead of output dir
     :return: local path of the downloaded file
     """
     import urllib.request
+    import uuid
 
     ext = Path(url.split("?")[0]).suffix or suffix
-    with tempfile.NamedTemporaryFile(prefix="fal_dl_", suffix=ext, delete=False) as f:
-        urllib.request.urlretrieve(url, f.name)
-        return f.name
+    filename = f"fal_{uuid.uuid4().hex[:8]}{ext}"
+
+    if to_temp:
+        filepath = os.path.join(tempfile.gettempdir(), filename)
+    else:
+        output_dir = get_output_dir()
+        filepath = os.path.join(output_dir, filename)
+
+    urllib.request.urlretrieve(url, filepath)
+    print(f"fal.ai: Downloaded {url} -> {filepath}")
+    return filepath
 
 
 def upload_file(filepath: str) -> str:

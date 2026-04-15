@@ -27,7 +27,7 @@ class FalPreferences(bpy.types.AddonPreferences):
         name="Output Directory",
         description="Where to save generated assets",
         subtype="DIR_PATH",
-        default="",
+        default="~/fal.ai",
     )
 
     auto_import: bpy.props.BoolProperty(
@@ -99,3 +99,33 @@ def ensure_api_key() -> str:
     # Set in env so fal_client picks it up
     os.environ["FAL_KEY"] = key
     return key
+
+
+def get_output_dir() -> str:
+    """
+    Get the output directory for generated assets.
+
+    Returns the configured directory, expanding ~ to user home.
+    Creates the directory if it doesn't exist.
+
+    Returns:
+        Absolute path to the output directory.
+    """
+    try:
+        prefs = bpy.context.preferences.addons[_addon_package].preferences
+        output_dir = prefs.output_dir
+    except (KeyError, AttributeError):
+        output_dir = ""
+
+    # Default to ~/fal.ai if not set
+    if not output_dir:
+        output_dir = "~/fal.ai"
+
+    # Expand ~ and make absolute
+    output_dir = os.path.expanduser(output_dir)
+    output_dir = os.path.abspath(output_dir)
+
+    # Create directory if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
+
+    return output_dir
