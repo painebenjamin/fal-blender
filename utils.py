@@ -31,6 +31,10 @@ __all__ = [
     "set_world_color",
     "get_default_font",
     "get_endpoint_pricing",
+    "get_endpoint_description",
+    "get_playground_url",
+    "get_request_playground_url",
+    "open_folder",
 ]
 
 
@@ -309,3 +313,90 @@ def get_endpoint_pricing(endpoint: str, max_retries: int = 3) -> str:
             break
 
     return _strip_markdown_for_display(pricing_text)
+
+
+# Cache for endpoint descriptions (avoid repeated fetches)
+_endpoint_descriptions: dict[str, str] = {}
+
+
+def get_endpoint_description(endpoint: str, max_retries: int = 3) -> str:
+    """
+    Returns the description for a model from llms.txt.
+
+    :param endpoint: model endpoint ID
+    :return: description text (blockquote section after title)
+    """
+    if endpoint in _endpoint_descriptions:
+        return _endpoint_descriptions[endpoint]
+
+    import urllib.request
+
+    url = f"https://fal.ai/models/{endpoint.strip('/')}/llms.txt"
+    for retry_num in range(max_retries):
+        try:
+            with urllib.request.urlopen(url, timeout=5) as response:
+                llms_txt = response.read().decode("utf-8")
+                break
+        except Exception as e:
+            if retry_num == max_retries - 1:
+                return ""
+            time.sleep(0.3 * 2**retry_num)
+
+    # Look for blockquote after title (> description...)
+    lines = llms_txt.splitlines()
+    description_lines = []
+    in_description = False
+    for line in lines:
+        if line.startswith("> "):
+            in_description = True
+            description_lines.append(line[2:].strip())
+        elif in_description:
+            if line.strip() == "" or line.startswith("#"):
+                break
+            if line.startswith("> "):
+                description_lines.append(line[2:].strip())
+
+    description = " ".join(description_lines)
+    _endpoint_descriptions[endpoint] = description
+    return description
+
+
+def get_playground_url(endpoint: str) -> str:
+    """
+    Get the playground URL for an endpoint.
+
+    :param endpoint: model endpoint ID (e.g. fal-ai/flux-2/klein/9b/edit)
+    :return: playground URL
+    """
+    return f"https://fal.ai/models/{endpoint.strip('/')}/playground"
+
+
+def get_request_playground_url(endpoint: str, request_id: str) -> str:
+    """
+    Get the playground URL for a specific request.
+
+    :param endpoint: model endpoint ID
+    :param request_id: request UUID from fal API
+    :return: playground URL with request preloaded
+    """
+    base = get_playground_url(endpoint)
+    return f"{base}?requestId={request_id}"
+
+
+def open_folder(path: str) -> None:
+    """
+    Open a folder in the system file browser.
+
+    Works cross-platform: macOS (open), Windows (explorer), Linux (xdg-open).
+    """
+    import subprocess
+    import sys
+
+    path = os.path.abspath(os.path.expanduser(path))
+
+    if sys.platform == "darwin":
+        subprocess.run(["open", path])
+    elif sys.platform == "win32":
+        subprocess.run(["explorer", path])
+    else:
+        subprocess.run(["xdg-open", path])

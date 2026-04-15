@@ -9,6 +9,26 @@ import bpy
 _addon_package = __package__
 
 
+class FAL_OT_OpenOutputFolder(bpy.types.Operator):
+    """Open the fal.ai output folder in the system file browser."""
+
+    bl_idname = "fal.open_output_folder"
+    bl_label = "Open Output Folder"
+    bl_description = "Open the folder where generated assets are saved"
+
+    def execute(self, context: bpy.types.Context) -> set[str]:
+        from .utils import open_folder
+
+        output_dir = get_output_dir()
+        try:
+            open_folder(output_dir)
+            self.report({"INFO"}, f"Opened {output_dir}")
+        except Exception as e:
+            self.report({"ERROR"}, f"Could not open folder: {e}")
+            return {"CANCELLED"}
+        return {"FINISHED"}
+
+
 class FalPreferences(bpy.types.AddonPreferences):
     """
     Preferences for the fal.ai addon.
@@ -58,7 +78,10 @@ class FalPreferences(bpy.types.AddonPreferences):
                 "https://fal.ai/dashboard/keys"
             )
 
-        layout.prop(self, "output_dir")
+        row = layout.row(align=True)
+        row.prop(self, "output_dir")
+        row.operator("fal.open_output_folder", text="", icon="FILE_FOLDER")
+
         layout.prop(self, "auto_import")
 
 

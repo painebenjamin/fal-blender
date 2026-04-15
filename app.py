@@ -2,6 +2,7 @@ import bpy
 
 from .controllers import FalController
 from .job_queue import JobManager
+from .utils import get_request_playground_url
 
 CONTROLLERS_3D = FalController.enumerate(for_3d_panel=True)
 CONTROLLERS_VSE = FalController.enumerate(for_vse_panel=True)
@@ -150,7 +151,8 @@ class BaseJobsPanel(bpy.types.Panel):
                 row.label(text=job.label, icon="TIME")
                 row.label(text=job.status)
             if job.request_id:
-                box.label(text=f"Request: {job.request_id}")
+                row = box.row(align=True)
+                row.label(text=f"ID: ...{job.request_id[-12:]}")
             if job.error:
                 _draw_error(box, job.error)
             elif job.progress_message:
@@ -166,9 +168,25 @@ class BaseJobsPanel(bpy.types.Panel):
                 icon = "CHECKMARK" if job.status == "complete" else "ERROR"
                 row.label(text=job.label, icon=icon)
                 if job.request_id:
-                    box.label(text=f"Request: {job.request_id}")
+                    # Playground link
+                    row = box.row(align=True)
+                    row.scale_y = 0.9
+                    playground_url = get_request_playground_url(
+                        job.endpoint, job.request_id
+                    )
+                    op = row.operator(
+                        "wm.url_open",
+                        text=f"View on fal.ai",
+                        icon="URL",
+                    )
+                    op.url = playground_url
                 if job.error:
                     _draw_error(box, job.error)
+
+        # Quick access to output folder
+        layout.separator()
+        row = layout.row()
+        row.operator("fal.open_output_folder", icon="FILE_FOLDER")
 
 
 class FAL_PT_3D_JobsPanel(BaseJobsPanel):

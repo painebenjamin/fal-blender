@@ -17,13 +17,14 @@ from .app import (
 )
 from .controllers import FalController
 from .job_queue import JobManager
-from .preferences import FalPreferences
+from .preferences import FAL_OT_OpenOutputFolder, FalPreferences
 
 
 def register() -> None:
     """
     Register the fal.ai addon.
     """
+    bpy.utils.register_class(FAL_OT_OpenOutputFolder)
     bpy.utils.register_class(FalPreferences)
     bpy.utils.register_class(FalAI3DSceneProperties)
     bpy.utils.register_class(FalAIVSESceneProperties)
@@ -45,6 +46,7 @@ def unregister() -> None:
     """
     Unregister the fal.ai addon.
     """
+    bpy.utils.unregister_class(FAL_OT_OpenOutputFolder)
     bpy.utils.unregister_class(FalPreferences)
     bpy.utils.unregister_class(FalAI3DSceneProperties)
     bpy.utils.unregister_class(FalAIVSESceneProperties)

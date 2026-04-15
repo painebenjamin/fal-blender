@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, TypeAlias
 
 import bpy
 
+from ..utils import get_endpoint_description, get_playground_url
+
 if TYPE_CHECKING:
     from ..models.base import FalModel
 
@@ -126,6 +128,54 @@ class FalControllerPanel:
             return catalog.get(model_key)
         return None
 
+    def draw_endpoint_info(
+        self,
+        layout: bpy.types.UILayout,
+        context: bpy.types.Context,
+        props: bpy.types.PropertyGroup,
+        wrap_width: int = 45,
+    ) -> None:
+        """Display endpoint description, pricing, and playground link."""
+        if not self.endpoint_models:
+            return
+        model = self._get_active_model(context, props)
+        if model is None:
+            return
+
+        box = layout.box()
+
+        # Description (fetched from llms.txt)
+        try:
+            description = get_endpoint_description(model.endpoint)
+            if description:
+                col = box.column(align=True)
+                col.scale_y = 0.7
+                for wrapped in textwrap.wrap(description, wrap_width) or [""]:
+                    col.label(text=wrapped)
+                box.separator()
+        except Exception:
+            pass
+
+        # Pricing
+        try:
+            pricing = model.get_pricing()
+            if pricing:
+                col = box.column(align=True)
+                col.scale_y = 0.7
+                for line in pricing.splitlines():
+                    if not line.strip():
+                        continue
+                    for wrapped in textwrap.wrap(line, wrap_width) or [""]:
+                        col.label(text=wrapped)
+        except Exception:
+            pass
+
+        # Playground link
+        row = box.row()
+        row.scale_y = 0.9
+        op = row.operator("wm.url_open", text="Open Playground", icon="URL")
+        op.url = get_playground_url(model.endpoint)
+
     def draw_pricing(
         self,
         layout: bpy.types.UILayout,
@@ -133,23 +183,11 @@ class FalControllerPanel:
         props: bpy.types.PropertyGroup,
         wrap_width: int = 40,
     ) -> None:
-        """Display pricing for the currently selected endpoint."""
-        if not self.endpoint_models:
-            return
-        model = self._get_active_model(context, props)
-        if model is None:
-            return
-        pricing = model.get_pricing()
-        if not pricing:
-            return
-        box = layout.box()
-        col = box.column(align=True)
-        col.scale_y = 0.7
-        for line in pricing.splitlines():
-            if not line.strip():
-                continue
-            for wrapped in textwrap.wrap(line, wrap_width) or [""]:
-                col.label(text=wrapped)
+        """Display pricing for the currently selected endpoint.
+
+        DEPRECATED: Use draw_endpoint_info() instead.
+        """
+        self.draw_endpoint_info(layout, context, props, wrap_width)
 
     def draw_status(
         self,
@@ -205,7 +243,7 @@ class FalControllerPanel:
             self.draw_field(layout, context, props, field_name)
             visited_fields.add(field_name)
 
-        self.draw_pricing(layout, context, props)
+        self.draw_endpoint_info(layout, context, props)
         self.draw_status(layout, context, props)
         self.draw_operator(
             layout, context, props, operator_name, operator_icon, operator_size
