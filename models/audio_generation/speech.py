@@ -5,6 +5,7 @@ from ..base import AudioFalModel
 __all__ = [
     "SpeechGenerationModel",
     "ElevenLabsSpeechGenerationModel",
+    "MiniMaxSpeechGenerationModel",
 ]
 
 
@@ -73,3 +74,31 @@ class ElevenLabsSpeechGenerationModel(SpeechGenerationModel):
         "Will", "Jessica", "Eric", "Chris", "Brian", "Daniel",
         "Lily", "Bill",
     ]
+
+
+class MiniMaxSpeechGenerationModel(SpeechGenerationModel):
+    """MiniMax Speech 2.8 Turbo text-to-speech model."""
+
+    endpoint = "fal-ai/minimax/speech-2.8-turbo"
+    display_name = "MiniMax Speech 2.8 Turbo"
+    supports_preset = True
+    voice_presets = [
+        "Wise_Woman", "Friendly_Person", "Inspirational_girl", "Deep_Voice_Man",
+        "Calm_Woman", "Casual_Guy", "Lively_Girl", "Patient_Man",
+        "Young_Knight", "Determined_Man", "Lovely_Girl", "Decent_Boy",
+        "Imposing_Manner", "Elegant_Man", "Abbess", "Sweet_Girl_2",
+        "Exuberant_Girl",
+    ]
+
+    @classmethod
+    def parameters(cls, **kwargs: Any) -> dict[str, Any]:
+        """MiniMax uses 'prompt' (not 'text') and nested voice_setting.voice_id."""
+        params: dict[str, Any] = {}
+        text = kwargs.get("text", None)
+        if text:
+            params["prompt"] = text
+        voice = kwargs.get("voice", None)
+        if voice:
+            params["voice_setting"] = {"voice_id": voice}
+        params["output_format"] = "url"  # Get URL back, not hex
+        return params
