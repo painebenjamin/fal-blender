@@ -1,7 +1,7 @@
 # Blender extension: download wheels for every platform on one machine, sync manifest, package.
 # https://docs.blender.org/manual/en/latest/advanced/extensions/python_wheels.html
 
-PYTHON_VERSION ?= 3.13
+# Python versions handled in build_wheels.sh (3.11 for Blender 4.x, 3.13 for Blender 5.x)
 DIST_DIR       ?= dist
 WHEEL_DIR      ?= wheels
 

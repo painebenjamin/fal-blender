@@ -78,7 +78,7 @@ Key design points:
 
 ## Requirements
 
-- Blender 4.5+
+- Blender 4.2+ (supports both Blender 4.x and 5.x)
 - A [fal.ai](https://fal.ai) API key
 
 ## Installation
@@ -117,7 +117,7 @@ zip -r fal_ai.zip . -x ".*" -x "__pycache__/*" -x "scripts/*" -x "tests/*"
 
 ## License
 
-Apache 2.0 — Copyright 2026 Features and Labels, Inc.
+GPL-3.0-or-later — Copyright 2026 Features and Labels, Inc.
 
 ---
 

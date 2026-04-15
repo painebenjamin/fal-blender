@@ -2,17 +2,22 @@
 # Download fal-client and dependencies as wheels for bundling.
 # Run from the repo root: bash scripts/build_wheels.sh
 # Cross-platform downloads use pip's --platform (see Blender manual: Python Wheels).
+# Downloads wheels for BOTH Python 3.11 (Blender 4.x) and Python 3.13 (Blender 5.x).
 set -euo pipefail
 
 WHEEL_DIR="${WHEEL_DIR:-wheels}"
-PYTHON_VERSION="${PYTHON_VERSION:-3.13}"
 mkdir -p "$WHEEL_DIR"
 # For a clean download directory: `make clean` (removes wheels/) or WHEEL_FRESH=1.
 if [ "${WHEEL_FRESH:-0}" != 0 ]; then
     rm -rf "${WHEEL_DIR:?}/"*
 fi
 
-# Pip platform tags for binary wheels (Blender 4.5+ uses CPython 3.11+; adjust PYTHON_VERSION if needed).
+# Python versions to support:
+# - 3.11 for Blender 4.2 - 4.x
+# - 3.13 for Blender 5.0+
+PYTHON_VERSIONS=("3.11" "3.13")
+
+# Pip platform tags for binary wheels.
 # manylinux_2_28 matches the Blender docs example; PyPI may emit a compound manylinux tag on the filename.
 PLATFORMS=(
     "manylinux_2_28_x86_64"
@@ -22,27 +27,32 @@ PLATFORMS=(
     "win_arm64"
 )
 
+# Universal wheels (py3-none-any) only need to be downloaded once.
 echo "=== Downloading universal wheels (py3-none-any) ==="
 # Omit --platform so pip still prefers py3-none-any for these. Do not list packages here that
 # only publish per-platform wheels (e.g. websockets) — those go in the platform loop below.
 pip download \
     --dest "$WHEEL_DIR" \
     --only-binary :all: \
-    --python-version $PYTHON_VERSION \
+    --python-version 3.11 \
     --no-deps \
     fal-client httpx httpx-sse httpcore certifi idna sniffio anyio h11
 
 echo ""
 echo "=== Downloading platform-specific wheels (msgpack, Pillow, websockets) ==="
-for plat in "${PLATFORMS[@]}"; do
-    echo "  → $plat"
-    pip download \
-        --dest "$WHEEL_DIR" \
-        --only-binary :all: \
-        --platform "$plat" \
-        --python-version $PYTHON_VERSION \
-        --no-deps \
-        msgpack Pillow websockets || echo "    (skipped $plat)"
+for pyver in "${PYTHON_VERSIONS[@]}"; do
+    echo "--- Python $pyver ---"
+    for plat in "${PLATFORMS[@]}"; do
+        echo "  → $plat (cp${pyver//./})"
+        pip download \
+            --dest "$WHEEL_DIR" \
+            --only-binary :all: \
+            --platform "$plat" \
+            --python-version "$pyver" \
+            --no-deps \
+            msgpack Pillow websockets || echo "    (skipped $plat for Python $pyver)"
+    done
+    echo ""
 done
 
 echo ""
