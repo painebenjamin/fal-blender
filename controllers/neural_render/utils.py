@@ -30,12 +30,18 @@ def get_dimensions(
 
 
 def overlay_labels(
-    context: bpy.types.Context, image_path: str, width: int, height: int
+    context: bpy.types.Context,
+    image_path: str,
+    width: int,
+    height: int,
+    auto_label: bool = False,
 ) -> None:
     """Overlay text labels on the rendered image using Pillow.
 
     Finds objects with 'fal_ai_label' custom property, projects their
     world position to 2D screen coordinates, and draws labels.
+
+    :param auto_label: If True, automatically label objects without explicit labels.
     """
     try:
         from PIL import Image, ImageDraw, ImageFont
@@ -49,7 +55,6 @@ def overlay_labels(
         return
 
     # Collect labeled objects
-    props = scene.fal_neural_render
     labeled = []
 
     _skip_types = {"CAMERA", "LIGHT", "EMPTY", "ARMATURE"}
@@ -64,7 +69,7 @@ def overlay_labels(
         label = obj.get("fal_ai_label")
         if label and isinstance(label, str):
             labeled.append((obj, label))
-        elif props.auto_label:
+        elif auto_label:
             name = obj.name
             if name in _skip_names:
                 continue

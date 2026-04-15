@@ -455,7 +455,7 @@ class FalNeuralRenderOperator(FalOperator):
 
         # Overlay labels (after restore — uses camera projection + geometry)
         if self._enable_labels:
-            overlay_labels(context, tmp, self._render_w, self._render_h)
+            overlay_labels(context, tmp, self._render_w, self._render_h, self._auto_label)
 
         # Upload and submit
         seed = self._seed if self._seed >= 0 else None
