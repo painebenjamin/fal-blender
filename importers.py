@@ -194,6 +194,16 @@ def import_image_to_editor(
     return img
 
 
+def _vse_all_strips(se: bpy.types.SequenceEditor):
+    """All VSE strips (incl. meta); Blender 5+ uses strips_all, 4.x uses sequences_all."""
+    return se.strips_all if hasattr(se, "strips_all") else se.sequences_all
+
+
+def _vse_editable_strips(se: bpy.types.SequenceEditor):
+    """Collection with new_sound / new_movie / remove; Blender 5+ uses strips, 4.x uses sequences."""
+    return se.strips if hasattr(se, "strips") else se.sequences
+
+
 def add_audio_to_vse(
     filepath: str,
     *,
@@ -209,11 +219,12 @@ def add_audio_to_vse(
 
     # Find first available channel
     channel = 1
-    used_channels = {s.channel for s in se.sequences_all} if se.sequences_all else set()
+    strips = _vse_editable_strips(se)
+    used_channels = {s.channel for s in _vse_all_strips(se)}
     while channel in used_channels:
         channel += 1
 
-    strip = se.sequences.new_sound(
+    strip = strips.new_sound(
         name=name,
         filepath=filepath,
         channel=channel,
@@ -241,14 +252,15 @@ def add_video_to_vse(
 
     se = scene.sequence_editor
 
-    used_channels = {s.channel for s in se.sequences_all} if se.sequences_all else set()
+    strips = _vse_editable_strips(se)
+    used_channels = {s.channel for s in _vse_all_strips(se)}
     channel = 1
     while channel in used_channels:
         channel += 1
 
     frame_start = scene.frame_current
 
-    strip = se.sequences.new_movie(
+    strip = strips.new_movie(
         name=name,
         filepath=filepath,
         channel=channel,
@@ -260,14 +272,14 @@ def add_video_to_vse(
         sound_channel += 1
 
     try:
-        sound_strip = se.sequences.new_sound(
+        sound_strip = strips.new_sound(
             name=f"{name}_audio",
             filepath=filepath,
             channel=sound_channel,
             frame_start=frame_start,
         )
         if sound_strip.frame_duration <= 1:
-            se.sequences.remove(sound_strip)
+            strips.remove(sound_strip)
             sound_strip = None
         elif sound_strip.frame_final_end != strip.frame_final_end:
             sound_strip.frame_final_end = strip.frame_final_end
