@@ -36,6 +36,8 @@ __all__ = [
     "get_request_playground_url",
     "open_folder",
     "get_eevee_engine",
+    "get_compositor_node_tree",
+    "ensure_compositor_enabled",
 ]
 
 
@@ -416,3 +418,45 @@ def get_eevee_engine() -> str:
     if bpy.app.version >= (5, 0, 0):
         return "BLENDER_EEVEE"
     return "BLENDER_EEVEE_NEXT"
+
+
+def get_compositor_node_tree(scene: bpy.types.Scene) -> bpy.types.NodeTree | None:
+    """
+    Get the compositor node tree for a scene, handling API changes.
+
+    Blender 4.x: scene.node_tree (when scene.use_nodes is True)
+    Blender 5.x: scene.compositing_node_group
+    """
+    import bpy
+
+    if bpy.app.version >= (5, 0, 0):
+        return getattr(scene, "compositing_node_group", None)
+    # Blender 4.x
+    if scene.use_nodes:
+        return scene.node_tree
+    return None
+
+
+def ensure_compositor_enabled(scene: bpy.types.Scene) -> bpy.types.NodeTree:
+    """
+    Ensure the compositor is enabled and return the node tree.
+
+    Blender 4.x: sets scene.use_nodes = True, returns scene.node_tree
+    Blender 5.x: creates compositing_node_group if needed, returns it
+
+    In Blender 5, scene.use_nodes is deprecated (always returns True).
+    Use scene.render.use_compositing to enable/disable compositing in renders.
+    """
+    import bpy
+
+    if bpy.app.version >= (5, 0, 0):
+        # Blender 5.x
+        tree = scene.compositing_node_group
+        if tree is None:
+            tree = bpy.data.node_groups.new("Compositing", "CompositorNodeTree")
+            scene.compositing_node_group = tree
+        return tree
+    else:
+        # Blender 4.x
+        scene.use_nodes = True
+        return scene.node_tree

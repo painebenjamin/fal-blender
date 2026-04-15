@@ -9,8 +9,10 @@ import bpy
 from ...importers import add_video_to_vse
 from ...job_queue import FalJob, JobManager
 from ...models import DepthVideoModel, ImageToVideoModel, TextToVideoModel
-from ...utils import (download_file, get_eevee_engine, restore_compositor,
-                      snapshot_compositor, upload_blender_image, upload_file)
+from ...utils import (download_file, ensure_compositor_enabled,
+                      get_compositor_node_tree, get_eevee_engine,
+                      restore_compositor, snapshot_compositor,
+                      upload_blender_image, upload_file)
 from ..neural_render.utils import calc_scene_depth_bounds
 from ..operators import FalOperator
 
@@ -312,7 +314,6 @@ class FalDepthVideoOperator(FalOperator):
                 "engine": scene.render.engine,
                 "film_transparent": scene.render.film_transparent,
                 "use_compositing": scene.render.use_compositing,
-                "use_nodes": scene.use_nodes,
                 "use_pass_mist": view_layer.use_pass_mist,
                 "view_transform": scene.view_settings.view_transform,
                 "look": scene.view_settings.look,
@@ -321,6 +322,9 @@ class FalDepthVideoOperator(FalOperator):
                 "filepath": scene.render.filepath,
             }
         )
+        # Blender 4.x only: save use_nodes (deprecated in 5.x)
+        if bpy.app.version < (5, 0, 0):
+            self._saved["use_nodes"] = scene.use_nodes
 
         try:
             self._saved["ffmpeg_codec"] = scene.render.ffmpeg.codec
@@ -358,8 +362,7 @@ class FalDepthVideoOperator(FalOperator):
                 world.mist_settings.depth = cam_data.clip_end - cam_data.clip_start
                 world.mist_settings.falloff = "LINEAR"
 
-        scene.use_nodes = True
-        tree = scene.node_tree
+        tree = ensure_compositor_enabled(scene)
         self._saved_compositor = snapshot_compositor(tree)
         for node in tree.nodes:
             tree.nodes.remove(node)
@@ -426,10 +429,11 @@ class FalDepthVideoOperator(FalOperator):
         world = scene.world
         s = self._saved
 
-        if self._saved_compositor and scene.node_tree:
-            for node in scene.node_tree.nodes:
-                scene.node_tree.nodes.remove(node)
-            restore_compositor(scene.node_tree, self._saved_compositor)
+        tree = get_compositor_node_tree(scene)
+        if self._saved_compositor and tree:
+            for node in tree.nodes:
+                tree.nodes.remove(node)
+            restore_compositor(tree, self._saved_compositor)
             self._saved_compositor = []
 
         if "engine" in s:
@@ -438,7 +442,8 @@ class FalDepthVideoOperator(FalOperator):
             scene.render.film_transparent = s["film_transparent"]
         if "use_compositing" in s:
             scene.render.use_compositing = s["use_compositing"]
-        if "use_nodes" in s:
+        # Blender 4.x only: restore use_nodes (deprecated in 5.x)
+        if "use_nodes" in s and bpy.app.version < (5, 0, 0):
             scene.use_nodes = s["use_nodes"]
         if "use_pass_mist" in s:
             view_layer.use_pass_mist = s["use_pass_mist"]

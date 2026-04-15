@@ -9,7 +9,8 @@ from ...importers import import_image_to_editor, resize_image_to_target
 from ...job_queue import FalJob, JobManager
 from ...models import (DepthGuidedImageGenerationModel, ImageRefinementModel,
                        SketchGuidedImageGenerationModel)
-from ...utils import (download_file, get_eevee_engine, get_world_color,
+from ...utils import (download_file, ensure_compositor_enabled,
+                      get_compositor_node_tree, get_eevee_engine, get_world_color,
                       restore_compositor, set_world_color, snapshot_compositor)
 from ..operators import FalOperator
 from .utils import (calc_scene_depth_bounds, get_dimensions, overlay_labels,
@@ -209,10 +210,12 @@ class FalNeuralRenderOperator(FalOperator):
                 "res_y": scene.render.resolution_y,
                 "res_pct": scene.render.resolution_percentage,
                 "use_compositing": scene.render.use_compositing,
-                "use_nodes": scene.use_nodes,
                 "use_pass_mist": view_layer.use_pass_mist,
             }
         )
+        # Blender 4.x only: save use_nodes (deprecated in 5.x)
+        if bpy.app.version < (5, 0, 0):
+            self._saved["use_nodes"] = scene.use_nodes
         if world:
             self._saved["mist_start"] = world.mist_settings.start
             self._saved["mist_depth"] = world.mist_settings.depth
@@ -250,8 +253,7 @@ class FalNeuralRenderOperator(FalOperator):
                 world.mist_settings.falloff = "LINEAR"
 
         # Build compositor: Mist → Invert → Composite
-        scene.use_nodes = True
-        tree = scene.node_tree
+        tree = ensure_compositor_enabled(scene)
         self._saved_compositor = snapshot_compositor(tree)
         for node in tree.nodes:
             tree.nodes.remove(node)
@@ -561,10 +563,11 @@ class FalNeuralRenderOperator(FalOperator):
         s = self._saved
 
         # Restore compositor
-        if self._saved_compositor and scene.node_tree:
-            for node in scene.node_tree.nodes:
-                scene.node_tree.nodes.remove(node)
-            restore_compositor(scene.node_tree, self._saved_compositor)
+        tree = get_compositor_node_tree(scene)
+        if self._saved_compositor and tree:
+            for node in tree.nodes:
+                tree.nodes.remove(node)
+            restore_compositor(tree, self._saved_compositor)
             self._saved_compositor = []
 
         # Restore render settings
@@ -580,7 +583,8 @@ class FalNeuralRenderOperator(FalOperator):
             scene.render.resolution_percentage = s["res_pct"]
         if "use_compositing" in s:
             scene.render.use_compositing = s["use_compositing"]
-        if "use_nodes" in s:
+        # Blender 4.x only: restore use_nodes (deprecated in 5.x)
+        if "use_nodes" in s and bpy.app.version < (5, 0, 0):
             scene.use_nodes = s["use_nodes"]
         if "use_pass_mist" in s:
             view_layer.use_pass_mist = s["use_pass_mist"]
