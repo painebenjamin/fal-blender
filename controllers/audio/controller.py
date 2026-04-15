@@ -26,6 +26,7 @@ class FalAudioController(FalController):
             "music_endpoint",
             "voice_mode",
             "voice_preset",
+            "voice_custom",
             "voice_ref_path",
             "text",
             "sfx_prompt",
@@ -41,6 +42,9 @@ class FalAudioController(FalController):
             "voice_mode": lambda context, props: props.mode == "TTS",
             "voice_preset": lambda context, props: props.mode == "TTS"
             and props.voice_mode == "PRESET",
+            "voice_custom": lambda context, props: props.mode == "TTS"
+            and props.voice_mode == "PRESET"
+            and props.voice_preset == "__CUSTOM__",
             "voice_ref_path": lambda context, props: props.mode == "TTS"
             and props.voice_mode == "CLONE",
             "sfx_prompt": lambda context, props: props.mode == "SFX",

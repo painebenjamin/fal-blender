@@ -33,12 +33,6 @@ class FalGenerate3DPropertyGroup(bpy.types.PropertyGroup):
         default="",
     )
 
-    enable_prompt_expansion: bpy.props.BoolProperty(
-        name="Prompt Expansion",
-        description="Let the AI model expand and enhance your prompt for better results",
-        default=True,
-    )
-
     image_source: bpy.props.EnumProperty(
         name="Image Source",
         items=[

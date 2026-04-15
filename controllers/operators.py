@@ -68,6 +68,11 @@ class FalOperator(metaclass=ABCMeta):
         pass
 
     @classmethod
+    def clear_operator_cache(cls) -> None:
+        """Remove the cached operator class so it can be re-created on re-register."""
+        cls.__dict__.pop("_operator_class", None)
+
+    @classmethod
     def operator(
         cls,
         props_alias: str,

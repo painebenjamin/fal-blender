@@ -198,8 +198,10 @@ class FalController(metaclass=ABCMeta):
         """
         Unregister the operator class for the controller.
         """
-        if hasattr(cls, "_operator_class"):
-            bpy.utils.unregister_class(cls._operator_class)
+        operator_cls = cls.operator_class
+        if hasattr(operator_cls, "_operator_class"):
+            bpy.utils.unregister_class(operator_cls._operator_class)
+            operator_cls.clear_operator_cache()
 
     @classmethod
     def register_panel_3d(cls, parent_id: str, parent_props_alias: str) -> None:
@@ -234,6 +236,7 @@ class FalController(metaclass=ABCMeta):
         """
         if hasattr(cls, "_panel_3d_class"):
             bpy.utils.unregister_class(cls._panel_3d_class)
+            del cls._panel_3d_class
 
     @classmethod
     def unregister_panel_vse(cls) -> None:
@@ -242,6 +245,7 @@ class FalController(metaclass=ABCMeta):
         """
         if hasattr(cls, "_panel_vse_class"):
             bpy.utils.unregister_class(cls._panel_vse_class)
+            del cls._panel_vse_class
 
     @classmethod
     def register_properties_pointer(cls) -> None:

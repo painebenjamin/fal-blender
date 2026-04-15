@@ -14,6 +14,8 @@ class SpeechGenerationModel(AudioFalModel):
     supports_preset: ClassVar[bool] = False
     supports_clone: ClassVar[bool] = False
     text_parameter = "text"
+    voice_presets: ClassVar[list[str]] = []
+    voice_parameter: ClassVar[str] = "voice"
 
     @classmethod
     def enumerate(cls, **kwargs: Any) -> list[tuple[str, str, str]]:
@@ -31,12 +33,36 @@ class SpeechGenerationModel(AudioFalModel):
         ]
 
     @classmethod
+    def enumerate_voice_presets(cls) -> list[tuple[str, str, str]]:
+        """Return Blender EnumProperty items for voice presets.
+
+        Each model subclass defines ``voice_presets``.  This helper merges
+        all presets from all preset-capable subclasses, de-duplicates, and
+        appends a *Custom* sentinel that lets the user type a free-form ID.
+        """
+        seen: set[str] = set()
+        items: list[tuple[str, str, str]] = []
+        for subcls in cls.__subclasses__():
+            if not subcls.is_available() or not subcls.supports_preset:
+                continue
+            for name in subcls.voice_presets:
+                if name in seen:
+                    continue
+                seen.add(name)
+                items.append((name, name, f"Preset voice: {name}"))
+        items.append(("__CUSTOM__", "Custom", "Enter a custom voice ID"))
+        return items
+
+    @classmethod
     def parameters(cls, **kwargs: Any) -> dict[str, Any]:
         """
         Returns the parameters for the model.
         """
         params = super().parameters(**kwargs)
         params["text"] = kwargs.get("text", None)
+        voice = kwargs.get("voice", None)
+        if voice:
+            params[cls.voice_parameter] = voice
         return params
 
 
@@ -46,3 +72,9 @@ class ElevenLabsSpeechGenerationModel(SpeechGenerationModel):
     endpoint = "fal-ai/elevenlabs/tts/turbo-v2.5"
     display_name = "ElevenLabs TTS Turbo v2.5"
     supports_preset = True
+    voice_presets = [
+        "Aria", "Roger", "Sarah", "Laura", "Charlie", "George",
+        "Callum", "River", "Liam", "Charlotte", "Alice", "Matilda",
+        "Will", "Jessica", "Eric", "Chris", "Brian", "Daniel",
+        "Lily", "Bill",
+    ]

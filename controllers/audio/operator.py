@@ -63,9 +63,15 @@ class FalAudioOperator(FalOperator):
         else:
             model = SPEECH_GENERATION_MODELS[props.tts_clone_endpoint]
 
+        # Resolve voice: use custom text if "Custom" selected, else the preset name
+        voice = (
+            props.voice_custom
+            if props.voice_preset == "__CUSTOM__"
+            else props.voice_preset
+        )
         params = model.parameters(
             text=props.text,
-            voice=props.voice_preset,
+            voice=voice,
             duration=props.duration,
         )
 

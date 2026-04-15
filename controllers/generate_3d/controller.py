@@ -19,7 +19,6 @@ class FalGenerate3DController(FalController):
             "text_endpoint",
             "image_endpoint",
             "prompt",
-            "enable_prompt_expansion",
             "image_source",
             "image_path",
             "generate_materials",
@@ -27,8 +26,6 @@ class FalGenerate3DController(FalController):
         field_conditions={
             "text_endpoint": lambda ctx, props: props.mode == "TEXT",
             "image_endpoint": lambda ctx, props: props.mode == "IMAGE",
-            "prompt": lambda ctx, props: props.mode == "TEXT",
-            "enable_prompt_expansion": lambda ctx, props: props.mode == "TEXT",
             "image_source": lambda ctx, props: props.mode == "IMAGE",
             "image_path": lambda ctx, props: props.mode == "IMAGE"
             and props.image_source == "FILE",

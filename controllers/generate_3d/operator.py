@@ -153,7 +153,6 @@ class FalGenerate3DOperator(FalOperator):
         model = TEXT_TO_3D_MODELS[props.text_endpoint]
         params = model.parameters(
             prompt=props.prompt,
-            enable_prompt_expansion=props.enable_prompt_expansion,
             generate_materials=props.generate_materials,
         )
         name = props.prompt[:30]
@@ -190,7 +189,10 @@ class FalGenerate3DOperator(FalOperator):
             self.report({"ERROR"}, "No image specified")
             return {"CANCELLED"}
         model = IMAGE_TO_3D_MODELS[props.image_endpoint]
-        params = model.parameters(image_path=image_path)
+        params = model.parameters(
+            image_path=image_path,
+            prompt=props.prompt,
+        )
 
         def on_complete(job: FalJob) -> None:
             _handle_3d_result(job, "image_model")

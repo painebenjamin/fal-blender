@@ -57,9 +57,17 @@ class FalAudioPropertyGroup(bpy.types.PropertyGroup):
         default="PRESET",
     )
 
-    voice_preset: bpy.props.StringProperty(
-        name="Voice Preset",
-        description="Voice preset name/ID",
+    voice_preset: bpy.props.EnumProperty(
+        name="Voice",
+        items=SpeechGenerationModel.enumerate_voice_presets()
+        or [("__CUSTOM__", "Custom", "Enter a custom voice ID")],
+        description="Select a voice preset",
+        default="Aria",
+    )
+
+    voice_custom: bpy.props.StringProperty(
+        name="Custom Voice ID",
+        description="Custom voice name or ID",
         default="",
     )
 
