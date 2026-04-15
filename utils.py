@@ -407,11 +407,12 @@ def get_eevee_engine() -> str:
     """
     Get the correct EEVEE engine name for the current Blender version.
 
-    Blender 4.x uses 'BLENDER_EEVEE', Blender 5.x uses 'BLENDER_EEVEE_NEXT'.
+    Blender 4.x uses 'BLENDER_EEVEE_NEXT' (transitional name).
+    Blender 5.x dropped the '_NEXT' suffix — it's just 'BLENDER_EEVEE'.
     """
     import bpy
 
     # Check Blender version (bpy.app.version is a tuple like (5, 2, 0))
     if bpy.app.version >= (5, 0, 0):
-        return "BLENDER_EEVEE_NEXT"
-    return "BLENDER_EEVEE"
+        return "BLENDER_EEVEE"
+    return "BLENDER_EEVEE_NEXT"
