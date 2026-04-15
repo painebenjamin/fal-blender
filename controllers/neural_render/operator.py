@@ -9,9 +9,10 @@ from ...importers import import_image_to_editor, resize_image_to_target
 from ...job_queue import FalJob, JobManager
 from ...models import (DepthGuidedImageGenerationModel, ImageRefinementModel,
                        SketchGuidedImageGenerationModel)
-from ...utils import (download_file, ensure_compositor_enabled,
-                      get_compositor_node_tree, get_eevee_engine, get_world_color,
-                      restore_compositor, set_world_color, snapshot_compositor)
+from ...utils import (create_compositor_output_node, download_file,
+                      ensure_compositor_enabled, get_compositor_node_tree,
+                      get_eevee_engine, get_world_color, restore_compositor,
+                      set_world_color, snapshot_compositor)
 from ..operators import FalOperator
 from .utils import (calc_scene_depth_bounds, get_dimensions, overlay_labels,
                     render_to_sketch)
@@ -262,7 +263,7 @@ class FalNeuralRenderOperator(FalOperator):
         rl_node.location = (0, 0)
         invert_node = tree.nodes.new("CompositorNodeInvert")
         invert_node.location = (300, 0)
-        composite_node = tree.nodes.new("CompositorNodeComposite")
+        composite_node = create_compositor_output_node(tree)
         composite_node.location = (600, 0)
         tree.links.new(rl_node.outputs["Mist"], invert_node.inputs["Color"])
         tree.links.new(invert_node.outputs["Color"], composite_node.inputs["Image"])

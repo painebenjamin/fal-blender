@@ -38,6 +38,7 @@ __all__ = [
     "get_eevee_engine",
     "get_compositor_node_tree",
     "ensure_compositor_enabled",
+    "create_compositor_output_node",
 ]
 
 
@@ -460,3 +461,29 @@ def ensure_compositor_enabled(scene: bpy.types.Scene) -> bpy.types.NodeTree:
         # Blender 4.x
         scene.use_nodes = True
         return scene.node_tree
+
+
+def create_compositor_output_node(
+    tree: bpy.types.NodeTree,
+) -> bpy.types.Node:
+    """
+    Create the compositor output node, handling API changes.
+
+    Blender 4.x: CompositorNodeComposite (has 'Image' input)
+    Blender 5.x: NodeGroupOutput (need to create socket via interface)
+
+    Returns the created node. In Blender 5, also sets up the 'Image' socket.
+    """
+    import bpy
+
+    if bpy.app.version >= (5, 0, 0):
+        # Blender 5.x: compositor is now a node group
+        output = tree.nodes.new(type="NodeGroupOutput")
+        # Create an 'Image' input socket on the node group interface
+        tree.interface.new_socket(
+            name="Image", in_out="OUTPUT", socket_type="NodeSocketColor"
+        )
+        return output
+    else:
+        # Blender 4.x: traditional compositor output
+        return tree.nodes.new("CompositorNodeComposite")
