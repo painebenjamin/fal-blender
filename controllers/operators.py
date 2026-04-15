@@ -70,7 +70,8 @@ class FalOperator(metaclass=ABCMeta):
     @classmethod
     def clear_operator_cache(cls) -> None:
         """Remove the cached operator class so it can be re-created on re-register."""
-        cls.__dict__.pop("_operator_class", None)
+        if hasattr(cls, "_operator_class"):
+            delattr(cls, "_operator_class")
 
     @classmethod
     def operator(
