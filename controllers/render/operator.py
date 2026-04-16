@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import tempfile
+import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any, ClassVar
 
 import bpy
@@ -246,19 +248,29 @@ class FalRenderOperator(FalOperator):
         if event.type != "TIMER":
             return {"PASS_THROUGH"}
 
+        # Check if Canny processing is in progress (edge video only)
+        if self._canny_future is not None:
+            if self._canny_future.done():
+                # Canny finished — continue with video encode
+                self._canny_future = None
+                self._finish_edge_video_encode(context)
+                self._cleanup_modal(context)
+                return {"FINISHED"}
+            # Still processing — keep polling
+            return {"PASS_THROUGH"}
+
         if not (self._render_done or self._render_cancelled):
             return {"PASS_THROUGH"}
 
-        # Render finished or was cancelled — clean up modal infrastructure
-        self._cleanup_modal(context)
-
         if self._render_cancelled:
+            self._cleanup_modal(context)
             self._restore_state(context)
             self.report({"WARNING"}, "Render cancelled")
             return {"CANCELLED"}
 
         # Render succeeded — dispatch to appropriate finish handler
         if self._render_type == "IMAGE":
+            self._cleanup_modal(context)
             if self._mode == "DEPTH":
                 self._finish_depth(context)
             elif self._mode == "SKETCH":
@@ -267,13 +279,16 @@ class FalRenderOperator(FalOperator):
                 self._finish_edge(context)
             else:
                 self._finish_refine(context)
+            return {"FINISHED"}
         else:  # VIDEO
             if self._video_mode == "DEPTH":
+                self._cleanup_modal(context)
                 self._finish_depth_video(context)
+                return {"FINISHED"}
             else:
-                self._finish_edge_video(context)
-
-        return {"FINISHED"}
+                # Edge video: start Canny in background, don't cleanup modal yet
+                self._start_edge_video_canny(context)
+                return {"PASS_THROUGH"}
 
     # ── Render handlers (called by Blender's render system) ────────────
 
@@ -924,8 +939,8 @@ class FalRenderOperator(FalOperator):
         scene.render.image_settings.color_mode = "RGB"
         scene.render.filepath = os.path.join(self._frames_dir, "frame_")
 
-    def _finish_edge_video(self, context: bpy.types.Context) -> None:
-        """Apply Canny to rendered frames, encode to MP4 via Blender, upload and submit."""
+    def _start_edge_video_canny(self, context: bpy.types.Context) -> None:
+        """Start background Canny edge detection on rendered frames."""
         # Find rendered PNG frames
         frames = sorted(
             f
@@ -938,14 +953,46 @@ class FalRenderOperator(FalOperator):
             self.report({"ERROR"}, "Edge video: no frames rendered")
             return
 
-        print(f"fal.ai: Applying Canny to {len(frames)} frames...")
+        # Store frames list for the encode step
+        self._canny_frames = frames
         w, h = self._render_w, self._render_h
-        for frame_file in frames:
-            frame_path = os.path.join(self._frames_dir, frame_file)
-            try:
-                render_to_canny(frame_path, w, h)
-            except Exception as e:
-                print(f"fal.ai: Canny failed on {frame_file}: {e}")
+        frames_dir = self._frames_dir
+
+        def process_frames_with_timing():
+            """Process all frames with Canny and report timing."""
+            total_start = time.perf_counter()
+            frame_times = []
+
+            for frame_file in frames:
+                frame_path = os.path.join(frames_dir, frame_file)
+                frame_start = time.perf_counter()
+                try:
+                    render_to_canny(frame_path, w, h)
+                except Exception as e:
+                    print(f"fal.ai: Canny failed on {frame_file}: {e}")
+                frame_times.append(time.perf_counter() - frame_start)
+
+            total_time = time.perf_counter() - total_start
+            avg_time = sum(frame_times) / len(frame_times) if frame_times else 0
+            print(f"fal.ai: Canny edge detection complete")
+            print(f"fal.ai:   Resolution: {w}x{h}")
+            print(f"fal.ai:   Frames: {len(frames)}")
+            print(f"fal.ai:   Total time: {total_time:.2f}s")
+            print(f"fal.ai:   Avg per frame: {avg_time*1000:.1f}ms")
+            print(f"fal.ai:   Throughput: {len(frames)/total_time:.1f} fps")
+
+        # Start processing in background thread
+        print(f"fal.ai: Starting Canny edge detection on {len(frames)} frames ({w}x{h})...")
+        executor = ThreadPoolExecutor(max_workers=1)
+        self._canny_future = executor.submit(process_frames_with_timing)
+        executor.shutdown(wait=False)  # Don't block, let it run in background
+
+    def _finish_edge_video_encode(self, context: bpy.types.Context) -> None:
+        """Encode Canny frames to MP4 and submit to fal.ai (called after Canny completes)."""
+        frames = self._canny_frames
+        if not frames:
+            self.report({"ERROR"}, "Edge video: no frames to encode")
+            return
 
         # Restore scene state from first render pass
         self._restore_state(context)
