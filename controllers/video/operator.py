@@ -204,6 +204,10 @@ class FalDepthVideoOperator(FalOperator):
         else:
             w, h = props.width, props.height
 
+        # Store actual dimensions for model parameters
+        self._render_w = w
+        self._render_h = h
+
         # Map dimensions to supported resolution tiers
         if max(w, h) >= 1280:
             self._resolution = "720p"
@@ -211,6 +215,8 @@ class FalDepthVideoOperator(FalOperator):
             self._resolution = "580p"
         else:
             self._resolution = "480p"
+
+        print(f"fal.ai: Depth video dimensions: {w}x{h} -> {self._resolution}")
 
         # Modal state
         self._render_done = False
@@ -423,6 +429,8 @@ class FalDepthVideoOperator(FalOperator):
             num_frames=self._num_frames,
             image_url=self._first_frame_url,
             resolution=self._resolution,
+            width=self._render_w,
+            height=self._render_h,
         )
 
         def on_complete(job: FalJob) -> None:
