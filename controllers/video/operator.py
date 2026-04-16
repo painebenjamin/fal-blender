@@ -325,6 +325,9 @@ class FalDepthVideoOperator(FalOperator):
         # Blender 4.x only: save use_nodes (deprecated in 5.x)
         if bpy.app.version < (5, 0, 0):
             self._saved["use_nodes"] = scene.use_nodes
+        # Blender 5.x: save media_type (new in 5.x)
+        if bpy.app.version >= (5, 0, 0):
+            self._saved["media_type"] = scene.render.image_settings.media_type
 
         try:
             self._saved["ffmpeg_codec"] = scene.render.ffmpeg.codec
@@ -376,7 +379,12 @@ class FalDepthVideoOperator(FalOperator):
         tree.links.new(rl_node.outputs["Mist"], invert_node.inputs["Color"])
         tree.links.new(invert_node.outputs["Color"], composite_node.inputs["Image"])
 
-        scene.render.image_settings.file_format = "FFMPEG"
+        # Blender 5.x: set media_type to VIDEO first (FFMPEG is now implicit)
+        # Blender 4.x: set file_format to FFMPEG
+        if bpy.app.version >= (5, 0, 0):
+            scene.render.image_settings.media_type = "VIDEO"
+        else:
+            scene.render.image_settings.file_format = "FFMPEG"
         scene.render.ffmpeg.format = "MPEG4"
         scene.render.ffmpeg.codec = "H264"
         scene.render.image_settings.color_mode = "BW"
@@ -451,6 +459,9 @@ class FalDepthVideoOperator(FalOperator):
             scene.view_settings.view_transform = s["view_transform"]
         if "look" in s:
             scene.view_settings.look = s["look"]
+        # Blender 5.x: restore media_type first (affects available file_format values)
+        if "media_type" in s and bpy.app.version >= (5, 0, 0):
+            scene.render.image_settings.media_type = s["media_type"]
         if "file_format" in s:
             scene.render.image_settings.file_format = s["file_format"]
         if "color_mode" in s:
