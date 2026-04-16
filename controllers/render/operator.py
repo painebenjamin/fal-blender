@@ -1040,7 +1040,18 @@ class FalRenderOperator(FalOperator):
         # Clean up temp image data block
         bpy.data.images.remove(bpy_img)
 
+        # Fallback: search temp dir for any .mp4 (Blender may name it differently)
+        if not os.path.exists(result_path) and self._tmp_dir:
+            for f in os.listdir(self._tmp_dir):
+                if f.endswith(".mp4"):
+                    result_path = os.path.join(self._tmp_dir, f)
+                    print(f"fal.ai: Found video at {result_path}")
+                    break
+
         if not os.path.exists(result_path):
+            # Debug: list what's actually in the temp dir
+            if self._tmp_dir and os.path.exists(self._tmp_dir):
+                print(f"fal.ai: Contents of {self._tmp_dir}: {os.listdir(self._tmp_dir)}")
             self.report({"ERROR"}, f"Edge video not found at {result_path}")
             return
 
