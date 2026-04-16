@@ -292,7 +292,8 @@ class FalJob:
         """Get formatted start time like '6:45 PM'."""
         if self.start_time is None:
             return ""
-        return datetime.fromtimestamp(self.start_time).strftime("%-I:%M %p")
+        dt = datetime.fromtimestamp(self.start_time)
+        return f"{dt.hour % 12 or 12}:{dt.minute:02d} {'AM' if dt.hour < 12 else 'PM'}"
 
     @property
     def endpoint_short(self) -> str:
