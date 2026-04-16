@@ -22,6 +22,26 @@ def _ensure_extension_enabled():
     if hasattr(bpy.types.Scene, "fal_neural_render"):
         return True  # Already loaded
     
+    import os
+    from pathlib import Path
+    
+    # Add Blender 5 extension paths to sys.path
+    blender_version = ".".join(map(str, bpy.app.version[:2]))  # e.g., "5.2"
+    extension_paths = [
+        # macOS
+        Path.home() / "Library/Application Support/Blender" / blender_version / "extensions/user_default",
+        # Linux
+        Path.home() / ".config/blender" / blender_version / "extensions/user_default",
+        # Windows
+        Path(os.environ.get("APPDATA", "")) / "Blender Foundation/Blender" / blender_version / "extensions/user_default",
+    ]
+    
+    for ext_path in extension_paths:
+        fal_path = ext_path / "fal_ai"
+        if fal_path.exists() and str(ext_path) not in sys.path:
+            sys.path.insert(0, str(ext_path))
+            print(f"Added extension path: {ext_path}")
+    
     # Try addon_utils (works for both legacy addons and some extensions)
     try:
         import addon_utils
@@ -29,26 +49,18 @@ def _ensure_extension_enabled():
         if hasattr(bpy.types.Scene, "fal_neural_render"):
             print("fal.ai extension enabled via addon_utils")
             return True
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"addon_utils.enable failed: {e}")
     
-    # Try bpy.ops.preferences for extensions
+    # Try direct import and register
     try:
-        bpy.ops.preferences.addon_enable(module='fal_ai')
+        import fal_ai
+        fal_ai.register()
         if hasattr(bpy.types.Scene, "fal_neural_render"):
-            print("fal.ai extension enabled via preferences")
+            print("fal.ai extension enabled via direct import")
             return True
-    except Exception:
-        pass
-    
-    # Try extension system (Blender 4.2+)
-    try:
-        bpy.ops.extensions.package_enable(package='fal_ai')
-        if hasattr(bpy.types.Scene, "fal_neural_render"):
-            print("fal.ai extension enabled via extensions API")
-            return True
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Direct import failed: {e}")
     
     return False
 
