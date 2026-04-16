@@ -242,7 +242,7 @@ class VisualFalModel(FalModel):
         if "video_url" in kwargs:
             video_urls.append(kwargs["video_url"])
 
-        params: dict[str, Any] = {}
+        params: dict[str, Any] = super().parameters(**kwargs) or {}
         params.update(cls._get_size_parameters(width, height))
         params.update(cls._get_image_urls_parameters(image_paths, image_urls))
         params.update(cls._get_video_urls_parameters(video_paths, video_urls))
@@ -313,7 +313,7 @@ class AudioFalModel(FalModel):
         if "audio_url" in kwargs:
             audio_urls.append(kwargs["audio_url"])
 
-        params: dict[str, Any] = {}
+        params: dict[str, Any] = super().parameters(**kwargs) or {}
         params.update(cls._get_audio_urls_parameters(audio_paths, audio_urls))
 
         if cls.prompt_parameter:
