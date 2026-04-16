@@ -31,7 +31,7 @@ class FalMaterialOperator(FalOperator):
             return bool(props.prompt.strip())
         if props.image_source == "FILE":
             return bool(props.image_path.strip())
-        return bool(props.texture_name.strip())
+        return props.texture is not None
 
     def __call__(
         self,
@@ -92,9 +92,9 @@ class FalMaterialOperator(FalOperator):
         if props.image_source == "FILE":
             image_path = props.image_path
         else:
-            img = bpy.data.images.get(props.texture_name)
+            img = props.texture
             if not img:
-                self.report({"ERROR"}, f"Image '{props.texture_name}' not found")
+                self.report({"ERROR"}, "No texture selected")
                 return {"CANCELLED"}
             image_path = img.filepath_raw
 
@@ -106,7 +106,7 @@ class FalMaterialOperator(FalOperator):
         )
 
         target_obj_name = context.active_object.name if context.active_object else None
-        label = props.texture_name[:20] or "pbr"
+        label = (props.texture.name[:20] if props.texture else "") or "pbr"
 
         def on_complete(job: FalJob):
             _handle_pbr_result(job, target_obj_name, f"fal_{label}")

@@ -61,7 +61,7 @@ class FalDepthVideoController(FalController):
             "depth_use_first_frame",
             "depth_image_source",
             "depth_image_path",
-            "depth_texture_name",
+            "depth_texture",
         ],
         field_conditions={
             "duration": lambda ctx, props: not props.use_scene_duration,
@@ -70,7 +70,7 @@ class FalDepthVideoController(FalController):
             "depth_image_source": lambda ctx, props: props.depth_use_first_frame,
             "depth_image_path": lambda ctx, props: props.depth_use_first_frame
             and props.depth_image_source == "FILE",
-            "depth_texture_name": lambda ctx, props: props.depth_use_first_frame
+            "depth_texture": lambda ctx, props: props.depth_use_first_frame
             and props.depth_image_source == "TEXTURE",
         },
         field_groupings=[

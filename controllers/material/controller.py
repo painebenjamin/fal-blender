@@ -24,7 +24,7 @@ class FalMaterialController(FalController):
             "enable_prompt_expansion",
             "image_source",
             "image_path",
-            "texture_name",
+            "texture",
             "width",
             "height",
             "tiling_mode",
@@ -42,7 +42,7 @@ class FalMaterialController(FalController):
             "image_source": lambda ctx, props: props.mode == "PBR_ONLY",
             "image_path": lambda ctx, props: props.mode == "PBR_ONLY"
             and props.image_source == "FILE",
-            "texture_name": lambda ctx, props: props.mode == "PBR_ONLY"
+            "texture": lambda ctx, props: props.mode == "PBR_ONLY"
             and props.image_source == "TEXTURE",
             "width": lambda ctx, props: props.mode in ("FULL", "TILING_ONLY"),
             "height": lambda ctx, props: props.mode in ("FULL", "TILING_ONLY"),

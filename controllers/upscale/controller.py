@@ -20,13 +20,13 @@ class FalUpscaleController(FalController):
             "video_endpoint",
             "source",
             "image_path",
-            "texture_name",
+            "texture",
         ],
         field_conditions={
             "image_endpoint": lambda ctx, props: props.mode == "IMAGE",
             "video_endpoint": lambda ctx, props: props.mode == "VIDEO",
             "image_path": lambda ctx, props: props.source == "FILE",
-            "texture_name": lambda ctx, props: props.source == "TEXTURE",
+            "texture": lambda ctx, props: props.source == "TEXTURE",
         },
         field_separators=["mode"],
         endpoint_models={

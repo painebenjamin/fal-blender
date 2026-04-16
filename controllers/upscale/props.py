@@ -44,8 +44,8 @@ class FalUpscalePropertyGroup(bpy.types.PropertyGroup):
         default="",
     )
 
-    texture_name: bpy.props.StringProperty(
+    texture: bpy.props.PointerProperty(
         name="Texture",
-        description="Name of the Blender image datablock to upscale",
-        default="",
+        description="Blender image to upscale",
+        type=bpy.types.Image,
     )

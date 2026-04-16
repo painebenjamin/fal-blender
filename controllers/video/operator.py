@@ -189,7 +189,7 @@ class FalDepthVideoOperator(FalOperator):
         self._use_first_frame = props.depth_use_first_frame
         self._first_frame_source = props.depth_image_source
         self._first_frame_path = props.depth_image_path
-        self._first_frame_texture = props.depth_texture_name
+        self._first_frame_texture = props.depth_texture
 
         if props.use_scene_duration:
             self._duration = max(1, int(round(_get_scene_duration(scene))))
@@ -500,7 +500,7 @@ class FalDepthVideoOperator(FalOperator):
                     return None
                 return upload_file(self._first_frame_path)
             elif self._first_frame_source == "TEXTURE":
-                img = bpy.data.images.get(self._first_frame_texture)
+                img = self._first_frame_texture  # Already an Image object
                 if not img:
                     return None
                 return upload_blender_image(img)

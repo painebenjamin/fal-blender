@@ -154,7 +154,8 @@ class FalDepthVideoPropertyGroup(bpy.types.PropertyGroup):
         default="",
     )
 
-    depth_texture_name: bpy.props.StringProperty(
+    depth_texture: bpy.props.PointerProperty(
         name="First Frame Texture",
         description="Blender image to use as first frame",
+        type=bpy.types.Image,
     )

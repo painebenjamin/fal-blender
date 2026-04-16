@@ -30,7 +30,7 @@ class FalUpscaleOperator(FalOperator):
         elif props.source == "RENDER":
             return bpy.data.images.get("Render Result") is not None
         elif props.source == "TEXTURE":
-            return bool(props.texture_name.strip())
+            return props.texture is not None
         return False
 
     def __call__(
@@ -85,9 +85,9 @@ def _resolve_source_url(props: bpy.types.PropertyGroup) -> str:
         render_img.save_render(tmp.name)
         return upload_file(tmp.name)
     elif props.source == "TEXTURE":
-        img = bpy.data.images.get(props.texture_name)
+        img = props.texture  # Already an Image object
         if not img:
-            raise RuntimeError(f"Texture '{props.texture_name}' not found")
+            raise RuntimeError("No texture selected")
         return upload_blender_image(img)
     raise RuntimeError("Unknown source type")
 

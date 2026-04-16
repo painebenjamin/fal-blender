@@ -126,7 +126,8 @@ class FalMaterialPropertyGroup(bpy.types.PropertyGroup):
         description="Path to the input texture image",
     )
 
-    texture_name: bpy.props.StringProperty(
+    texture: bpy.props.PointerProperty(
         name="Texture",
         description="Blender image to use as input",
+        type=bpy.types.Image,
     )
