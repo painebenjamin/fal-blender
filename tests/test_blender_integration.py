@@ -19,7 +19,7 @@ except ImportError:
 
 def _ensure_extension_enabled():
     """Try to enable the fal.ai extension if not already loaded."""
-    if hasattr(bpy.types.Scene, "fal_neural_render"):
+    if hasattr(bpy.types.Scene, "fal_3d"):
         return True  # Already loaded
     
     from pathlib import Path
@@ -40,7 +40,7 @@ def _ensure_extension_enabled():
         print(f"addon_utils.enable failed: {e}")
     
     # Check if it worked
-    if hasattr(bpy.types.Scene, "fal_neural_render"):
+    if hasattr(bpy.types.Scene, "fal_3d"):
         print("fal.ai extension enabled")
         return True
     
@@ -54,20 +54,18 @@ def test_extension_registers():
         print("  Install via: Edit > Preferences > Get Extensions")
         return
     
-    # Verify all expected property groups
-    assert hasattr(bpy.types.Scene, "fal_neural_render"), \
-        "Neural render property group not registered"
-    assert hasattr(bpy.types.Scene, "fal_video"), \
-        "Video property group not registered"
-    assert hasattr(bpy.types.Scene, "fal_upscale"), \
-        "Upscale property group not registered"
+    # Verify scene property groups
+    assert hasattr(bpy.types.Scene, "fal_3d"), \
+        "3D scene property group not registered"
+    assert hasattr(bpy.types.Scene, "fal_vse"), \
+        "VSE scene property group not registered"
     print("✓ Extension property groups registered")
 
 
 def test_operators_registered():
     """Test that operators are registered."""
     # Extension must be registered first (test_extension_registers runs first)
-    if not hasattr(bpy.types.Scene, "fal_neural_render"):
+    if not hasattr(bpy.types.Scene, "fal_3d"):
         print("⚠ Skipping operator test (extension not loaded)")
         return
     
@@ -141,14 +139,15 @@ def test_pointer_property_for_images():
     
     # Check that our property groups can hold image references
     # (This tests the texture selector fix)
-    if hasattr(bpy.context.scene, "fal_upscale"):
-        props = bpy.context.scene.fal_upscale
-        if hasattr(props, "texture"):
-            props.texture = test_img
-            assert props.texture == test_img, "PointerProperty assignment failed"
+    if hasattr(bpy.context.scene, "fal_3d"):
+        # Access upscale props through the 3D scene properties
+        props = bpy.context.scene.fal_3d
+        if hasattr(props, "upscale") and hasattr(props.upscale, "texture"):
+            props.upscale.texture = test_img
+            assert props.upscale.texture == test_img, "PointerProperty assignment failed"
             print("✓ PointerProperty for images works")
         else:
-            print("⚠ texture property not found (may need extension reload)")
+            print("⚠ upscale.texture property not found")
     else:
         print("⚠ Skipping PointerProperty test (extension not loaded)")
     
