@@ -24,7 +24,9 @@ def get_dimensions(
         scale = scene.render.resolution_percentage / 100.0
         w = int(scene.render.resolution_x * scale)
         h = int(scene.render.resolution_y * scale)
-        print(f"fal.ai: Using scene resolution: {w}x{h} (from {scene.render.resolution_x}x{scene.render.resolution_y} @ {scene.render.resolution_percentage}%)")
+        print(
+            f"fal.ai: Using scene resolution: {w}x{h} (from {scene.render.resolution_x}x{scene.render.resolution_y} @ {scene.render.resolution_percentage}%)"
+        )
         return (w, h)
     print(f"fal.ai: Using manual resolution: {props.width}x{props.height}")
     return (props.width, props.height)

@@ -23,7 +23,7 @@ def _ensure_extension_enabled():
         return True  # Already loaded
     
     from pathlib import Path
-    
+
     # Get Blender's user extension path via official API
     user_extensions = Path(bpy.utils.user_resource('EXTENSIONS')) / "user_default"
     fal_path = user_extensions / "fal_ai"

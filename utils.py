@@ -9,10 +9,11 @@ import time
 import warnings
 from collections.abc import Iterator
 from contextlib import contextmanager
+from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable
 
-from .preferences import ensure_api_key, get_output_dir
+from .preferences import get_api_key, get_output_dir
 
 if TYPE_CHECKING:
     import bpy
@@ -69,6 +70,39 @@ def path_to_data_uri(path: str, mime_type: str | None = None) -> str:
         return f"data:{mime_type};base64,{base64.b64encode(f.read()).decode('utf-8')}"
 
 
+# ---------------------------------------------------------------------------
+# Compliance helpers
+# ---------------------------------------------------------------------------
+
+
+def internet_access_allowed() -> bool:
+    """
+    Check if internet access is allowed.
+    :see: https://developer.blender.org/docs/handbook/extensions/addon_guidelines/
+    """
+    import bpy
+
+    return bpy.app.online_access
+
+
+def requires_internet_access(fn: Callable) -> Callable:
+    """Decorator to check if the function requires internet access."""
+
+    @wraps(fn)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        if not internet_access_allowed():
+            raise RuntimeError("This function requires internet access.")
+        return fn(*args, **kwargs)
+
+    return wrapper
+
+
+# ---------------------------------------------------------------------------
+# File download/upload helpers
+# ---------------------------------------------------------------------------
+
+
+@requires_internet_access
 def download_file(url: str, suffix: str = ".bin", to_temp: bool = False) -> str:
     """
     Download a URL to the output directory (or temp if specified).
@@ -95,6 +129,7 @@ def download_file(url: str, suffix: str = ".bin", to_temp: bool = False) -> str:
     return filepath
 
 
+@requires_internet_access
 def upload_file(filepath: str) -> str:
     """
     Upload a file to fal CDN and return the URL.
@@ -103,12 +138,19 @@ def upload_file(filepath: str) -> str:
     """
     import fal_client
 
-    ensure_api_key()
-    url = fal_client.upload_file(filepath)
+    key = get_api_key()
+    if not key:
+        raise RuntimeError(
+            "No fal.ai API key configured. Set it in Edit > Preferences > Add-ons > fal.ai, or set the FAL_KEY environment variable."
+        )
+
+    client = fal_client.Client(key=key)
+    url = client.upload_file(filepath)
     print(f"fal.ai: Uploaded video {filepath} -> {url}")
     return url
 
 
+@requires_internet_access
 def upload_blender_image(image: bpy.types.Image) -> str:
     """
     Save a Blender image to temp file and upload to fal CDN.
@@ -283,6 +325,7 @@ def _strip_markdown_for_display(text: str) -> str:
     return "\n".join(lines_out)
 
 
+@requires_internet_access
 def get_endpoint_pricing(endpoint: str, max_retries: int = 3) -> str:
     """
     Returns the pricing for a model.
@@ -323,6 +366,7 @@ def get_endpoint_pricing(endpoint: str, max_retries: int = 3) -> str:
 _endpoint_descriptions: dict[str, str] = {}
 
 
+@requires_internet_access
 def get_endpoint_description(endpoint: str, max_retries: int = 3) -> str:
     """
     Returns the description for a model from llms.txt.

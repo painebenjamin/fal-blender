@@ -1,7 +1,6 @@
 import bpy  # type: ignore[import-not-found]
 
-from ...models import (MaterialGenerationModel, PBREstimationModel,
-                       TilingTextureModel)
+from ...models import MaterialGenerationModel, PBREstimationModel, TilingTextureModel
 
 
 class FalMaterialPropertyGroup(bpy.types.PropertyGroup):

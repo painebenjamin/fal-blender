@@ -1,5 +1,8 @@
-from ...models import (MusicGenerationModel, SoundEffectsGenerationModel,
-                       SpeechGenerationModel)
+from ...models import (
+    MusicGenerationModel,
+    SoundEffectsGenerationModel,
+    SpeechGenerationModel,
+)
 from ..base import FalController
 from ..ui import FalControllerPanel
 from .operator import FalAudioOperator
