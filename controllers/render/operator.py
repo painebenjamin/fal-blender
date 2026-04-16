@@ -130,6 +130,8 @@ class FalRenderOperator(FalOperator):
         self._tmp_dir: str | None = None
         self._output_path: str | None = None
         self._animation = False
+        self._canny_future = None
+        self._canny_frames: list = []
 
         if self._render_type == "IMAGE":
             self._mode = props.mode
