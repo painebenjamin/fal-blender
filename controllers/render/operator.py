@@ -132,6 +132,7 @@ class FalRenderOperator(FalOperator):
         self._animation = False
         self._canny_future = None
         self._canny_frames: list = []
+        self._parallel_threads = 0
 
         if self._render_type == "IMAGE":
             self._mode = props.mode
@@ -175,6 +176,7 @@ class FalRenderOperator(FalOperator):
                 self._model = DEPTH_VIDEO_MODELS[props.depth_video_endpoint]
             else:
                 self._model = EDGE_VIDEO_MODELS[props.edge_video_endpoint]
+                self._parallel_threads = props.edge_parallel_threads
 
             # Cache video-specific props
             scene = context.scene
@@ -960,33 +962,44 @@ class FalRenderOperator(FalOperator):
         w, h = self._render_w, self._render_h
         frames_dir = self._frames_dir
 
-        def process_frames_with_timing():
-            """Process all frames with Canny and report timing."""
-            total_start = time.perf_counter()
-            frame_times = []
+        # Determine number of parallel workers
+        # 0 = auto: use half of CPU cores (leave room for system/Blender)
+        num_threads = self._parallel_threads
+        if num_threads <= 0:
+            cpu_cores = os.cpu_count() or 4
+            num_threads = max(1, cpu_cores // 2)
 
-            for frame_file in frames:
-                frame_path = os.path.join(frames_dir, frame_file)
-                frame_start = time.perf_counter()
-                try:
-                    render_to_canny(frame_path, w, h)
-                except Exception as e:
-                    print(f"fal.ai: Canny failed on {frame_file}: {e}")
-                frame_times.append(time.perf_counter() - frame_start)
+        def process_single_frame(frame_file: str) -> float:
+            """Process a single frame, return processing time."""
+            frame_path = os.path.join(frames_dir, frame_file)
+            frame_start = time.perf_counter()
+            try:
+                render_to_canny(frame_path, w, h)
+            except Exception as e:
+                print(f"fal.ai: Canny failed on {frame_file}: {e}")
+            return time.perf_counter() - frame_start
+
+        def process_frames_parallel():
+            """Process all frames with Canny in parallel and report timing."""
+            total_start = time.perf_counter()
+
+            with ThreadPoolExecutor(max_workers=num_threads) as executor:
+                frame_times = list(executor.map(process_single_frame, frames))
 
             total_time = time.perf_counter() - total_start
             avg_time = sum(frame_times) / len(frame_times) if frame_times else 0
             print(f"fal.ai: Canny edge detection complete")
             print(f"fal.ai:   Resolution: {w}x{h}")
             print(f"fal.ai:   Frames: {len(frames)}")
+            print(f"fal.ai:   Threads: {num_threads}")
             print(f"fal.ai:   Total time: {total_time:.2f}s")
             print(f"fal.ai:   Avg per frame: {avg_time*1000:.1f}ms")
             print(f"fal.ai:   Throughput: {len(frames)/total_time:.1f} fps")
 
         # Start processing in background thread
-        print(f"fal.ai: Starting Canny edge detection on {len(frames)} frames ({w}x{h})...")
+        print(f"fal.ai: Starting Canny edge detection on {len(frames)} frames ({w}x{h}) with {num_threads} threads...")
         executor = ThreadPoolExecutor(max_workers=1)
-        self._canny_future = executor.submit(process_frames_with_timing)
+        self._canny_future = executor.submit(process_frames_parallel)
         executor.shutdown(wait=False)  # Don't block, let it run in background
 
     def _finish_edge_video_encode(self, context: bpy.types.Context) -> None:

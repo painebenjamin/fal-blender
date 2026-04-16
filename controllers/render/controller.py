@@ -73,6 +73,7 @@ class FalRenderController(FalController):
             "video_mode",
             "depth_video_endpoint",
             "edge_video_endpoint",
+            "edge_parallel_threads",
             "use_scene_duration",
             "duration",
             "video_use_first_frame",
@@ -117,6 +118,7 @@ class FalRenderController(FalController):
             # Video mode endpoints
             "depth_video_endpoint": _video_mode("DEPTH"),
             "edge_video_endpoint": _video_mode("EDGE"),
+            "edge_parallel_threads": _video_mode("EDGE"),
             # Common conditional fields
             "enable_prompt_expansion": lambda context, props: not (
                 props.render_type == "IMAGE" and props.mode == "SKETCH"

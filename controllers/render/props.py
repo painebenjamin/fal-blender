@@ -185,6 +185,14 @@ class FalRenderPropertyGroup(bpy.types.PropertyGroup):
         description="Endpoint for edge-conditioned video",
     )
 
+    edge_parallel_threads: bpy.props.IntProperty(
+        name="Parallel Threads",
+        description="Number of threads for Canny edge detection (0 = auto based on CPU cores)",
+        default=0,
+        min=0,
+        max=32,
+    )
+
     # ── Video Duration & First Frame ────────────────────────────────────
     use_scene_duration: bpy.props.BoolProperty(
         name="Use Scene Duration",
