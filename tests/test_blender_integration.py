@@ -139,15 +139,16 @@ def test_pointer_property_for_images():
     
     # Check that our property groups can hold image references
     # (This tests the texture selector fix)
-    if hasattr(bpy.context.scene, "fal_3d"):
-        # Access upscale props through the 3D scene properties
-        props = bpy.context.scene.fal_3d
-        if hasattr(props, "upscale") and hasattr(props.upscale, "texture"):
-            props.upscale.texture = test_img
-            assert props.upscale.texture == test_img, "PointerProperty assignment failed"
+    # Controller props are registered as {controllername}_props
+    props_name = "falupscalecontroller_props"
+    if hasattr(bpy.context.scene, props_name):
+        props = getattr(bpy.context.scene, props_name)
+        if hasattr(props, "texture"):
+            props.texture = test_img
+            assert props.texture == test_img, "PointerProperty assignment failed"
             print("✓ PointerProperty for images works")
         else:
-            print("⚠ upscale.texture property not found")
+            print("⚠ texture property not found on upscale props")
     else:
         print("⚠ Skipping PointerProperty test (extension not loaded)")
     
