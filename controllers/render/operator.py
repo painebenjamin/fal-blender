@@ -894,7 +894,7 @@ class FalRenderOperator(FalOperator):
     # ── Edge Video Mode — setup / finish ──────────────────────────────
 
     def _setup_edge_video(self, context: bpy.types.Context) -> None:
-        """Configure Blender to render a normal animation as video for edge conditioning."""
+        """Configure Blender to render animation as PNG sequence for Canny processing."""
         scene = context.scene
 
         self._saved.update(
@@ -905,51 +905,118 @@ class FalRenderOperator(FalOperator):
                 "use_compositing": scene.render.use_compositing,
             }
         )
-        # Blender 5.x: save media_type (new in 5.x)
+        # Blender 5.x: save media_type
         if bpy.app.version >= (5, 0, 0):
             self._saved["media_type"] = scene.render.image_settings.media_type
 
-        # Disable compositing — we just want a straight render, and an incomplete
-        # compositor graph (no Group/File Output) will cause a RuntimeError.
+        # Disable compositing — we just want a straight render
         scene.render.use_compositing = False
 
-        try:
-            self._saved["ffmpeg_codec"] = scene.render.ffmpeg.codec
-            self._saved["ffmpeg_format"] = scene.render.ffmpeg.format
-        except AttributeError:
-            pass
-
         self._tmp_dir = tempfile.mkdtemp(prefix="fal_edge_video_")
+        self._frames_dir = os.path.join(self._tmp_dir, "frames")
+        os.makedirs(self._frames_dir, exist_ok=True)
         self._output_path = os.path.join(self._tmp_dir, "edge")
 
-        # Blender 5.x: set media_type to VIDEO first (FFMPEG is now implicit)
-        # Blender 4.x: set file_format to FFMPEG
+        # Render as PNG image sequence (we'll Canny each frame then re-encode)
         if bpy.app.version >= (5, 0, 0):
-            scene.render.image_settings.media_type = "VIDEO"
-        else:
-            scene.render.image_settings.file_format = "FFMPEG"
-        scene.render.ffmpeg.format = "MPEG4"
-        scene.render.ffmpeg.codec = "H264"
+            scene.render.image_settings.media_type = "IMAGE"
+        scene.render.image_settings.file_format = "PNG"
         scene.render.image_settings.color_mode = "RGB"
-        scene.render.filepath = self._output_path
+        scene.render.filepath = os.path.join(self._frames_dir, "frame_")
 
     def _finish_edge_video(self, context: bpy.types.Context) -> None:
-        """Upload the rendered video and submit to fal.ai edge model."""
+        """Apply Canny to rendered frames, encode to MP4, upload and submit."""
+        # Find rendered PNG frames
+        frames = sorted(
+            f
+            for f in os.listdir(self._frames_dir)
+            if f.endswith(".png")
+        )
+
+        if not frames:
+            self._restore_state(context)
+            self.report({"ERROR"}, "Edge video: no frames rendered")
+            return
+
+        print(f"fal.ai: Applying Canny to {len(frames)} frames...")
+        w, h = self._render_w, self._render_h
+        for frame_file in frames:
+            frame_path = os.path.join(self._frames_dir, frame_file)
+            try:
+                render_to_canny(frame_path, w, h)
+            except Exception as e:
+                print(f"fal.ai: Canny failed on {frame_file}: {e}")
+
+        # Restore scene before re-encoding
+        self._restore_state(context)
+
+        # Re-encode Canny frames to MP4 using ffmpeg
+        import shutil
+        import subprocess
+
         result_path = self._output_path + ".mp4"
-        if not os.path.exists(result_path) and self._tmp_dir:
-            for f in os.listdir(self._tmp_dir):
-                if f.endswith(".mp4"):
-                    result_path = os.path.join(self._tmp_dir, f)
+        ffmpeg_bin = shutil.which("ffmpeg")
+        if not ffmpeg_bin:
+            # Try to find ffmpeg next to Blender binary
+            blender_dir = os.path.dirname(bpy.app.binary_path)
+            for candidate in [
+                os.path.join(blender_dir, "ffmpeg"),
+                os.path.join(blender_dir, "ffmpeg.exe"),
+            ]:
+                if os.path.isfile(candidate):
+                    ffmpeg_bin = candidate
                     break
 
+        if not ffmpeg_bin:
+            self.report({"ERROR"}, "ffmpeg not found — cannot encode edge video")
+            return
+
+        scene = context.scene
+        fps = scene.render.fps / scene.render.fps_base
+
+        # Build the frame pattern from the first frame filename
+        # Blender names frames like frame_0001.png, frame_0002.png, etc.
+        first_frame = frames[0]
+        # Find the numeric part to build the ffmpeg glob pattern
+        name_base = first_frame.rsplit(".", 1)[0]  # e.g. "frame_0001"
+        digits = ""
+        for ch in reversed(name_base):
+            if ch.isdigit():
+                digits = ch + digits
+            else:
+                break
+        prefix = name_base[: len(name_base) - len(digits)]
+        pattern = os.path.join(
+            self._frames_dir, f"{prefix}%0{len(digits)}d.png"
+        )
+        start_number = int(digits)
+
+        try:
+            subprocess.run(
+                [
+                    ffmpeg_bin,
+                    "-y",
+                    "-framerate", str(fps),
+                    "-start_number", str(start_number),
+                    "-i", pattern,
+                    "-c:v", "libx264",
+                    "-pix_fmt", "yuv420p",
+                    "-crf", "18",
+                    result_path,
+                ],
+                check=True,
+                capture_output=True,
+                timeout=120,
+            )
+        except Exception as e:
+            self.report({"ERROR"}, f"ffmpeg encoding failed: {e}")
+            return
+
         if not os.path.exists(result_path):
-            self._restore_state(context)
             self.report({"ERROR"}, f"Edge video not found at {result_path}")
             return
 
         print(f"fal.ai: Edge video saved to {result_path}")
-
-        self._restore_state(context)
 
         video_url = upload_file(result_path)
         params = self._model.parameters(
