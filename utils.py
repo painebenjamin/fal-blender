@@ -144,7 +144,7 @@ def upload_file(filepath: str) -> str:
             "No fal.ai API key configured. Set it in Edit > Preferences > Add-ons > fal.ai, or set the FAL_KEY environment variable."
         )
 
-    client = fal_client.Client(key=key)
+    client = fal_client.SyncClient(key=key)
     url = client.upload_file(filepath)
     print(f"fal.ai: Uploaded video {filepath} -> {url}")
     return url
