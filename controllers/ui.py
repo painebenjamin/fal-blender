@@ -230,6 +230,9 @@ class FalControllerPanel:
         """
         Draw the UI for the controller.
         """
+        # Clear any stale group state from previous draws
+        self._flush_current_group()
+
         visited_fields = set()
         for field_name in self.field_orders:
             if field_name in visited_fields:

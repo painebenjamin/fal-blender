@@ -45,9 +45,9 @@ class FalPreferences(bpy.types.AddonPreferences):
 
     output_dir: bpy.props.StringProperty(
         name="Output Directory",
-        description="Where to save generated assets",
+        description="Override output location (leave empty to use Blender's output path)",
         subtype="DIR_PATH",
-        default="~/fal.ai",
+        default="",
     )
 
     auto_import: bpy.props.BoolProperty(
@@ -128,21 +128,44 @@ def get_output_dir() -> str:
     """
     Get the output directory for generated assets.
 
-    Returns the configured directory, expanding ~ to user home.
-    Creates the directory if it doesn't exist.
+    Priority:
+    1. User preference override (if set)
+    2. Blender scene output path directory
+    3. Fallback to ~/fal.ai
 
     Returns:
         Absolute path to the output directory.
     """
+    output_dir = ""
+
+    # Check preference override
     try:
         prefs = bpy.context.preferences.addons[_addon_package].preferences
-        output_dir = prefs.output_dir
+        output_dir = prefs.output_dir.strip()
     except (KeyError, AttributeError):
-        output_dir = ""
+        pass
 
-    # Default to ~/fal.ai if not set
+    # If no override, use Blender's scene output path
     if not output_dir:
-        output_dir = "~/fal.ai"
+        try:
+            scene_path = bpy.context.scene.render.filepath
+            if scene_path:
+                # filepath might include filename pattern, get just the directory
+                scene_path = bpy.path.abspath(scene_path)
+                if os.path.isfile(scene_path):
+                    output_dir = os.path.dirname(scene_path)
+                elif scene_path.endswith(os.sep) or not os.path.splitext(scene_path)[1]:
+                    # Looks like a directory path
+                    output_dir = scene_path
+                else:
+                    # Has extension, treat as file pattern
+                    output_dir = os.path.dirname(scene_path)
+        except (AttributeError, RuntimeError):
+            pass
+
+    # Final fallback
+    if not output_dir:
+        output_dir = os.path.expanduser("~/fal.ai")
 
     # Expand ~ and make absolute
     output_dir = os.path.expanduser(output_dir)
