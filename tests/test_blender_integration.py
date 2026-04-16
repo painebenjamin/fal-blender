@@ -17,11 +17,47 @@ except ImportError:
     sys.exit(1)
 
 
+def _ensure_extension_enabled():
+    """Try to enable the fal.ai extension if not already loaded."""
+    if hasattr(bpy.types.Scene, "fal_neural_render"):
+        return True  # Already loaded
+    
+    # Try addon_utils (works for both legacy addons and some extensions)
+    try:
+        import addon_utils
+        addon_utils.enable('fal_ai', default_set=True)
+        if hasattr(bpy.types.Scene, "fal_neural_render"):
+            print("fal.ai extension enabled via addon_utils")
+            return True
+    except Exception:
+        pass
+    
+    # Try bpy.ops.preferences for extensions
+    try:
+        bpy.ops.preferences.addon_enable(module='fal_ai')
+        if hasattr(bpy.types.Scene, "fal_neural_render"):
+            print("fal.ai extension enabled via preferences")
+            return True
+    except Exception:
+        pass
+    
+    # Try extension system (Blender 4.2+)
+    try:
+        bpy.ops.extensions.package_enable(package='fal_ai')
+        if hasattr(bpy.types.Scene, "fal_neural_render"):
+            print("fal.ai extension enabled via extensions API")
+            return True
+    except Exception:
+        pass
+    
+    return False
+
+
 def test_extension_registers():
     """Test that the extension registers without errors."""
-    # Check if extension is installed and registered
-    if not hasattr(bpy.types.Scene, "fal_neural_render"):
-        print("⚠ Skipping: extension not installed (install via Blender preferences)")
+    if not _ensure_extension_enabled():
+        print("⚠ Skipping: extension not installed or couldn't be enabled")
+        print("  Install via: Edit > Preferences > Get Extensions")
         return
     
     # Verify all expected property groups
