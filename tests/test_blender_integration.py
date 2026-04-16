@@ -32,25 +32,17 @@ def _ensure_extension_enabled():
         sys.path.insert(0, str(user_extensions))
         print(f"Added extension path: {user_extensions}")
     
-    # Try addon_utils (works for both legacy addons and some extensions)
+    # Try addon_utils — this calls register() automatically
     try:
         import addon_utils
         addon_utils.enable('fal_ai', default_set=True)
-        if hasattr(bpy.types.Scene, "fal_neural_render"):
-            print("fal.ai extension enabled via addon_utils")
-            return True
     except Exception as e:
         print(f"addon_utils.enable failed: {e}")
     
-    # Try direct import and register
-    try:
-        import fal_ai
-        fal_ai.register()
-        if hasattr(bpy.types.Scene, "fal_neural_render"):
-            print("fal.ai extension enabled via direct import")
-            return True
-    except Exception as e:
-        print(f"Direct import failed: {e}")
+    # Check if it worked
+    if hasattr(bpy.types.Scene, "fal_neural_render"):
+        print("fal.ai extension enabled")
+        return True
     
     return False
 
