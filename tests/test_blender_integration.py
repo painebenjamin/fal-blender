@@ -22,25 +22,15 @@ def _ensure_extension_enabled():
     if hasattr(bpy.types.Scene, "fal_neural_render"):
         return True  # Already loaded
     
-    import os
     from pathlib import Path
     
-    # Add Blender 5 extension paths to sys.path
-    blender_version = ".".join(map(str, bpy.app.version[:2]))  # e.g., "5.2"
-    extension_paths = [
-        # macOS
-        Path.home() / "Library/Application Support/Blender" / blender_version / "extensions/user_default",
-        # Linux
-        Path.home() / ".config/blender" / blender_version / "extensions/user_default",
-        # Windows
-        Path(os.environ.get("APPDATA", "")) / "Blender Foundation/Blender" / blender_version / "extensions/user_default",
-    ]
+    # Get Blender's user extension path via official API
+    user_extensions = Path(bpy.utils.user_resource('EXTENSIONS')) / "user_default"
+    fal_path = user_extensions / "fal_ai"
     
-    for ext_path in extension_paths:
-        fal_path = ext_path / "fal_ai"
-        if fal_path.exists() and str(ext_path) not in sys.path:
-            sys.path.insert(0, str(ext_path))
-            print(f"Added extension path: {ext_path}")
+    if fal_path.exists() and str(user_extensions) not in sys.path:
+        sys.path.insert(0, str(user_extensions))
+        print(f"Added extension path: {user_extensions}")
     
     # Try addon_utils (works for both legacy addons and some extensions)
     try:
