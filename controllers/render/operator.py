@@ -902,11 +902,16 @@ class FalRenderOperator(FalOperator):
                 "file_format": scene.render.image_settings.file_format,
                 "color_mode": scene.render.image_settings.color_mode,
                 "filepath": scene.render.filepath,
+                "use_compositing": scene.render.use_compositing,
             }
         )
         # Blender 5.x: save media_type (new in 5.x)
         if bpy.app.version >= (5, 0, 0):
             self._saved["media_type"] = scene.render.image_settings.media_type
+
+        # Disable compositing — we just want a straight render, and an incomplete
+        # compositor graph (no Group/File Output) will cause a RuntimeError.
+        scene.render.use_compositing = False
 
         try:
             self._saved["ffmpeg_codec"] = scene.render.ffmpeg.codec
