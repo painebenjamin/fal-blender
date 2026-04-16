@@ -5,6 +5,19 @@ from ..ui import FalControllerPanel
 from .operator import FalNeuralRenderOperator
 from .props import FalNeuralRenderPropertyGroup
 
+# Models that support system prompts in refine mode
+REFINE_MODELS = ImageRefinementModel.catalog()
+
+
+def _show_refine_system_prompt(context, props) -> bool:
+    """Show system prompt only for refine mode with models that support it."""
+    if props.mode != "REFINE":
+        return False
+    model_cls = REFINE_MODELS.get(props.refine_endpoint)
+    if model_cls is None:
+        return False
+    return getattr(model_cls, "supports_system_prompt", True)
+
 
 class FalNeuralRenderController(FalController):
     """Controller for neural rendering workflows via fal.ai."""
@@ -43,7 +56,7 @@ class FalNeuralRenderController(FalController):
             "auto_label": lambda context, props: props.mode == "SKETCH",
             "refine_endpoint": lambda context, props: props.mode == "REFINE",
             "refine_strength": lambda context, props: props.mode == "REFINE",
-            "refine_system_prompt": lambda context, props: props.mode == "REFINE",
+            "refine_system_prompt": _show_refine_system_prompt,
         },
         field_groupings=[
             {"width", "height"},

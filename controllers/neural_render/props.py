@@ -114,6 +114,7 @@ class FalNeuralRenderPropertyGroup(bpy.types.PropertyGroup):
         name="Refine Endpoint",
         items=ImageRefinementModel.enumerate() or [("NONE", "No Models Available", "")],
         description="Endpoint for image-to-image refinement",
+        default="FLUX2Klein9BImageRefinementModel",
     )
 
     refine_strength: bpy.props.FloatProperty(
