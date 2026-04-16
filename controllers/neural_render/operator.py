@@ -175,6 +175,11 @@ class FalNeuralRenderOperator(FalOperator):
         """
         self._render_cancelled = True
 
+    def cancel(self, context: bpy.types.Context) -> None:
+        """Called when the operator is cancelled (e.g., user presses ESC)."""
+        self._cleanup_modal(context)
+        self._restore_state(context)
+
     def _cleanup_modal(self, context: bpy.types.Context) -> None:
         """
         Clean up the modal state.

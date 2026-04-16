@@ -287,6 +287,11 @@ class FalDepthVideoOperator(FalOperator):
         """Blender render-cancel handler callback."""
         self._render_cancelled = True
 
+    def cancel(self, context: bpy.types.Context) -> None:
+        """Called when the operator is cancelled (e.g., user presses ESC)."""
+        self._cleanup_modal(context)
+        self._restore_state(context)
+
     def _cleanup_modal(self, context: bpy.types.Context) -> None:
         """Remove the modal timer and render handlers."""
         type(self)._rendering = False
