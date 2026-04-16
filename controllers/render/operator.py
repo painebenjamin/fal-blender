@@ -925,7 +925,7 @@ class FalRenderOperator(FalOperator):
         scene.render.filepath = os.path.join(self._frames_dir, "frame_")
 
     def _finish_edge_video(self, context: bpy.types.Context) -> None:
-        """Apply Canny to rendered frames, encode to MP4, upload and submit."""
+        """Apply Canny to rendered frames, encode to MP4 via Blender, upload and submit."""
         # Find rendered PNG frames
         frames = sorted(
             f
@@ -947,70 +947,98 @@ class FalRenderOperator(FalOperator):
             except Exception as e:
                 print(f"fal.ai: Canny failed on {frame_file}: {e}")
 
-        # Restore scene before re-encoding
+        # Restore scene state from first render pass
         self._restore_state(context)
 
-        # Re-encode Canny frames to MP4 using ffmpeg
-        import shutil
-        import subprocess
-
-        result_path = self._output_path + ".mp4"
-        ffmpeg_bin = shutil.which("ffmpeg")
-        if not ffmpeg_bin:
-            # Try to find ffmpeg next to Blender binary
-            blender_dir = os.path.dirname(bpy.app.binary_path)
-            for candidate in [
-                os.path.join(blender_dir, "ffmpeg"),
-                os.path.join(blender_dir, "ffmpeg.exe"),
-            ]:
-                if os.path.isfile(candidate):
-                    ffmpeg_bin = candidate
-                    break
-
-        if not ffmpeg_bin:
-            self.report({"ERROR"}, "ffmpeg not found — cannot encode edge video")
-            return
-
+        # Re-encode Canny frames to MP4 using Blender's internal ffmpeg
+        # via a compositor-only render pass.
         scene = context.scene
-        fps = scene.render.fps / scene.render.fps_base
+        result_path = self._output_path + ".mp4"
 
-        # Build the frame pattern from the first frame filename
-        # Blender names frames like frame_0001.png, frame_0002.png, etc.
-        first_frame = frames[0]
-        # Find the numeric part to build the ffmpeg glob pattern
-        name_base = first_frame.rsplit(".", 1)[0]  # e.g. "frame_0001"
-        digits = ""
-        for ch in reversed(name_base):
-            if ch.isdigit():
-                digits = ch + digits
-            else:
-                break
-        prefix = name_base[: len(name_base) - len(digits)]
-        pattern = os.path.join(
-            self._frames_dir, f"{prefix}%0{len(digits)}d.png"
-        )
-        start_number = int(digits)
+        # Load first Canny frame as a Blender image sequence
+        first_frame_path = os.path.join(self._frames_dir, frames[0])
+        bpy_img = bpy.data.images.load(first_frame_path)
+        bpy_img.source = "SEQUENCE"
 
+        # Save state we'll modify for the encode pass
+        encode_saved: dict[str, Any] = {
+            "engine": scene.render.engine,
+            "use_compositing": scene.render.use_compositing,
+            "file_format": scene.render.image_settings.file_format,
+            "color_mode": scene.render.image_settings.color_mode,
+            "filepath": scene.render.filepath,
+            "film_transparent": scene.render.film_transparent,
+        }
+        if bpy.app.version >= (5, 0, 0):
+            encode_saved["media_type"] = scene.render.image_settings.media_type
         try:
-            subprocess.run(
-                [
-                    ffmpeg_bin,
-                    "-y",
-                    "-framerate", str(fps),
-                    "-start_number", str(start_number),
-                    "-i", pattern,
-                    "-c:v", "libx264",
-                    "-pix_fmt", "yuv420p",
-                    "-crf", "18",
-                    result_path,
-                ],
-                check=True,
-                capture_output=True,
-                timeout=120,
-            )
+            encode_saved["ffmpeg_codec"] = scene.render.ffmpeg.codec
+            encode_saved["ffmpeg_format"] = scene.render.ffmpeg.format
+        except AttributeError:
+            pass
+
+        # Set up compositor: Image Sequence -> Composite
+        tree = ensure_compositor_enabled(scene)
+        encode_comp_saved = snapshot_compositor(tree)
+        for node in tree.nodes:
+            tree.nodes.remove(node)
+
+        img_node = tree.nodes.new("CompositorNodeImage")
+        img_node.image = bpy_img
+        img_node.frame_duration = len(frames)
+        img_node.frame_start = scene.frame_start
+        # Offset so scene frame N maps to the Nth Canny frame
+        img_node.frame_offset = -(scene.frame_start - 1)
+
+        comp_node = create_compositor_output_node(tree)
+        tree.links.new(img_node.outputs["Image"], comp_node.inputs["Image"])
+
+        # Configure for video output using EEVEE (fastest 3D pass)
+        scene.render.engine = get_eevee_engine()
+        scene.render.film_transparent = True
+        scene.render.use_compositing = True
+        if bpy.app.version >= (5, 0, 0):
+            scene.render.image_settings.media_type = "VIDEO"
+        else:
+            scene.render.image_settings.file_format = "FFMPEG"
+        scene.render.ffmpeg.format = "MPEG4"
+        scene.render.ffmpeg.codec = "H264"
+        scene.render.image_settings.color_mode = "RGB"
+        scene.render.filepath = self._output_path
+
+        # Synchronous render -- Blender encodes our Canny frames to video
+        # using its built-in ffmpeg. The 3D pass is near-free (EEVEE +
+        # transparent film) and the compositor replaces it with our frames.
+        print(f"fal.ai: Encoding {len(frames)} Canny frames to video...")
+        try:
+            bpy.ops.render.render(animation=True)
         except Exception as e:
-            self.report({"ERROR"}, f"ffmpeg encoding failed: {e}")
-            return
+            print(f"fal.ai: Encode render error: {e}")
+
+        # Restore encode-pass state
+        for node in tree.nodes:
+            tree.nodes.remove(node)
+        restore_compositor(tree, encode_comp_saved)
+
+        es = encode_saved
+        scene.render.engine = es["engine"]
+        scene.render.use_compositing = es["use_compositing"]
+        scene.render.film_transparent = es["film_transparent"]
+        if "media_type" in es and bpy.app.version >= (5, 0, 0):
+            scene.render.image_settings.media_type = es["media_type"]
+        scene.render.image_settings.file_format = es["file_format"]
+        scene.render.image_settings.color_mode = es["color_mode"]
+        scene.render.filepath = es["filepath"]
+        try:
+            if "ffmpeg_codec" in es:
+                scene.render.ffmpeg.codec = es["ffmpeg_codec"]
+            if "ffmpeg_format" in es:
+                scene.render.ffmpeg.format = es["ffmpeg_format"]
+        except AttributeError:
+            pass
+
+        # Clean up temp image data block
+        bpy.data.images.remove(bpy_img)
 
         if not os.path.exists(result_path):
             self.report({"ERROR"}, f"Edge video not found at {result_path}")
@@ -1040,7 +1068,7 @@ class FalRenderOperator(FalOperator):
             label=f"Edge Video: {self._prompt[:30]}",
         )
         JobManager.get().submit(job)
-        self.report({"INFO"}, "Animation rendered — generating edge video...")
+        self.report({"INFO"}, "Edge video encoded — generating video...")
 
     # ── First frame capture (for video modes) ─────────────────────────
 
