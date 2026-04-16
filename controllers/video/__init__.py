@@ -1,6 +1,5 @@
-from .controller import FalDepthVideoController, FalVideoController
+from .controller import FalVideoController
 
 __all__ = [
     "FalVideoController",
-    "FalDepthVideoController",
 ]

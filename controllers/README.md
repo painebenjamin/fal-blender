@@ -15,10 +15,10 @@ controllers/
 │   ├── operator.py      # FalAudioOperator
 │   ├── props.py         # FalAudioPropertyGroup
 │   └── __init__.py
-└── neural_render/       # Image generation controller
-    ├── controller.py    # FalNeuralRenderController
-    ├── operator.py      # FalNeuralRenderOperator
-    ├── props.py         # FalNeuralRenderPropertyGroup
+└── render/              # Image/video generation controller
+    ├── controller.py    # FalRenderController
+    ├── operator.py      # FalRenderOperator
+    ├── props.py         # FalRenderPropertyGroup
     ├── utils.py         # Rendering helpers (depth, sketch, labels)
     └── __init__.py
 ```
@@ -178,7 +178,7 @@ class FalAudioController(FalController):
 | `panel_3d` | Panel config for 3D Viewport sidebar (set `None` to skip) |
 | `panel_vse` | Panel config for Video Sequence Editor sidebar (set `None` to skip) |
 
-A controller can appear in one or both editor types. Set `panel_3d` for 3D Viewport workflows (like neural rendering) and `panel_vse` for timeline/sequence workflows (like audio generation).
+A controller can appear in one or both editor types. Set `panel_3d` for 3D Viewport workflows (like rendering) and `panel_vse` for timeline/sequence workflows (like audio generation).
 
 ### Step 4 — Export and register
 
@@ -267,7 +267,7 @@ panel_3d = FalControllerPanel(
 
 ## Complex Case: Modal Operator (Scene Render + API Call)
 
-The neural render controller is a complex example — it modifies the scene, triggers a Blender render, waits for completion via a modal loop, then submits the result to fal.ai.
+The render controller is a complex example — it modifies the scene, triggers a Blender render, waits for completion via a modal loop, then submits the result to fal.ai.
 
 ### Modal lifecycle
 
@@ -287,7 +287,7 @@ modal()
     └─ return {"FINISHED"} or {"CANCELLED"}
 ```
 
-Key patterns in the neural render operator:
+Key patterns in the render operator:
 
 **Cache everything in `__call__`** — modal handlers and render callbacks may run in contexts where `props` or `context` are no longer valid:
 
@@ -323,7 +323,7 @@ def enabled(cls, context, props) -> bool:
 **Module-level result handlers** — `on_complete` callbacks outlive the operator instance, so define them as module-level functions:
 
 ```python
-def _handle_neural_image_result(job: FalJob, render_w: int, render_h: int) -> None:
+def _handle_image_result(job: FalJob, render_w: int, render_h: int) -> None:
     if job.status == "error":
         print(f"Failed: {job.error}")
         return

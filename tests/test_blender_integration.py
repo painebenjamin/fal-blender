@@ -71,7 +71,7 @@ def test_operators_registered():
     
     # Check that our operators exist
     operators = [
-        "FAL_OT_fal_neural_render_operator",
+        "FAL_OT_fal_render_operator",
         "FAL_OT_fal_video_operator",
         "FAL_OT_fal_upscale_operator",
     ]

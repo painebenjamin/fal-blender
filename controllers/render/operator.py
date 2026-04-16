@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import os
 import tempfile
 from typing import Any, ClassVar
 
 import bpy
 
-from ...importers import import_image_to_editor, resize_image_to_target
+from ...importers import add_video_to_vse, import_image_to_editor, resize_image_to_target
 from ...job_queue import FalJob, JobManager
 from ...models import (
     DepthGuidedImageGenerationModel,
+    DepthVideoModel,
+    EdgeGuidedImageGenerationModel,
+    EdgeVideoModel,
     ImageRefinementModel,
     SketchGuidedImageGenerationModel,
 )
@@ -24,26 +28,48 @@ from ...utils import (
     restore_world_color_links,
     set_world_color,
     snapshot_compositor,
+    upload_blender_image,
+    upload_file,
 )
 from ..operators import FalOperator
 from .utils import (
     calc_scene_depth_bounds,
     get_dimensions,
     overlay_labels,
+    render_to_canny,
     render_to_sketch,
 )
 
 SKETCH_GUIDED_IMAGE_GENERATION_MODELS = SketchGuidedImageGenerationModel.catalog()
 DEPTH_GUIDED_IMAGE_GENERATION_MODELS = DepthGuidedImageGenerationModel.catalog()
+EDGE_GUIDED_IMAGE_GENERATION_MODELS = EdgeGuidedImageGenerationModel.catalog()
 IMAGE_REFINEMENT_MODELS = ImageRefinementModel.catalog()
+DEPTH_VIDEO_MODELS = DepthVideoModel.catalog()
+EDGE_VIDEO_MODELS = EdgeVideoModel.catalog()
 
 
-class FalNeuralRenderOperator(FalOperator):
+def _get_scene_duration(scene: bpy.types.Scene) -> float:
+    """Calculate the scene duration in seconds from frame range and FPS."""
+    fps = scene.render.fps / scene.render.fps_base
+    frames = scene.frame_end - scene.frame_start + 1
+    return frames / fps
+
+
+def _get_scene_dimensions(scene: bpy.types.Scene) -> tuple[int, int]:
+    """Return the effective render resolution as (width, height)."""
+    scale = scene.render.resolution_percentage / 100.0
+    return (
+        int(scene.render.resolution_x * scale),
+        int(scene.render.resolution_y * scale),
+    )
+
+
+class FalRenderOperator(FalOperator):
     """
-    Operator for neural rendering.
+    Operator for rendering (image and video modes).
     """
 
-    label = "Neural Render"  # text in button in UI
+    label = "Render"  # text in button in UI
 
     # Guard against overlapping renders
     _rendering: ClassVar[bool] = False
@@ -60,12 +86,14 @@ class FalNeuralRenderOperator(FalOperator):
         if context.scene.camera is None:
             return False
 
-        if props.mode == "SKETCH":
-            return bool(props.sketch_system_prompt.strip() or props.prompt.strip())
-        elif props.mode == "REFINE":
-            return bool(props.refine_system_prompt.strip() or props.prompt.strip())
-
-        return bool(props.prompt.strip())
+        if props.render_type == "IMAGE":
+            if props.mode == "SKETCH":
+                return bool(props.sketch_system_prompt.strip() or props.prompt.strip())
+            elif props.mode == "REFINE":
+                return bool(props.refine_system_prompt.strip() or props.prompt.strip())
+            return bool(props.prompt.strip())
+        else:  # VIDEO
+            return bool(props.prompt.strip())
 
     def __call__(
         self,
@@ -79,55 +107,113 @@ class FalNeuralRenderOperator(FalOperator):
         """
         if not invoke:
             raise RuntimeError(
-                "Neural render operator should be used as a modal operator"
+                "Render operator should be used as a modal operator"
             )
 
-        # Cache everything we need — context may not be fully usable
-        # from inside render handlers.
-        self._mode = props.mode
+        self._render_type = props.render_type
         self._prompt = props.prompt
-        self._seed = props.seed
-
-        if self._mode == "DEPTH":
-            self._model = DEPTH_GUIDED_IMAGE_GENERATION_MODELS[props.depth_endpoint]
-        elif self._mode == "SKETCH":
-            self._model = SKETCH_GUIDED_IMAGE_GENERATION_MODELS[props.sketch_endpoint]
-        else:
-            self._model = IMAGE_REFINEMENT_MODELS[props.refine_endpoint]
-
-        self._refine_strength = props.refine_strength
-        self._sketch_system_prompt = props.sketch_system_prompt
-        self._refine_system_prompt = props.refine_system_prompt
         self._expand_prompt = props.enable_prompt_expansion
-        self._enable_labels = props.enable_labels
-        self._auto_label = props.auto_label
         self._render_w, self._render_h = get_dimensions(context, props)
 
         # Reset modal state
         self._render_done = False
         self._render_cancelled = False
         self._timer = None
-        self._saved = {}
-        self._sketch_mats = []
-        self._old_materials = {}
-        self._hidden_lights = []
-        self._saved_compositor = []
+        self._saved: dict[str, Any] = {}
+        self._sketch_mats: list = []
+        self._old_materials: dict = {}
+        self._hidden_lights: list = []
+        self._saved_compositor: list = []
         self._saved_world_links: list[tuple] = []
+        self._tmp_dir: str | None = None
+        self._output_path: str | None = None
+        self._animation = False
 
-        # Setup scene for the render
-        try:
+        if self._render_type == "IMAGE":
+            self._mode = props.mode
+            self._seed = props.seed
+
             if self._mode == "DEPTH":
-                self._setup_depth(context)
+                self._model = DEPTH_GUIDED_IMAGE_GENERATION_MODELS[props.depth_endpoint]
             elif self._mode == "SKETCH":
-                self._setup_sketch(context)
+                self._model = SKETCH_GUIDED_IMAGE_GENERATION_MODELS[props.sketch_endpoint]
+            elif self._mode == "EDGE":
+                self._model = EDGE_GUIDED_IMAGE_GENERATION_MODELS[props.edge_endpoint]
             else:
-                self._setup_refine(context)
-        except Exception as e:
-            self._restore_state(context)
-            self.report({"ERROR"}, f"Render setup failed: {e}")
-            return {"CANCELLED"}
+                self._model = IMAGE_REFINEMENT_MODELS[props.refine_endpoint]
 
-        self._rendering = True
+            self._refine_strength = props.refine_strength
+            self._sketch_system_prompt = props.sketch_system_prompt
+            self._refine_system_prompt = props.refine_system_prompt
+            self._enable_labels = props.enable_labels
+            self._auto_label = props.auto_label
+
+            # Setup scene for the render
+            try:
+                if self._mode == "DEPTH":
+                    self._setup_depth(context)
+                elif self._mode == "SKETCH":
+                    self._setup_sketch(context)
+                elif self._mode == "EDGE":
+                    self._setup_edge(context)
+                else:
+                    self._setup_refine(context)
+            except Exception as e:
+                self._restore_state(context)
+                self.report({"ERROR"}, f"Render setup failed: {e}")
+                return {"CANCELLED"}
+
+        else:  # VIDEO
+            self._video_mode = props.video_mode
+            self._animation = True
+
+            if self._video_mode == "DEPTH":
+                self._model = DEPTH_VIDEO_MODELS[props.depth_video_endpoint]
+            else:
+                self._model = EDGE_VIDEO_MODELS[props.edge_video_endpoint]
+
+            # Cache video-specific props
+            scene = context.scene
+            self._use_first_frame = props.video_use_first_frame
+            self._first_frame_source = props.video_image_source
+            self._first_frame_path = props.video_image_path
+            self._first_frame_texture = props.video_texture
+
+            if props.use_scene_duration:
+                self._duration = max(1, int(round(_get_scene_duration(scene))))
+            else:
+                self._duration = int(props.duration)
+
+            fps = scene.render.fps / scene.render.fps_base
+            self._num_frames = max(17, int(self._duration * min(fps, 16)))
+
+            # Map dimensions to supported resolution tiers
+            w, h = self._render_w, self._render_h
+            if max(w, h) >= 1280:
+                self._resolution = "720p"
+            elif max(w, h) >= 580:
+                self._resolution = "580p"
+            else:
+                self._resolution = "480p"
+
+            print(f"fal.ai: Video dimensions: {w}x{h} -> {self._resolution}")
+
+            # Pre-capture first-frame image BEFORE depth render
+            self._first_frame_url: str | None = None
+            if self._use_first_frame:
+                self._first_frame_url = self._capture_first_frame()
+
+            try:
+                if self._video_mode == "DEPTH":
+                    self._setup_depth_video(context)
+                else:
+                    self._setup_edge_video(context)
+            except Exception as e:
+                self._restore_state(context)
+                self.report({"ERROR"}, f"Render setup failed: {e}")
+                return {"CANCELLED"}
+
+        type(self)._rendering = True
 
         # Register render completion handlers — store refs for clean removal
         self._handler_complete = self._on_complete
@@ -135,12 +221,15 @@ class FalNeuralRenderOperator(FalOperator):
         bpy.app.handlers.render_complete.append(self._handler_complete)
         bpy.app.handlers.render_cancel.append(self._handler_cancel)
 
-        # Start non-blocking render (shows Blender's render progress bar)
-        bpy.ops.render.render("INVOKE_DEFAULT")
+        # Start non-blocking render
+        if self._animation:
+            bpy.ops.render.render("INVOKE_DEFAULT", animation=True)
+        else:
+            bpy.ops.render.render("INVOKE_DEFAULT")
 
         # Enter modal loop
         wm = context.window_manager
-        self._timer = wm.event_timer_add(0.25, window=context.window)
+        self._timer = wm.event_timer_add(0.25 if not self._animation else 0.5, window=context.window)
         wm.modal_handler_add(self._operator_instance)
         self.report({"INFO"}, "Rendering...")
         return {"RUNNING_MODAL"}
@@ -168,13 +257,21 @@ class FalNeuralRenderOperator(FalOperator):
             self.report({"WARNING"}, "Render cancelled")
             return {"CANCELLED"}
 
-        # Render succeeded — save result, restore scene, upload & submit
-        if self._mode == "DEPTH":
-            self._finish_depth(context)
-        elif self._mode == "SKETCH":
-            self._finish_sketch(context)
-        else:
-            self._finish_refine(context)
+        # Render succeeded — dispatch to appropriate finish handler
+        if self._render_type == "IMAGE":
+            if self._mode == "DEPTH":
+                self._finish_depth(context)
+            elif self._mode == "SKETCH":
+                self._finish_sketch(context)
+            elif self._mode == "EDGE":
+                self._finish_edge(context)
+            else:
+                self._finish_refine(context)
+        else:  # VIDEO
+            if self._video_mode == "DEPTH":
+                self._finish_depth_video(context)
+            else:
+                self._finish_edge_video(context)
 
         return {"FINISHED"}
 
@@ -201,7 +298,7 @@ class FalNeuralRenderOperator(FalOperator):
         """
         Clean up the modal state.
         """
-        self._rendering = False
+        type(self)._rendering = False
         if self._timer is not None:
             context.window_manager.event_timer_remove(self._timer)
             self._timer = None
@@ -214,7 +311,7 @@ class FalNeuralRenderOperator(FalOperator):
             except (ValueError, AttributeError):
                 pass
 
-    # ── Depth Mode — setup / finish ────────────────────────────────────
+    # ── Depth Image Mode — setup / finish ─────────────────────────────
 
     def _setup_depth(self, context: bpy.types.Context) -> None:
         """
@@ -326,13 +423,13 @@ class FalNeuralRenderOperator(FalOperator):
         rw, rh = self._render_w, self._render_h
 
         def on_complete(job: FalJob):
-            _handle_neural_image_result(job, rw, rh)
+            _handle_image_result(job, rw, rh)
 
         job = FalJob(
             endpoint=self._model.endpoint,
             arguments=args,
             on_complete=on_complete,
-            label=f"Neural Depth: {self._prompt[:30]}",
+            label=f"Render Depth: {self._prompt[:30]}",
         )
         JobManager.get().submit(job)
         self.report({"INFO"}, "Depth rendered — generating image...")
@@ -511,13 +608,13 @@ class FalNeuralRenderOperator(FalOperator):
         rw, rh = self._render_w, self._render_h
 
         def on_complete(job: FalJob):
-            _handle_neural_image_result(job, rw, rh)
+            _handle_image_result(job, rw, rh)
 
         job = FalJob(
             endpoint=self._model.endpoint,
             arguments=args,
             on_complete=on_complete,
-            label=f"Neural Sketch: {self._prompt[:30]}",
+            label=f"Render Sketch: {self._prompt[:30]}",
         )
         JobManager.get().submit(job)
         self.report({"INFO"}, "Sketch rendered — generating image...")
@@ -582,13 +679,13 @@ class FalNeuralRenderOperator(FalOperator):
         rw, rh = self._render_w, self._render_h
 
         def on_complete(job: FalJob):
-            _handle_neural_image_result(job, rw, rh)
+            _handle_image_result(job, rw, rh)
 
         job = FalJob(
             endpoint=self._model.endpoint,
             arguments=args,
             on_complete=on_complete,
-            label=f"Neural Refine: {self._prompt[:30]}",
+            label=f"Render Refine: {self._prompt[:30]}",
         )
         JobManager.get().submit(job)
         self.report(
@@ -596,11 +693,322 @@ class FalNeuralRenderOperator(FalOperator):
             f"Render complete — refining (strength={self._refine_strength:.0%})...",
         )
 
+    # ── Edge Image Mode — setup / finish ──────────────────────────────
+
+    def _setup_edge(self, context: bpy.types.Context) -> None:
+        """
+        Configure scene for a normal render (same as refine — just override resolution).
+        """
+        self._setup_refine(context)
+
+    def _finish_edge(self, context: bpy.types.Context) -> None:
+        """
+        Save normal render, apply Canny edge detection, upload, submit.
+        """
+        render_img = bpy.data.images.get("Render Result")
+        if not render_img or not render_img.has_data:
+            self._restore_state(context)
+            self.report({"ERROR"}, "Render failed — no image data")
+            return
+
+        tmp = tempfile.NamedTemporaryFile(
+            suffix=".png", delete=False, prefix="fal_edge_"
+        ).name
+        try:
+            render_img.save_render(tmp)
+        except RuntimeError as e:
+            self._restore_state(context)
+            self.report({"ERROR"}, f"Failed to save render: {e}")
+            return
+        print(f"fal.ai: Render saved for edge detection: {tmp}")
+
+        # Restore scene state
+        self._restore_state(context)
+
+        # Apply Canny edge detection
+        try:
+            render_to_canny(tmp, self._render_w, self._render_h)
+            print("fal.ai: Canny edge detection complete")
+        except Exception as e:
+            self.report({"ERROR"}, f"Edge detection failed: {e}")
+            return
+
+        # Show canny preview
+        import_image_to_editor(tmp, name="fal_edge_preview")
+
+        args = self._model.parameters(
+            image_path=tmp,
+            prompt=self._prompt.strip(),
+            enable_prompt_expansion=self._expand_prompt,
+            width=self._render_w,
+            height=self._render_h,
+            seed=self._seed if self._seed >= 0 else None,
+        )
+
+        rw, rh = self._render_w, self._render_h
+
+        def on_complete(job: FalJob):
+            _handle_image_result(job, rw, rh)
+
+        job = FalJob(
+            endpoint=self._model.endpoint,
+            arguments=args,
+            on_complete=on_complete,
+            label=f"Render Edge: {self._prompt[:30]}",
+        )
+        JobManager.get().submit(job)
+        self.report({"INFO"}, "Edge detected — generating image...")
+
+    # ── Depth Video Mode — setup / finish ─────────────────────────────
+
+    def _setup_depth_video(self, context: bpy.types.Context) -> None:
+        """Configure Blender to render a mist/depth pass animation as video."""
+        scene = context.scene
+        view_layer = context.view_layer
+        world = scene.world
+        camera = scene.camera
+
+        self._saved.update(
+            {
+                "engine": scene.render.engine,
+                "film_transparent": scene.render.film_transparent,
+                "use_compositing": scene.render.use_compositing,
+                "use_pass_mist": view_layer.use_pass_mist,
+                "view_transform": scene.view_settings.view_transform,
+                "look": scene.view_settings.look,
+                "file_format": scene.render.image_settings.file_format,
+                "color_mode": scene.render.image_settings.color_mode,
+                "filepath": scene.render.filepath,
+            }
+        )
+        # Blender 4.x only: save use_nodes (deprecated in 5.x)
+        if bpy.app.version < (5, 0, 0):
+            self._saved["use_nodes"] = scene.use_nodes
+        # Blender 5.x: save media_type (new in 5.x)
+        if bpy.app.version >= (5, 0, 0):
+            self._saved["media_type"] = scene.render.image_settings.media_type
+
+        try:
+            self._saved["ffmpeg_codec"] = scene.render.ffmpeg.codec
+            self._saved["ffmpeg_format"] = scene.render.ffmpeg.format
+        except AttributeError:
+            pass
+
+        if world:
+            self._saved["mist_start"] = world.mist_settings.start
+            self._saved["mist_depth"] = world.mist_settings.depth
+
+        self._tmp_dir = tempfile.mkdtemp(prefix="fal_depth_video_")
+        self._output_path = os.path.join(self._tmp_dir, "depth")
+
+        scene.render.engine = get_eevee_engine()
+        scene.render.film_transparent = False
+        scene.render.use_compositing = True
+
+        scene.view_settings.view_transform = "Standard"
+        scene.view_settings.look = "None"
+
+        view_layer.use_pass_mist = True
+
+        if camera and world:
+            near, far = calc_scene_depth_bounds(scene, camera)
+            if near is not None and far is not None:
+                padding = (far - near) * 0.05
+                world.mist_settings.start = max(0.0, near - padding)
+                world.mist_settings.depth = (far - near) + padding * 2
+                world.mist_settings.falloff = "LINEAR"
+                print(f"fal.ai: Depth video range: {near:.2f} — {far:.2f}m")
+            else:
+                cam_data = camera.data
+                world.mist_settings.start = cam_data.clip_start
+                world.mist_settings.depth = cam_data.clip_end - cam_data.clip_start
+                world.mist_settings.falloff = "LINEAR"
+
+        tree = ensure_compositor_enabled(scene)
+        self._saved_compositor = snapshot_compositor(tree)
+        for node in tree.nodes:
+            tree.nodes.remove(node)
+
+        rl_node = tree.nodes.new("CompositorNodeRLayers")
+        rl_node.location = (0, 0)
+        invert_node = tree.nodes.new("CompositorNodeInvert")
+        invert_node.location = (300, 0)
+        composite_node = create_compositor_output_node(tree)
+        composite_node.location = (600, 0)
+        tree.links.new(rl_node.outputs["Mist"], invert_node.inputs["Color"])
+        tree.links.new(invert_node.outputs["Color"], composite_node.inputs["Image"])
+
+        # Blender 5.x: set media_type to VIDEO first (FFMPEG is now implicit)
+        # Blender 4.x: set file_format to FFMPEG
+        if bpy.app.version >= (5, 0, 0):
+            scene.render.image_settings.media_type = "VIDEO"
+        else:
+            scene.render.image_settings.file_format = "FFMPEG"
+        scene.render.ffmpeg.format = "MPEG4"
+        scene.render.ffmpeg.codec = "H264"
+        scene.render.image_settings.color_mode = "BW"
+        scene.render.filepath = self._output_path
+
+    def _finish_depth_video(self, context: bpy.types.Context) -> None:
+        """Upload the rendered depth video and submit the fal.ai generation job."""
+        result_path = self._output_path + ".mp4"
+        if not os.path.exists(result_path) and self._tmp_dir:
+            for f in os.listdir(self._tmp_dir):
+                if f.endswith(".mp4"):
+                    result_path = os.path.join(self._tmp_dir, f)
+                    break
+
+        if not os.path.exists(result_path):
+            self._restore_state(context)
+            self.report({"ERROR"}, f"Depth video not found at {result_path}")
+            return
+
+        print(f"fal.ai: Depth video saved to {result_path}")
+
+        self._restore_state(context)
+
+        video_url = upload_file(result_path)
+        params = self._model.parameters(
+            prompt=self._prompt,
+            enable_prompt_expansion=self._expand_prompt,
+            video_url=video_url,
+            num_frames=self._num_frames,
+            image_url=self._first_frame_url,
+            resolution=self._resolution,
+            width=self._render_w,
+            height=self._render_h,
+        )
+
+        def on_complete(job: FalJob) -> None:
+            _handle_video_result(job)
+
+        job = FalJob(
+            endpoint=self._model.endpoint,
+            arguments=params,
+            on_complete=on_complete,
+            label=f"Depth Video: {self._prompt[:30]}",
+        )
+        JobManager.get().submit(job)
+        self.report({"INFO"}, "Depth rendered — generating video...")
+
+    # ── Edge Video Mode — setup / finish ──────────────────────────────
+
+    def _setup_edge_video(self, context: bpy.types.Context) -> None:
+        """Configure Blender to render a normal animation as video for edge conditioning."""
+        scene = context.scene
+
+        self._saved.update(
+            {
+                "file_format": scene.render.image_settings.file_format,
+                "color_mode": scene.render.image_settings.color_mode,
+                "filepath": scene.render.filepath,
+            }
+        )
+        # Blender 5.x: save media_type (new in 5.x)
+        if bpy.app.version >= (5, 0, 0):
+            self._saved["media_type"] = scene.render.image_settings.media_type
+
+        try:
+            self._saved["ffmpeg_codec"] = scene.render.ffmpeg.codec
+            self._saved["ffmpeg_format"] = scene.render.ffmpeg.format
+        except AttributeError:
+            pass
+
+        self._tmp_dir = tempfile.mkdtemp(prefix="fal_edge_video_")
+        self._output_path = os.path.join(self._tmp_dir, "edge")
+
+        # Blender 5.x: set media_type to VIDEO first (FFMPEG is now implicit)
+        # Blender 4.x: set file_format to FFMPEG
+        if bpy.app.version >= (5, 0, 0):
+            scene.render.image_settings.media_type = "VIDEO"
+        else:
+            scene.render.image_settings.file_format = "FFMPEG"
+        scene.render.ffmpeg.format = "MPEG4"
+        scene.render.ffmpeg.codec = "H264"
+        scene.render.image_settings.color_mode = "RGB"
+        scene.render.filepath = self._output_path
+
+    def _finish_edge_video(self, context: bpy.types.Context) -> None:
+        """Upload the rendered video and submit to fal.ai edge model."""
+        result_path = self._output_path + ".mp4"
+        if not os.path.exists(result_path) and self._tmp_dir:
+            for f in os.listdir(self._tmp_dir):
+                if f.endswith(".mp4"):
+                    result_path = os.path.join(self._tmp_dir, f)
+                    break
+
+        if not os.path.exists(result_path):
+            self._restore_state(context)
+            self.report({"ERROR"}, f"Edge video not found at {result_path}")
+            return
+
+        print(f"fal.ai: Edge video saved to {result_path}")
+
+        self._restore_state(context)
+
+        video_url = upload_file(result_path)
+        params = self._model.parameters(
+            prompt=self._prompt,
+            enable_prompt_expansion=self._expand_prompt,
+            video_url=video_url,
+            num_frames=self._num_frames,
+            image_url=self._first_frame_url,
+            resolution=self._resolution,
+            width=self._render_w,
+            height=self._render_h,
+        )
+
+        def on_complete(job: FalJob) -> None:
+            _handle_video_result(job)
+
+        job = FalJob(
+            endpoint=self._model.endpoint,
+            arguments=params,
+            on_complete=on_complete,
+            label=f"Edge Video: {self._prompt[:30]}",
+        )
+        JobManager.get().submit(job)
+        self.report({"INFO"}, "Animation rendered — generating edge video...")
+
+    # ── First frame capture (for video modes) ─────────────────────────
+
+    def _capture_first_frame(self) -> str | None:
+        """Capture the first-frame image before depth render overwrites state."""
+        try:
+            if self._first_frame_source == "FILE":
+                if not self._first_frame_path.strip():
+                    return None
+                return upload_file(self._first_frame_path)
+            elif self._first_frame_source == "TEXTURE":
+                img = self._first_frame_texture  # Already an Image object
+                if not img:
+                    return None
+                return upload_blender_image(img)
+            else:  # RENDER
+                render_img = bpy.data.images.get("Render Result")
+                if not render_img or not render_img.has_data:
+                    print("fal.ai: No render result available for first frame")
+                    return None
+                tmp = tempfile.NamedTemporaryFile(
+                    suffix=".png", delete=False, prefix="fal_first_frame_"
+                )
+                tmp.close()
+                try:
+                    render_img.save_render(tmp.name)
+                except RuntimeError as e:
+                    print(f"fal.ai: Failed to save first frame: {e}")
+                    return None
+                print(f"fal.ai: First frame captured to {tmp.name}")
+                return upload_file(tmp.name)
+        except Exception as e:
+            print(f"fal.ai: Failed to capture first frame: {e}")
+            return None
+
     # ── Unified state restoration ──────────────────────────────────────
 
     def _restore_state(self, context: bpy.types.Context) -> None:
         """
-        Restore all saved scene state (works for both depth and sketch).
+        Restore all saved scene state (works for all modes).
         """
         scene = context.scene
         view_layer = context.view_layer
@@ -641,7 +1049,7 @@ class FalNeuralRenderOperator(FalOperator):
             if "mist_depth" in s:
                 world.mist_settings.depth = s["mist_depth"]
 
-        # Sketch-specific: view settings
+        # View settings
         if "view_transform" in s:
             scene.view_settings.view_transform = s["view_transform"]
         if "look" in s:
@@ -655,6 +1063,25 @@ class FalNeuralRenderOperator(FalOperator):
             scene.render.use_freestyle = s["use_freestyle"]
         if "vl_use_freestyle" in s:
             view_layer.use_freestyle = s["vl_use_freestyle"]
+
+        # Video render settings
+        # Blender 5.x: restore media_type first (affects available file_format values)
+        if "media_type" in s and bpy.app.version >= (5, 0, 0):
+            scene.render.image_settings.media_type = s["media_type"]
+        if "file_format" in s:
+            scene.render.image_settings.file_format = s["file_format"]
+        if "color_mode" in s:
+            scene.render.image_settings.color_mode = s["color_mode"]
+        if "filepath" in s:
+            scene.render.filepath = s["filepath"]
+
+        try:
+            if "ffmpeg_codec" in s:
+                scene.render.ffmpeg.codec = s["ffmpeg_codec"]
+            if "ffmpeg_format" in s:
+                scene.render.ffmpeg.format = s["ffmpeg_format"]
+        except AttributeError:
+            pass
 
         # Sketch-specific: restore materials
         for obj_name, mat_list in self._old_materials.items():
@@ -682,16 +1109,16 @@ class FalNeuralRenderOperator(FalOperator):
 
 
 # ---------------------------------------------------------------------------
-# Result handler (module-level — must not reference operator self)
+# Result handlers (module-level — must not reference operator self)
 # ---------------------------------------------------------------------------
-def _handle_neural_image_result(
+def _handle_image_result(
     job: FalJob,
     render_w: int = 0,
     render_h: int = 0,
 ) -> None:
     """Download generated image and load into Blender."""
     if job.status == "error":
-        print(f"fal.ai: Neural render failed: {job.error}")
+        print(f"fal.ai: Render failed: {job.error}")
         return
 
     result = job.result or {}
@@ -714,5 +1141,31 @@ def _handle_neural_image_result(
     local_path = download_file(image_url, suffix=".png")
     if render_w > 0 and render_h > 0:
         resize_image_to_target(local_path, render_w, render_h)
-    import_image_to_editor(local_path, name="fal_neural_render")
-    print("fal.ai: Neural render complete!")
+    import_image_to_editor(local_path, name="fal_render")
+    print("fal.ai: Render complete!")
+
+
+def _handle_video_result(job: FalJob) -> None:
+    """Download video result and import to VSE."""
+    if job.status == "error":
+        print(f"fal.ai: Video generation failed: {job.error}")
+        return
+
+    result = job.result or {}
+    video_url = None
+    for key in ["video", "output", "video_url"]:
+        val = result.get(key)
+        if isinstance(val, dict) and "url" in val:
+            video_url = val["url"]
+            break
+        elif isinstance(val, str) and val.startswith("http"):
+            video_url = val
+            break
+
+    if not video_url:
+        print("fal.ai: No video in response")
+        return
+
+    local_path = download_file(video_url, suffix=".mp4")
+    add_video_to_vse(local_path, name="fal_video")
+    print("fal.ai: Video imported to VSE!")

@@ -47,9 +47,9 @@ controllers/          Blender-side workflows (UI, operators, properties)
   audio/              TTS, SFX, Music (VSE only)
   generate_3d/        Text/Image-to-3D (3D only)
   material/           PBR material generation (3D only)
-  neural_render/      Depth, Sketch, Refine modes (3D only)
+  render/             Depth, Sketch, Refine, Edge modes + Video (3D only)
   upscale/            Image and video upscaling (3D only)
-  video/              Text/Image-to-Video (VSE) + Depth Video (3D)
+  video/              Text/Image-to-Video (VSE only)
 
 models/               fal.ai endpoint definitions and parameter builders
   base.py             FalModel, VisualFalModel, AudioFalModel

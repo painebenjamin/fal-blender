@@ -5,6 +5,11 @@ from .depth_video import (
     WanFun22A14BDepthVideoModel,
     WanVACE14BDepthVideoModel,
 )
+from .edge_video import (
+    EdgeVideoModel,
+    LTX2DistilledEdgeVideoModel,
+    LTX2EdgeVideoModel,
+)
 from .image_to_video import (
     ImageToVideoModel,
     LTX2DistilledImageToVideoModel,
@@ -36,4 +41,7 @@ __all__ = [
     "Wan22TurboTextToVideoModel",
     "WanFun22A14BDepthVideoModel",
     "WanVACE14BDepthVideoModel",
+    "EdgeVideoModel",
+    "LTX2DistilledEdgeVideoModel",
+    "LTX2EdgeVideoModel",
 ]

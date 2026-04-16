@@ -10,7 +10,9 @@ from .audio_generation import (
 from .base import AudioFalModel, FalModel, VisualFalModel
 from .image_generation import (
     DepthGuidedImageGenerationModel,
+    EdgeGuidedImageGenerationModel,
     FLUX1DevDepthGuidedImageGenerationModel,
+    FLUX1DevEdgeGuidedImageGenerationModel,
     FLUX1DevImageRefinementModel,
     FLUX2Klein9BImageRefinementModel,
     ImageRefinementModel,
@@ -22,6 +24,7 @@ from .image_generation import (
     NanoBananaSketchGuidedImageGenerationModel,
     SketchGuidedImageGenerationModel,
     ZImageTurboDepthGuidedImageGenerationModel,
+    ZImageTurboEdgeGuidedImageGenerationModel,
     ZImageTurboImageRefinementModel,
 )
 from .image_processing import (
@@ -50,9 +53,12 @@ from .mesh_generation import (
 )
 from .video_generation import (
     DepthVideoModel,
+    EdgeVideoModel,
     ImageToVideoModel,
     LTX2DepthVideoModel,
     LTX2DistilledDepthVideoModel,
+    LTX2DistilledEdgeVideoModel,
+    LTX2EdgeVideoModel,
     LTX2DistilledImageToVideoModel,
     LTX2DistilledTextToVideoModel,
     LTX2ImageToVideoModel,
@@ -123,6 +129,12 @@ __all__ = [
     "LTX2DepthVideoModel",
     "WanFun22A14BDepthVideoModel",
     "WanVACE14BDepthVideoModel",
+    "EdgeGuidedImageGenerationModel",
+    "ZImageTurboEdgeGuidedImageGenerationModel",
+    "FLUX1DevEdgeGuidedImageGenerationModel",
+    "EdgeVideoModel",
+    "LTX2DistilledEdgeVideoModel",
+    "LTX2EdgeVideoModel",
     "Hunyuan3DV31ProTextTo3DModel",
     "Hunyuan3DV31RapidTextTo3DModel",
     "Hunyuan3DV31ProImageTo3DModel",

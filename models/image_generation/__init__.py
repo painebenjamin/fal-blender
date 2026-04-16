@@ -3,6 +3,11 @@ from .depth_guided import (
     FLUX1DevDepthGuidedImageGenerationModel,
     ZImageTurboDepthGuidedImageGenerationModel,
 )
+from .edge_guided import (
+    EdgeGuidedImageGenerationModel,
+    FLUX1DevEdgeGuidedImageGenerationModel,
+    ZImageTurboEdgeGuidedImageGenerationModel,
+)
 from .refinement import (
     FLUX1DevImageRefinementModel,
     FLUX2Klein9BImageRefinementModel,
@@ -27,6 +32,9 @@ __all__ = [
     "DepthGuidedImageGenerationModel",
     "ZImageTurboDepthGuidedImageGenerationModel",
     "FLUX1DevDepthGuidedImageGenerationModel",
+    "EdgeGuidedImageGenerationModel",
+    "ZImageTurboEdgeGuidedImageGenerationModel",
+    "FLUX1DevEdgeGuidedImageGenerationModel",
     "ImageRefinementModel",
     "NanoBananaImageRefinementModel",
     "NanoBananaProImageRefinementModel",
