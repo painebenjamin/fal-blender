@@ -56,7 +56,7 @@ class LTX2DistilledEdgeVideoModel(EdgeVideoModel, LTX2DistilledVideoModel):
 
     endpoint = "fal-ai/ltx-2-19b/distilled/video-to-video"
     description = "Faster edge video — fewer steps"
-    static_parameters: ClassVar[dict[str, Any]] = {"ic_lora": "edge"}
+    static_parameters: ClassVar[dict[str, Any]] = {"ic_lora": "canny"}
 
 
 class LTX2EdgeVideoModel(EdgeVideoModel, LTX2VideoModel):
@@ -64,4 +64,4 @@ class LTX2EdgeVideoModel(EdgeVideoModel, LTX2VideoModel):
 
     endpoint = "fal-ai/ltx-2-19b/video-to-video"
     description = "Edge-conditioned video generation via IC-LoRA"
-    static_parameters: ClassVar[dict[str, Any]] = {"ic_lora": "edge"}
+    static_parameters: ClassVar[dict[str, Any]] = {"ic_lora": "canny"}
