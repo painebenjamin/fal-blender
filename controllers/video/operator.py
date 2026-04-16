@@ -201,14 +201,16 @@ class FalDepthVideoOperator(FalOperator):
 
         if props.use_scene_resolution:
             w, h = _get_scene_dimensions(scene)
-            if max(w, h) >= 1280:
-                self._resolution = "720p"
-            elif max(w, h) >= 580:
-                self._resolution = "580p"
-            else:
-                self._resolution = "480p"
         else:
-            self._resolution = None
+            w, h = props.width, props.height
+
+        # Map dimensions to supported resolution tiers
+        if max(w, h) >= 1280:
+            self._resolution = "720p"
+        elif max(w, h) >= 580:
+            self._resolution = "580p"
+        else:
+            self._resolution = "480p"
 
         # Modal state
         self._render_done = False
