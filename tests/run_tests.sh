@@ -23,6 +23,9 @@ run_unit_tests() {
 
 run_integration_tests() {
     echo "=== Running Integration Tests (Blender) ==="
+    echo "Note: For full testing, install the extension in Blender first."
+    echo "      Extension-specific tests will be skipped if not installed."
+    echo ""
     
     # Find Blender executable
     if command -v blender &> /dev/null; then
