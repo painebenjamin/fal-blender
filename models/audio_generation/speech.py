@@ -20,7 +20,9 @@ class SpeechGenerationModel(AudioFalModel):
     voice_parameter: ClassVar[str] = "voice"
 
     @classmethod
-    def clone_parameters(cls, audio_url: str, text: str, **kwargs: Any) -> dict[str, Any]:
+    def clone_parameters(
+        cls, audio_url: str, text: str, **kwargs: Any
+    ) -> dict[str, Any]:
         """Build parameters for voice cloning. Override in subclasses with different APIs."""
         return {"audio_url": audio_url, "text": text}
 
@@ -75,10 +77,26 @@ class ElevenLabsSpeechGenerationModel(SpeechGenerationModel):
     display_name = "ElevenLabs TTS Turbo v2.5"
     supports_preset = True
     voice_presets = [
-        "Aria", "Roger", "Sarah", "Laura", "Charlie", "George",
-        "Callum", "River", "Liam", "Charlotte", "Alice", "Matilda",
-        "Will", "Jessica", "Eric", "Chris", "Brian", "Daniel",
-        "Lily", "Bill",
+        "Aria",
+        "Roger",
+        "Sarah",
+        "Laura",
+        "Charlie",
+        "George",
+        "Callum",
+        "River",
+        "Liam",
+        "Charlotte",
+        "Alice",
+        "Matilda",
+        "Will",
+        "Jessica",
+        "Eric",
+        "Chris",
+        "Brian",
+        "Daniel",
+        "Lily",
+        "Bill",
     ]
 
 
@@ -91,10 +109,22 @@ class MiniMaxSpeechGenerationModel(SpeechGenerationModel):
     supports_preset = True
     supports_clone = True
     voice_presets = [
-        "Wise_Woman", "Friendly_Person", "Inspirational_girl", "Deep_Voice_Man",
-        "Calm_Woman", "Casual_Guy", "Lively_Girl", "Patient_Man",
-        "Young_Knight", "Determined_Man", "Lovely_Girl", "Decent_Boy",
-        "Imposing_Manner", "Elegant_Man", "Abbess", "Sweet_Girl_2",
+        "Wise_Woman",
+        "Friendly_Person",
+        "Inspirational_girl",
+        "Deep_Voice_Man",
+        "Calm_Woman",
+        "Casual_Guy",
+        "Lively_Girl",
+        "Patient_Man",
+        "Young_Knight",
+        "Determined_Man",
+        "Lovely_Girl",
+        "Decent_Boy",
+        "Imposing_Manner",
+        "Elegant_Man",
+        "Abbess",
+        "Sweet_Girl_2",
         "Exuberant_Girl",
     ]
 

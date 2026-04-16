@@ -4,8 +4,7 @@ import bpy  # type: ignore[import-not-found]
 
 from ...importers import import_image_as_texture
 from ...job_queue import FalJob, JobManager
-from ...models import (MaterialGenerationModel, PBREstimationModel,
-                       TilingTextureModel)
+from ...models import MaterialGenerationModel, PBREstimationModel, TilingTextureModel
 from ...utils import download_file
 from ..operators import FalOperator
 

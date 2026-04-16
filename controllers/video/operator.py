@@ -9,10 +9,17 @@ import bpy
 from ...importers import add_video_to_vse
 from ...job_queue import FalJob, JobManager
 from ...models import DepthVideoModel, ImageToVideoModel, TextToVideoModel
-from ...utils import (create_compositor_output_node, download_file,
-                      ensure_compositor_enabled, get_compositor_node_tree,
-                      get_eevee_engine, restore_compositor, snapshot_compositor,
-                      upload_blender_image, upload_file)
+from ...utils import (
+    create_compositor_output_node,
+    download_file,
+    ensure_compositor_enabled,
+    get_compositor_node_tree,
+    get_eevee_engine,
+    restore_compositor,
+    snapshot_compositor,
+    upload_blender_image,
+    upload_file,
+)
 from ..neural_render.utils import calc_scene_depth_bounds
 from ..operators import FalOperator
 

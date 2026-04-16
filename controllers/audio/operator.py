@@ -4,8 +4,11 @@ import bpy
 
 from ...importers import add_audio_to_vse
 from ...job_queue import FalJob, JobManager
-from ...models import (MusicGenerationModel, SoundEffectsGenerationModel,
-                       SpeechGenerationModel)
+from ...models import (
+    MusicGenerationModel,
+    SoundEffectsGenerationModel,
+    SpeechGenerationModel,
+)
 from ...utils import download_file, upload_file
 from ..base import FalOperator
 
@@ -97,7 +100,9 @@ class FalAudioOperator(FalOperator):
         model = SPEECH_GENERATION_MODELS[props.tts_clone_endpoint]
 
         if not model.clone_endpoint:
-            self.report({"ERROR"}, f"{model.display_name} does not support voice cloning")
+            self.report(
+                {"ERROR"}, f"{model.display_name} does not support voice cloning"
+            )
             return {"CANCELLED"}
 
         # Upload reference audio to get a URL

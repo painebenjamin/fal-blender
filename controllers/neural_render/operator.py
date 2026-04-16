@@ -7,15 +7,29 @@ import bpy
 
 from ...importers import import_image_to_editor, resize_image_to_target
 from ...job_queue import FalJob, JobManager
-from ...models import (DepthGuidedImageGenerationModel, ImageRefinementModel,
-                       SketchGuidedImageGenerationModel)
-from ...utils import (create_compositor_output_node, download_file,
-                      ensure_compositor_enabled, get_compositor_node_tree,
-                      get_eevee_engine, get_world_color, restore_compositor,
-                      set_world_color, snapshot_compositor)
+from ...models import (
+    DepthGuidedImageGenerationModel,
+    ImageRefinementModel,
+    SketchGuidedImageGenerationModel,
+)
+from ...utils import (
+    create_compositor_output_node,
+    download_file,
+    ensure_compositor_enabled,
+    get_compositor_node_tree,
+    get_eevee_engine,
+    get_world_color,
+    restore_compositor,
+    set_world_color,
+    snapshot_compositor,
+)
 from ..operators import FalOperator
-from .utils import (calc_scene_depth_bounds, get_dimensions, overlay_labels,
-                    render_to_sketch)
+from .utils import (
+    calc_scene_depth_bounds,
+    get_dimensions,
+    overlay_labels,
+    render_to_sketch,
+)
 
 SKETCH_GUIDED_IMAGE_GENERATION_MODELS = SketchGuidedImageGenerationModel.catalog()
 DEPTH_GUIDED_IMAGE_GENERATION_MODELS = DepthGuidedImageGenerationModel.catalog()
@@ -470,7 +484,9 @@ class FalNeuralRenderOperator(FalOperator):
 
         # Overlay labels (after restore — uses camera projection + geometry)
         if self._enable_labels:
-            overlay_labels(context, tmp, self._render_w, self._render_h, self._auto_label)
+            overlay_labels(
+                context, tmp, self._render_w, self._render_h, self._auto_label
+            )
 
         # Upload and submit
         seed = self._seed if self._seed >= 0 else None

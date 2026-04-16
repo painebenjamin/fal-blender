@@ -1,7 +1,10 @@
 import bpy
 
-from ...models import (DepthGuidedImageGenerationModel, ImageRefinementModel,
-                       SketchGuidedImageGenerationModel)
+from ...models import (
+    DepthGuidedImageGenerationModel,
+    ImageRefinementModel,
+    SketchGuidedImageGenerationModel,
+)
 
 
 class FalNeuralRenderPropertyGroup(bpy.types.PropertyGroup):
