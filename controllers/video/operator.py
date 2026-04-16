@@ -108,12 +108,16 @@ class FalVideoOperator(FalOperator):
         """Submit an image-to-video generation job."""
         if props.image_source == "RENDER":
             render_img = bpy.data.images.get("Render Result")
-            if not render_img:
+            if not render_img or not render_img.has_data:
                 self.report({"ERROR"}, "No render result available")
                 return {"CANCELLED"}
             tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
             tmp.close()
-            render_img.save_render(tmp.name)
+            try:
+                render_img.save_render(tmp.name)
+            except RuntimeError as e:
+                self.report({"ERROR"}, f"Failed to save render: {e}")
+                return {"CANCELLED"}
             image_url = upload_file(tmp.name)
         elif props.image_path:
             image_url = upload_file(bpy.path.abspath(props.image_path))
@@ -514,14 +518,18 @@ class FalDepthVideoOperator(FalOperator):
                 return upload_blender_image(img)
             else:  # RENDER
                 render_img = bpy.data.images.get("Render Result")
-                if not render_img:
+                if not render_img or not render_img.has_data:
                     print("fal.ai: No render result available for first frame")
                     return None
                 tmp = tempfile.NamedTemporaryFile(
                     suffix=".png", delete=False, prefix="fal_first_frame_"
                 )
                 tmp.close()
-                render_img.save_render(tmp.name)
+                try:
+                    render_img.save_render(tmp.name)
+                except RuntimeError as e:
+                    print(f"fal.ai: Failed to save first frame: {e}")
+                    return None
                 print(f"fal.ai: First frame captured to {tmp.name}")
                 return upload_file(tmp.name)
         except Exception as e:

@@ -28,7 +28,8 @@ class FalUpscaleOperator(FalOperator):
         if props.source == "FILE":
             return bool(props.image_path.strip())
         elif props.source == "RENDER":
-            return bpy.data.images.get("Render Result") is not None
+            render_img = bpy.data.images.get("Render Result")
+            return render_img is not None and render_img.has_data
         elif props.source == "TEXTURE":
             return props.texture is not None
         return False
@@ -78,11 +79,11 @@ def _resolve_source_url(props: bpy.types.PropertyGroup) -> str:
         return upload_file(bpy.path.abspath(props.image_path))
     elif props.source == "RENDER":
         render_img = bpy.data.images.get("Render Result")
-        if not render_img:
+        if not render_img or not render_img.has_data:
             raise RuntimeError("No render result available")
         tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
         tmp.close()
-        render_img.save_render(tmp.name)
+        render_img.save_render(tmp.name)  # Let RuntimeError propagate
         return upload_file(tmp.name)
     elif props.source == "TEXTURE":
         img = props.texture  # Already an Image object

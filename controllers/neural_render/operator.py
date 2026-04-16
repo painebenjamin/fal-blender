@@ -278,15 +278,20 @@ class FalNeuralRenderOperator(FalOperator):
         Save depth render result, restore scene, upload and submit API job.
         """
         render_img = bpy.data.images.get("Render Result")
-        if not render_img:
+        if not render_img or not render_img.has_data:
             self._restore_state(context)
-            self.report({"ERROR"}, "Depth render failed — no result")
+            self.report({"ERROR"}, "Depth render failed — no image data")
             return
 
         depth_path = tempfile.NamedTemporaryFile(
             suffix=".png", delete=False, prefix="fal_depth_"
         ).name
-        render_img.save_render(depth_path)
+        try:
+            render_img.save_render(depth_path)
+        except RuntimeError as e:
+            self._restore_state(context)
+            self.report({"ERROR"}, f"Failed to save depth render: {e}")
+            return
         print(f"fal.ai: Depth map saved to {depth_path}")
 
         # Restore scene state before doing network I/O
@@ -437,15 +442,20 @@ class FalNeuralRenderOperator(FalOperator):
         Save sketch render, post-process, restore scene, add labels, submit.
         """
         render_img = bpy.data.images.get("Render Result")
-        if not render_img:
+        if not render_img or not render_img.has_data:
             self._restore_state(context)
-            self.report({"ERROR"}, "Sketch render failed — no result")
+            self.report({"ERROR"}, "Sketch render failed — no image data")
             return
 
         tmp = tempfile.NamedTemporaryFile(
             suffix=".png", delete=False, prefix="fal_sketch_"
         ).name
-        render_img.save_render(tmp)
+        try:
+            render_img.save_render(tmp)
+        except RuntimeError as e:
+            self._restore_state(context)
+            self.report({"ERROR"}, f"Failed to save sketch render: {e}")
+            return
         print(f"fal.ai: Freestyle sketch saved to {tmp}")
 
         # Edge detection post-processing (before restore — just PIL work)
@@ -515,15 +525,20 @@ class FalNeuralRenderOperator(FalOperator):
         Save normal render, restore scene, upload and submit for img2img.
         """
         render_img = bpy.data.images.get("Render Result")
-        if not render_img:
+        if not render_img or not render_img.has_data:
             self._restore_state(context)
-            self.report({"ERROR"}, "Render failed — no result")
+            self.report({"ERROR"}, "Render failed — no image data")
             return
 
         tmp = tempfile.NamedTemporaryFile(
             suffix=".png", delete=False, prefix="fal_refine_"
         ).name
-        render_img.save_render(tmp)
+        try:
+            render_img.save_render(tmp)
+        except RuntimeError as e:
+            self._restore_state(context)
+            self.report({"ERROR"}, f"Failed to save render: {e}")
+            return
         print(f"fal.ai: Render saved for refinement: {tmp}")
 
         # Restore scene state
