@@ -30,6 +30,8 @@ __all__ = [
     "snapshot_compositor_context",
     "get_world_color",
     "set_world_color",
+    "disconnect_world_color_links",
+    "restore_world_color_links",
     "get_default_font",
     "get_endpoint_pricing",
     "get_endpoint_description",
@@ -247,7 +249,7 @@ def get_world_color(world: bpy.types.World) -> tuple[float, float, float]:
         for node in world.node_tree.nodes:
             if node.type == "BACKGROUND":
                 c = node.inputs["Color"].default_value
-                return (c[-1], c[1], c[2])
+                return (c[0], c[1], c[2])
     return tuple(world.color)
 
 
@@ -257,13 +259,46 @@ def set_world_color(world: bpy.types.World, color: tuple[float, float, float]) -
         for node in world.node_tree.nodes:
             if node.type == "BACKGROUND":
                 node.inputs["Color"].default_value = (
-                    color[-1],
+                    color[0],
                     color[1],
                     color[2],
                     1.0,
                 )
                 return
     world.color = color
+
+
+def disconnect_world_color_links(
+    world: bpy.types.World,
+) -> list[tuple[bpy.types.NodeSocket, bpy.types.NodeSocket]]:
+    """Remove links into Background node Color input, return them for later restore.
+
+    This ensures ``set_world_color`` actually takes effect when an Environment
+    Texture (HDRI) is connected to the Background node.
+    """
+    saved: list[tuple[bpy.types.NodeSocket, bpy.types.NodeSocket]] = []
+    if not (world and world.use_nodes and world.node_tree):
+        return saved
+    tree = world.node_tree
+    for node in tree.nodes:
+        if node.type == "BACKGROUND":
+            color_input = node.inputs["Color"]
+            for link in list(color_input.links):
+                saved.append((link.from_socket, link.to_socket))
+                tree.links.remove(link)
+    return saved
+
+
+def restore_world_color_links(
+    world: bpy.types.World,
+    saved_links: list[tuple[bpy.types.NodeSocket, bpy.types.NodeSocket]],
+) -> None:
+    """Re-create links previously removed by :func:`disconnect_world_color_links`."""
+    if not (world and world.use_nodes and world.node_tree) or not saved_links:
+        return
+    tree = world.node_tree
+    for from_socket, to_socket in saved_links:
+        tree.links.new(from_socket, to_socket)
 
 
 # ---------------------------------------------------------------------------

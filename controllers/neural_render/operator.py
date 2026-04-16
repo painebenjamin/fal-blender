@@ -14,12 +14,14 @@ from ...models import (
 )
 from ...utils import (
     create_compositor_output_node,
+    disconnect_world_color_links,
     download_file,
     ensure_compositor_enabled,
     get_compositor_node_tree,
     get_eevee_engine,
     get_world_color,
     restore_compositor,
+    restore_world_color_links,
     set_world_color,
     snapshot_compositor,
 )
@@ -110,6 +112,7 @@ class FalNeuralRenderOperator(FalOperator):
         self._old_materials = {}
         self._hidden_lights = []
         self._saved_compositor = []
+        self._saved_world_links: list[tuple] = []
 
         # Setup scene for the render
         try:
@@ -422,8 +425,10 @@ class FalNeuralRenderOperator(FalOperator):
         scene.view_settings.view_transform = "Standard"
         scene.view_settings.look = "None"
 
-        # White world background
+        # White world background — disconnect any HDRI/texture links first
+        # so the default_value actually takes effect
         if world:
+            self._saved_world_links = disconnect_world_color_links(world)
             set_world_color(world, (1.0, 1.0, 1.0))
 
         # Configure Freestyle
@@ -487,6 +492,9 @@ class FalNeuralRenderOperator(FalOperator):
             overlay_labels(
                 context, tmp, self._render_w, self._render_h, self._auto_label
             )
+
+        # Show the processed sketch (with labels) as an intermediate result
+        import_image_to_editor(tmp, name="fal_sketch_preview")
 
         # Upload and submit
         seed = self._seed if self._seed >= 0 else None
@@ -640,6 +648,9 @@ class FalNeuralRenderOperator(FalOperator):
             scene.view_settings.look = s["look"]
         if "world_color" in s and world:
             set_world_color(world, s["world_color"])
+        if self._saved_world_links and world:
+            restore_world_color_links(world, self._saved_world_links)
+            self._saved_world_links = []
         if "use_freestyle" in s:
             scene.render.use_freestyle = s["use_freestyle"]
         if "vl_use_freestyle" in s:
