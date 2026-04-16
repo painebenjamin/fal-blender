@@ -150,7 +150,7 @@ class FalJob:
             return
 
         try:
-            client = fal_client.Client(key=self._api_key)
+            client = fal_client.SyncClient(key=self._api_key)
 
             def _on_queue_update(update) -> None:
                 if isinstance(update, fal_client.InProgress):
