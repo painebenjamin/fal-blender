@@ -444,13 +444,13 @@ class FalRenderOperator(FalOperator):
                 # This gives maximum contrast in the depth map
                 world.mist_settings.start = max(0.0, near)
                 world.mist_settings.depth = max(0.01, far - near)
-                world.mist_settings.falloff = "LINEAR"
+                world.mist_settings.falloff = "INVERSE_QUADRATIC"
                 print(f"fal.ai: Depth range: {near:.2f} — {far:.2f}m from camera")
             else:
                 cam_data = camera.data
                 world.mist_settings.start = cam_data.clip_start
                 world.mist_settings.depth = cam_data.clip_end - cam_data.clip_start
-                world.mist_settings.falloff = "LINEAR"
+                world.mist_settings.falloff = "INVERSE_QUADRATIC"
 
         # Build compositor: Mist → Invert → Composite
         tree = ensure_compositor_enabled(scene)
@@ -904,13 +904,13 @@ class FalRenderOperator(FalOperator):
                 padding = (far - near) * 0.05
                 world.mist_settings.start = max(0.0, near - padding)
                 world.mist_settings.depth = (far - near) + padding * 2
-                world.mist_settings.falloff = "LINEAR"
+                world.mist_settings.falloff = "INVERSE_QUADRATIC"
                 print(f"fal.ai: Depth video range: {near:.2f} — {far:.2f}m")
             else:
                 cam_data = camera.data
                 world.mist_settings.start = cam_data.clip_start
                 world.mist_settings.depth = cam_data.clip_end - cam_data.clip_start
-                world.mist_settings.falloff = "LINEAR"
+                world.mist_settings.falloff = "INVERSE_QUADRATIC"
 
         tree = ensure_compositor_enabled(scene)
         self._saved_compositor = snapshot_compositor(tree)
