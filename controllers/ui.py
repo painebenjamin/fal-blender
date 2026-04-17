@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, TypeAlias
 import bpy
 
 from ..utils import get_endpoint_description, get_playground_url
-from .advanced_params import draw_advanced_params
+from .advanced_params import ADVANCED_PARAMS_FIELDS, draw_advanced_params
 
 if TYPE_CHECKING:
     from ..models.base import FalModel
@@ -235,7 +235,9 @@ class FalControllerPanel:
         # Clear any stale group state from previous draws
         self._flush_current_group()
 
-        visited_fields = set()
+        # Skip the advanced-params bookkeeping fields — the collapsible
+        # section below owns them; otherwise they'd render twice.
+        visited_fields = set(ADVANCED_PARAMS_FIELDS)
         for field_name in self.field_orders:
             if field_name in visited_fields:
                 continue

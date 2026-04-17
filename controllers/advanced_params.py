@@ -19,7 +19,15 @@ __all__ = [
     "get_advanced_params_dict",
     "advanced_params_annotations",
     "with_advanced_params",
+    "ADVANCED_PARAMS_FIELDS",
 ]
+
+# Field names injected by `with_advanced_params`. The controller panel's
+# auto-draw loop must skip these so they don't render as normal fields —
+# they're managed by the collapsible Advanced Parameters section instead.
+ADVANCED_PARAMS_FIELDS: frozenset[str] = frozenset(
+    {"show_advanced_params", "advanced_params", "advanced_params_index"}
+)
 
 
 def _resolve_props(context: bpy.types.Context, props_path: str) -> bpy.types.PropertyGroup | None:
