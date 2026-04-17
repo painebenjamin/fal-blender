@@ -256,13 +256,44 @@ def _fit_movie_strip_to_target(
     transform.scale_y = scale
 
 
+def _refresh_vse_for_scene(scene: bpy.types.Scene) -> None:
+    """Force VSE areas showing this scene to pick up new strips.
+
+    When we add strips from a timer callback, area UI state can stay stuck
+    on the pre-callback snapshot (e.g. the VSE shows its "New" button even
+    though ``sequence_editor`` now exists). ``tag_redraw`` + ``view_all``
+    reconciles it. Best-effort: skipped if the WM isn't reachable.
+    """
+    try:
+        wm = bpy.context.window_manager
+    except AttributeError:
+        return
+    if wm is None:
+        return
+
+    for window in wm.windows:
+        if window.scene is not scene:
+            continue
+        for area in window.screen.areas:
+            if area.type != "SEQUENCE_EDITOR":
+                continue
+            area.tag_redraw()
+            try:
+                with bpy.context.temp_override(window=window, area=area):
+                    bpy.ops.sequencer.view_all()
+            except Exception:
+                pass
+
+
 def add_audio_to_vse(
     filepath: str,
     *,
     name: str = "fal_audio",
+    scene: bpy.types.Scene | None = None,
 ) -> Any:
     """Add an audio file as a sound strip in the VSE."""
-    scene = bpy.context.scene
+    if scene is None:
+        scene = bpy.context.scene
 
     if not scene.sequence_editor:
         scene.sequence_editor_create()
@@ -282,6 +313,7 @@ def add_audio_to_vse(
         channel=channel,
         frame_start=scene.frame_current,
     )
+    _refresh_vse_for_scene(scene)
     return strip
 
 
@@ -291,6 +323,7 @@ def add_video_to_vse(
     name: str = "fal_video",
     target_width: int | None = None,
     target_height: int | None = None,
+    scene: bpy.types.Scene | None = None,
 ) -> Any:
     """Add a video file as a movie + sound strip pair in the VSE.
 
@@ -304,8 +337,13 @@ def add_video_to_vse(
     set so the clip fits that target while preserving aspect ratio — this
     is how we reconcile model output dimensions with the user's requested
     resolution without re-encoding.
+
+    Pass ``scene`` explicitly from operator callbacks — ``bpy.context.scene``
+    may have drifted by the time the job finishes (user switched scene or
+    focus) and we want the strip to land where the render originated.
     """
-    scene = bpy.context.scene
+    if scene is None:
+        scene = bpy.context.scene
 
     if not scene.sequence_editor:
         scene.sequence_editor_create()
@@ -348,4 +386,5 @@ def add_video_to_vse(
     except Exception:
         sound_strip = None
 
+    _refresh_vse_for_scene(scene)
     return strip

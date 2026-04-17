@@ -144,8 +144,15 @@ class FalVideoOperator(FalOperator):
         )
         params = self.with_advanced_params(params, props)
 
+        origin_scene = context.scene
+
         def on_complete(job: FalJob) -> None:
-            _handle_video_result(job, target_width=width, target_height=height)
+            _handle_video_result(
+                job,
+                target_width=width,
+                target_height=height,
+                scene=origin_scene,
+            )
 
         job = FalJob(
             endpoint=model.endpoint,
@@ -195,8 +202,15 @@ class FalVideoOperator(FalOperator):
         )
         params = self.with_advanced_params(params, props)
 
+        origin_scene = context.scene
+
         def on_complete(job: FalJob) -> None:
-            _handle_video_result(job, target_width=width, target_height=height)
+            _handle_video_result(
+                job,
+                target_width=width,
+                target_height=height,
+                scene=origin_scene,
+            )
 
         job = FalJob(
             endpoint=model.endpoint,
@@ -217,6 +231,7 @@ def _handle_video_result(
     *,
     target_width: int | None = None,
     target_height: int | None = None,
+    scene: bpy.types.Scene | None = None,
 ) -> None:
     """Download video result and import to VSE, scaled to the requested target."""
     if job.status == "error":
@@ -244,5 +259,6 @@ def _handle_video_result(
         name="fal_video",
         target_width=target_width,
         target_height=target_height,
+        scene=scene,
     )
     print("fal.ai: Video imported to VSE!")

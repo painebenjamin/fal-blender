@@ -81,8 +81,10 @@ class FalAudioOperator(FalOperator):
         )
         params = self.with_advanced_params(params, props)
 
+        origin_scene = context.scene
+
         def on_complete(job: FalJob) -> None:
-            _handle_audio_result(job, "fal_tts")
+            _handle_audio_result(job, "fal_tts", scene=origin_scene)
 
         job = FalJob(
             endpoint=model.endpoint,
@@ -120,8 +122,10 @@ class FalAudioOperator(FalOperator):
         )
         params = self.with_advanced_params(params, props)
 
+        origin_scene = context.scene
+
         def on_complete(job: FalJob) -> None:
-            _handle_audio_result(job, "fal_tts_clone")
+            _handle_audio_result(job, "fal_tts_clone", scene=origin_scene)
 
         job = FalJob(
             endpoint=model.clone_endpoint,
@@ -146,8 +150,10 @@ class FalAudioOperator(FalOperator):
         )
         params = self.with_advanced_params(params, props)
 
+        origin_scene = context.scene
+
         def on_complete(job: FalJob) -> None:
-            _handle_audio_result(job, "fal_sfx")
+            _handle_audio_result(job, "fal_sfx", scene=origin_scene)
 
         job = FalJob(
             endpoint=model.endpoint,
@@ -172,8 +178,10 @@ class FalAudioOperator(FalOperator):
         )
         params = self.with_advanced_params(params, props)
 
+        origin_scene = context.scene
+
         def on_complete(job: FalJob) -> None:
-            _handle_audio_result(job, "fal_music")
+            _handle_audio_result(job, "fal_music", scene=origin_scene)
 
         job = FalJob(
             endpoint=model.endpoint,
@@ -206,7 +214,12 @@ class FalAudioOperator(FalOperator):
 # ---------------------------------------------------------------------------
 # Result handler (module-level — must not reference operator self)
 # ---------------------------------------------------------------------------
-def _handle_audio_result(job: FalJob, name: str) -> None:
+def _handle_audio_result(
+    job: FalJob,
+    name: str,
+    *,
+    scene: bpy.types.Scene | None = None,
+) -> None:
     """Download audio result and add to VSE."""
     if job.status == "error":
         print(f"fal.ai: Audio generation failed: {job.error}")
@@ -228,5 +241,5 @@ def _handle_audio_result(job: FalJob, name: str) -> None:
         return
 
     local_path = download_file(audio_url, suffix=".wav")
-    add_audio_to_vse(local_path, name=name)
+    add_audio_to_vse(local_path, name=name, scene=scene)
     print("fal.ai: Audio added to VSE!")

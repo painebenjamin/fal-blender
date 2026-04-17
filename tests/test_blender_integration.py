@@ -393,6 +393,65 @@ def test_refine_setup_disables_empty_compositor():
     print("✓ _setup_refine disables empty compositor and saves prior state")
 
 
+def test_vse_importer_uses_explicit_scene():
+    """add_audio_to_vse should attach to the scene kwarg, not bpy.context.scene.
+
+    Regression guard: in 5.2 fresh scenes, the Video Editing workspace shows
+    a "New" button until the VSE area redraws. By threading the originating
+    scene through callbacks (instead of trusting bpy.context.scene at timer
+    time), the strip lands on the right scene even if focus has drifted.
+    """
+    if not hasattr(bpy.types.Scene, "fal_3d"):
+        print("⚠ Skipping VSE importer test (extension not loaded)")
+        return
+
+    import os
+    import tempfile
+    import wave
+
+    from fal_ai.importers import _refresh_vse_for_scene, add_audio_to_vse
+
+    origin_scene = bpy.context.scene
+    origin_name = origin_scene.name
+    bpy.ops.scene.new(type="NEW")
+    other_scene = bpy.context.scene
+    # bpy.context.scene is now `other_scene` — origin_scene is intentionally
+    # NOT the active scene, so we can prove we ignore context.scene.
+
+    # Write a tiny silent WAV — new_sound needs a real audio file.
+    tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+    tmp.close()
+    try:
+        with wave.open(tmp.name, "wb") as wav:
+            wav.setnchannels(1)
+            wav.setsampwidth(2)
+            wav.setframerate(44100)
+            wav.writeframes(b"\x00\x00" * 4410)
+
+        assert origin_scene.sequence_editor is None, \
+            "Origin scene should start without a sequence_editor"
+        strip = add_audio_to_vse(tmp.name, name="fal_test", scene=origin_scene)
+        assert strip is not None, "Expected a strip to be created"
+        assert origin_scene.sequence_editor is not None, \
+            "Sequence editor should be created on the explicit scene"
+        assert not other_scene.sequence_editor, \
+            "Other scene should be untouched when scene kwarg is passed"
+
+        # _refresh_vse_for_scene is best-effort — must not raise even when
+        # no VSE areas exist (background mode).
+        _refresh_vse_for_scene(origin_scene)
+
+        print("✓ VSE importer threads scene kwarg and refresh is safe")
+    finally:
+        os.unlink(tmp.name)
+        bpy.context.window.scene = origin_scene
+        bpy.data.scenes.remove(other_scene)
+        if origin_scene.sequence_editor:
+            bpy.context.window.scene = origin_scene
+            origin_scene.sequence_editor_clear()
+        assert bpy.context.scene.name == origin_name
+
+
 def test_pointer_property_for_images():
     """Test that PointerProperty works for Image selection."""
     # Create a test image
@@ -431,6 +490,7 @@ def run_all_tests():
         test_panel_output_size_hint,
         test_has_usable_compositor_detects_empty_tree,
         test_refine_setup_disables_empty_compositor,
+        test_vse_importer_uses_explicit_scene,
         test_pointer_property_for_images,
     ]
     
