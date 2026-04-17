@@ -83,3 +83,18 @@ class Hunyuan3DV31RapidModel(FalModel):
     display_name = "Hunyuan 3D v3.1 Rapid"
     image_url_parameter = "input_image_url"
     generate_materials_parameter = "generate_pbr"
+
+
+class TripoP1Model(FalModel):
+    """Tripo P1 model base."""
+    display_name = "Tripo P1"
+    image_url_parameter = "image_url"
+    static_parameters: ClassVar[dict[str, Any]] = {"texture": True}
+
+
+class TripoH31Model(FalModel):
+    """Tripo H3.1 model base."""
+    display_name = "Tripo H3.1"
+    image_url_parameter = "image_url"
+    generate_materials_parameter = "pbr"
+    static_parameters: ClassVar[dict[str, Any]] = {"texture": True, "pbr": True}

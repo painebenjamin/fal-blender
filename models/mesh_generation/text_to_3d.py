@@ -5,6 +5,8 @@ from .base import (
     Hunyuan3DV31RapidModel,
     MeshGenerationModel,
     MeshyV6PreviewModel,
+    TripoH31Model,
+    TripoP1Model,
 )
 
 __all__ = [
@@ -12,6 +14,8 @@ __all__ = [
     "MeshyV6PreviewTextTo3DModel",
     "Hunyuan3DV31ProTextTo3DModel",
     "Hunyuan3DV31RapidTextTo3DModel",
+    "TripoP1TextTo3DModel",
+    "TripoH31TextTo3DModel",
 ]
 
 
@@ -37,3 +41,15 @@ class Hunyuan3DV31RapidTextTo3DModel(TextTo3DModel, Hunyuan3DV31RapidModel):
     """Hunyuan 3D v3.1 Rapid text-to-3D model."""
 
     endpoint = "fal-ai/hunyuan-3d/v3.1/rapid/text-to-3d"
+
+
+class TripoP1TextTo3DModel(TextTo3DModel, TripoP1Model):
+    """Tripo P1 text-to-3D model."""
+
+    endpoint = "tripo3d/p1/text-to-3d"
+
+
+class TripoH31TextTo3DModel(TextTo3DModel, TripoH31Model):
+    """Tripo H3.1 text-to-3D model."""
+
+    endpoint = "tripo3d/h3.1/text-to-3d"

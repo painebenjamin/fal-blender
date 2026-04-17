@@ -12,6 +12,8 @@ __all__ = [
     "EdgeVideoModel",
     "LTX2DistilledEdgeVideoModel",
     "LTX2EdgeVideoModel",
+    "LTX23RefV2VEdgeVideoModel",
+    "LTX23DistilledRefV2VEdgeVideoModel",
 ]
 
 
@@ -65,3 +67,21 @@ class LTX2EdgeVideoModel(EdgeVideoModel, LTX2VideoModel):
     endpoint = "fal-ai/ltx-2-19b/video-to-video"
     description = "Edge-conditioned video generation via IC-LoRA"
     static_parameters: ClassVar[dict[str, Any]] = {"ic_lora": "canny"}
+
+
+class LTX23RefV2VEdgeVideoModel(EdgeVideoModel):
+    """LTX 2.3 22B reference video-to-video with union IC-LoRA."""
+
+    display_name = "LTX 2.3 22B Ref V2V"
+    endpoint = "fal-ai/ltx-2.3-22b/reference-video-to-video"
+    description = "Reference video-to-video with union IC-LoRA"
+    static_parameters: ClassVar[dict[str, Any]] = {"ic_lora": "union"}
+
+
+class LTX23DistilledRefV2VEdgeVideoModel(EdgeVideoModel):
+    """LTX 2.3 22B Distilled reference video-to-video with union IC-LoRA."""
+
+    display_name = "LTX 2.3 22B Distilled Ref V2V"
+    endpoint = "fal-ai/ltx-2.3-22b/distilled/reference-video-to-video"
+    description = "Faster reference video-to-video with union IC-LoRA"
+    static_parameters: ClassVar[dict[str, Any]] = {"ic_lora": "union"}

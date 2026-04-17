@@ -8,6 +8,9 @@ __all__ = [
     "NanoBananaSketchGuidedImageGenerationModel",
     "NanoBananaProSketchGuidedImageGenerationModel",
     "NanoBanana2SketchGuidedImageGenerationModel",
+    "GPTImage15EditModel",
+    "Seedream45EditModel",
+    "Seedream5LiteEditModel",
 ]
 
 
@@ -58,4 +61,25 @@ class NanoBanana2SketchGuidedImageGenerationModel(
     image_urls_parameter = "image_urls"
 
 
-# TODO: FLUX.2 Flex Maybe?
+class GPTImage15EditModel(SketchGuidedImageGenerationModel):
+    """GPT Image 1.5 edit model."""
+
+    display_name = "GPT Image 1.5 Edit"
+    endpoint = "fal-ai/gpt-image-1.5/edit"
+    image_urls_parameter = "image_urls"
+
+
+class Seedream45EditModel(SketchGuidedImageGenerationModel):
+    """Seedream 4.5 edit model."""
+
+    display_name = "Seedream 4.5 Edit"
+    endpoint = "fal-ai/bytedance/seedream/v4.5/edit"
+    image_urls_parameter = "image_urls"
+
+
+class Seedream5LiteEditModel(SketchGuidedImageGenerationModel):
+    """Seedream 5 Lite edit model."""
+
+    display_name = "Seedream 5 Lite Edit"
+    endpoint = "fal-ai/bytedance/seedream/v5/lite/edit"
+    image_urls_parameter = "image_urls"

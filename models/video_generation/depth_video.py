@@ -16,6 +16,8 @@ __all__ = [
     "LTX2DepthVideoModel",
     "WanVACE14BDepthVideoModel",
     "WanFun22A14BDepthVideoModel",
+    "LTX23RefV2VDepthVideoModel",
+    "LTX23DistilledRefV2VDepthVideoModel",
 ]
 
 
@@ -83,3 +85,21 @@ class WanFun22A14BDepthVideoModel(DepthVideoModel, WanFun22A14BVideoModel):
 
     endpoint = "fal-ai/wan-22-vace-fun-a14b/depth"
     description = "Depth-conditioned video generation"
+
+
+class LTX23RefV2VDepthVideoModel(DepthVideoModel):
+    """LTX 2.3 22B reference video-to-video with union IC-LoRA."""
+
+    display_name = "LTX 2.3 22B Ref V2V"
+    endpoint = "fal-ai/ltx-2.3-22b/reference-video-to-video"
+    description = "Reference video-to-video with union IC-LoRA"
+    static_parameters: ClassVar[dict[str, Any]] = {"ic_lora": "union"}
+
+
+class LTX23DistilledRefV2VDepthVideoModel(DepthVideoModel):
+    """LTX 2.3 22B Distilled reference video-to-video with union IC-LoRA."""
+
+    display_name = "LTX 2.3 22B Distilled Ref V2V"
+    endpoint = "fal-ai/ltx-2.3-22b/distilled/reference-video-to-video"
+    description = "Faster reference video-to-video with union IC-LoRA"
+    static_parameters: ClassVar[dict[str, Any]] = {"ic_lora": "union"}
