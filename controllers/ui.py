@@ -268,11 +268,6 @@ class FalControllerPanel:
         props: bpy.types.PropertyGroup,
     ) -> None:
         """Draw the advanced parameters section."""
-        # Determine props path from the PropertyGroup
-        props_path = props.bl_rna.identifier.lower() + "_props"
-        # Try to find the actual scene attribute name
-        for attr in dir(context.scene):
-            if getattr(context.scene, attr, None) is props:
-                props_path = attr
-                break
+        # RNA path from the owning ID (the scene) — resolved operator-side via path_resolve.
+        props_path = props.path_from_id()
         draw_advanced_params(layout, props, props_path)

@@ -19,13 +19,11 @@ __all__ = [
 
 
 def _resolve_props(context: bpy.types.Context, props_path: str) -> bpy.types.PropertyGroup | None:
-    """Resolve a dotted props_path against context.scene."""
-    obj: object = context.scene
-    for part in props_path.split("."):
-        obj = getattr(obj, part, None)
-        if obj is None:
-            return None
-    return obj  # type: ignore[return-value]
+    """Resolve an RNA path (from PropertyGroup.path_from_id) against context.scene."""
+    try:
+        return context.scene.path_resolve(props_path)
+    except (ValueError, TypeError):
+        return None
 
 
 class FalAdvancedParameter(bpy.types.PropertyGroup):
