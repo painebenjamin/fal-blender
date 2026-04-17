@@ -2,12 +2,22 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
-from ..base import VisualFalModel
 from .base import (
+    KlingV3ProVideoModel,
+    KlingV3StandardVideoModel,
     LTX2DistilledVideoModel,
     LTX2VideoModel,
+    LTX23DistilledVideoModel,
+    LTX23VideoModel,
+    Seedance20FastVideoModel,
+    Seedance20VideoModel,
+    Sora2VideoModel,
+    VideoFalModel,
+    Veo31FastVideoModel,
+    Veo31VideoModel,
     Wan22TurboVideoModel,
     Wan22VideoModel,
+    Wan27VideoModel,
 )
 
 __all__ = [
@@ -29,7 +39,7 @@ __all__ = [
 ]
 
 
-class TextToVideoModel(VisualFalModel):
+class TextToVideoModel(VideoFalModel):
     """Base model for text-to-video generation."""
 
     prompt_expansion_parameter: ClassVar[str | None] = "enable_prompt_expansion"
@@ -38,15 +48,11 @@ class TextToVideoModel(VisualFalModel):
     def parameters(cls, **kwargs: Any) -> dict[str, Any]:
         """Build API parameters for text-to-video generation."""
         params: dict[str, Any] = super().parameters(**kwargs)
-        prompt = kwargs.get("prompt", "")
-        if prompt:
-            params["prompt"] = prompt
+        # Some endpoints use `expand_prompt`, others `enable_prompt_expansion`.
+        # Emit both — each endpoint ignores the key it doesn't recognize.
         enable = kwargs.get("enable_prompt_expansion", True)
         params["enable_prompt_expansion"] = enable
         params["expand_prompt"] = enable
-        duration = kwargs.get("duration")
-        if duration:
-            params["duration"] = duration
         return params
 
 
@@ -74,71 +80,61 @@ class LTX2DistilledTextToVideoModel(TextToVideoModel, LTX2DistilledVideoModel):
     endpoint = "fal-ai/ltx-2-19b/distilled/text-to-video"
 
 
-class Seedance20TextToVideoModel(TextToVideoModel):
-    """Seedance 2.0 text-to-video model."""
-
-    display_name = "Seedance 2.0"
-    endpoint = "bytedance/seedance-2.0/text-to-video"
-
-
-class Seedance20FastTextToVideoModel(TextToVideoModel):
-    """Seedance 2.0 Fast text-to-video model."""
-
-    display_name = "Seedance 2.0 Fast"
-    endpoint = "bytedance/seedance-2.0/fast/text-to-video"
-
-
-class KlingV3StandardTextToVideoModel(TextToVideoModel):
-    """Kling v3 Standard text-to-video model."""
-
-    display_name = "Kling v3 Standard"
-    endpoint = "fal-ai/kling-video/v3/standard/text-to-video"
-
-
-class KlingV3ProTextToVideoModel(TextToVideoModel):
-    """Kling v3 Pro text-to-video model."""
-
-    display_name = "Kling v3 Pro"
-    endpoint = "fal-ai/kling-video/v3/pro/text-to-video"
-
-
-class Veo31TextToVideoModel(TextToVideoModel):
-    """Veo 3.1 text-to-video model."""
-
-    display_name = "Veo 3.1"
-    endpoint = "fal-ai/veo3.1"
-
-
-class Veo31FastTextToVideoModel(TextToVideoModel):
-    """Veo 3.1 Fast text-to-video model."""
-
-    display_name = "Veo 3.1 Fast"
-    endpoint = "fal-ai/veo3.1/fast"
-
-
-class LTX23TextToVideoModel(TextToVideoModel):
+class LTX23TextToVideoModel(TextToVideoModel, LTX23VideoModel):
     """LTX 2.3 22B text-to-video model."""
 
-    display_name = "LTX 2.3 22B"
     endpoint = "fal-ai/ltx-2.3-22b/text-to-video"
 
 
-class LTX23DistilledTextToVideoModel(TextToVideoModel):
+class LTX23DistilledTextToVideoModel(TextToVideoModel, LTX23DistilledVideoModel):
     """LTX 2.3 22B Distilled text-to-video model."""
 
-    display_name = "LTX 2.3 22B Distilled"
     endpoint = "fal-ai/ltx-2.3-22b/distilled/text-to-video"
 
 
-class Wan27TextToVideoModel(TextToVideoModel):
+class Seedance20TextToVideoModel(TextToVideoModel, Seedance20VideoModel):
+    """Seedance 2.0 text-to-video model."""
+
+    endpoint = "bytedance/seedance-2.0/text-to-video"
+
+
+class Seedance20FastTextToVideoModel(TextToVideoModel, Seedance20FastVideoModel):
+    """Seedance 2.0 Fast text-to-video model."""
+
+    endpoint = "bytedance/seedance-2.0/fast/text-to-video"
+
+
+class KlingV3StandardTextToVideoModel(TextToVideoModel, KlingV3StandardVideoModel):
+    """Kling v3 Standard text-to-video model."""
+
+    endpoint = "fal-ai/kling-video/v3/standard/text-to-video"
+
+
+class KlingV3ProTextToVideoModel(TextToVideoModel, KlingV3ProVideoModel):
+    """Kling v3 Pro text-to-video model."""
+
+    endpoint = "fal-ai/kling-video/v3/pro/text-to-video"
+
+
+class Veo31TextToVideoModel(TextToVideoModel, Veo31VideoModel):
+    """Veo 3.1 text-to-video model."""
+
+    endpoint = "fal-ai/veo3.1"
+
+
+class Veo31FastTextToVideoModel(TextToVideoModel, Veo31FastVideoModel):
+    """Veo 3.1 Fast text-to-video model."""
+
+    endpoint = "fal-ai/veo3.1/fast"
+
+
+class Wan27TextToVideoModel(TextToVideoModel, Wan27VideoModel):
     """Wan 2.7 text-to-video model."""
 
-    display_name = "Wan 2.7"
     endpoint = "fal-ai/wan/v2.7/text-to-video"
 
 
-class Sora2TextToVideoModel(TextToVideoModel):
+class Sora2TextToVideoModel(TextToVideoModel, Sora2VideoModel):
     """Sora 2 text-to-video model."""
 
-    display_name = "Sora 2"
     endpoint = "fal-ai/sora-2/text-to-video"

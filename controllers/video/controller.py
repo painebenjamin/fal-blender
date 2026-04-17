@@ -24,6 +24,9 @@ class FalVideoController(FalController):
             "image_path",
             "use_scene_duration",
             "duration",
+            "use_scene_resolution",
+            "width",
+            "height",
         ],
         field_conditions={
             "text_endpoint": lambda ctx, props: props.mode == "TEXT",
@@ -32,7 +35,12 @@ class FalVideoController(FalController):
             "image_path": lambda ctx, props: props.mode == "IMAGE"
             and props.image_source == "FILE",
             "duration": lambda ctx, props: not props.use_scene_duration,
+            "width": lambda ctx, props: not props.use_scene_resolution,
+            "height": lambda ctx, props: not props.use_scene_resolution,
         },
+        field_groupings=[
+            {"width", "height"},
+        ],
         endpoint_models={
             "text_endpoint": TextToVideoModel,
             "image_endpoint": ImageToVideoModel,

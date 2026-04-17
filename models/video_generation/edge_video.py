@@ -6,6 +6,8 @@ from ..base import VisualFalModel
 from .base import (
     LTX2DistilledVideoModel,
     LTX2VideoModel,
+    LTX23DistilledVideoModel,
+    LTX23VideoModel,
 )
 
 __all__ = [
@@ -69,7 +71,7 @@ class LTX2EdgeVideoModel(EdgeVideoModel, LTX2VideoModel):
     static_parameters: ClassVar[dict[str, Any]] = {"ic_lora": "canny"}
 
 
-class LTX23RefV2VEdgeVideoModel(EdgeVideoModel):
+class LTX23RefV2VEdgeVideoModel(EdgeVideoModel, LTX23VideoModel):
     """LTX 2.3 22B reference video-to-video with union IC-LoRA."""
 
     display_name = "LTX 2.3 22B Ref V2V"
@@ -78,7 +80,7 @@ class LTX23RefV2VEdgeVideoModel(EdgeVideoModel):
     static_parameters: ClassVar[dict[str, Any]] = {"ic_lora": "union"}
 
 
-class LTX23DistilledRefV2VEdgeVideoModel(EdgeVideoModel):
+class LTX23DistilledRefV2VEdgeVideoModel(EdgeVideoModel, LTX23DistilledVideoModel):
     """LTX 2.3 22B Distilled reference video-to-video with union IC-LoRA."""
 
     display_name = "LTX 2.3 22B Distilled Ref V2V"

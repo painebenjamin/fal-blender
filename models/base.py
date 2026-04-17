@@ -76,6 +76,8 @@ class VisualFalModel(FalModel):
     """Base class for visual (image/video) fal.ai models with size and media URL handling."""
 
     use_resolution_aspect_ratio: ClassVar[bool] = False
+    emit_aspect_ratio: ClassVar[bool] = True
+    emit_resolution: ClassVar[bool] = True
     aspect_ratios: ClassVar[list[str]] = []
     resolutions: ClassVar[dict[str, int]] = {}
     size_parameter: ClassVar[str | None] = None
@@ -87,46 +89,48 @@ class VisualFalModel(FalModel):
     prompt_expansion_parameter: ClassVar[str | None] = None
 
     @classmethod
-    def _to_resolution_aspect_ratio(cls, width: int, height: int) -> tuple[str, str]:
-        """
-        Convert pixel dimensions to closest aspect ratio + resolution tier.
-        """
+    def _closest_aspect_ratio(cls, width: int, height: int) -> str:
+        """Find the closest aspect ratio to the given dimensions."""
         if not cls.aspect_ratios:
             raise RuntimeError(
-                f"No aspect ratios defined for {cls.__name__}; either disable `use_resolution_aspect_ratio` or define the aspect ratios in the model class."
+                f"No aspect ratios defined for {cls.__name__}; either disable `emit_aspect_ratio` or define the aspect ratios in the model class."
             )
-        if not cls.resolutions:
-            raise RuntimeError(
-                f"No resolutions defined for {cls.__name__}; either disable `use_resolution_aspect_ratio` or define the resolutions in the model class."
-            )
-
         target_ratio = width / height
         best_ar = cls.aspect_ratios[0]
         best_diff = float("inf")
-
         for ar in cls.aspect_ratios:
             try:
                 w, h = map(int, ar.split(":"))
             except ValueError as e:
                 warnings.warn(f"Invalid aspect ratio {ar} for {cls.__name__}: {e}")
                 continue
-
             diff = abs(target_ratio - w / h)
             if diff < best_diff:
                 best_diff = diff
                 best_ar = ar
+        return best_ar
 
-        longest = max(width, height)
+    @classmethod
+    def _closest_resolution(cls, width: int, height: int) -> str:
+        """Find the closest resolution tier to the shortest pixel dimension.
+
+        Resolution labels like "720p" / "1080p" refer to the short side in a
+        landscape-16:9 reference frame (720p = 1280×720), so matching on the
+        short side gives the label a sensible name.
+        """
+        if not cls.resolutions:
+            raise RuntimeError(
+                f"No resolutions defined for {cls.__name__}; either disable `emit_resolution` or define the resolutions in the model class."
+            )
+        shortest = min(width, height)
         best_res = next(iter(cls.resolutions.keys()))
         best_res_diff = float("inf")
-
         for name, pixels in cls.resolutions.items():
-            diff = abs(longest - pixels)
+            diff = abs(shortest - pixels)
             if diff < best_res_diff:
                 best_res_diff = diff
                 best_res = name
-
-        return best_ar, best_res
+        return best_res
 
     @classmethod
     def _get_size_parameters(cls, width: int, height: int) -> dict[str, Any]:
@@ -134,11 +138,12 @@ class VisualFalModel(FalModel):
         Returns the size parameters for the model.
         """
         if cls.use_resolution_aspect_ratio:
-            aspect_ratio, resolution = cls._to_resolution_aspect_ratio(width, height)
-            return {
-                "aspect_ratio": aspect_ratio,
-                "resolution": resolution,
-            }
+            result: dict[str, Any] = {}
+            if cls.emit_aspect_ratio:
+                result["aspect_ratio"] = cls._closest_aspect_ratio(width, height)
+            if cls.emit_resolution:
+                result["resolution"] = cls._closest_resolution(width, height)
+            return result
 
         if cls.modulo:
             width = width // cls.modulo * cls.modulo

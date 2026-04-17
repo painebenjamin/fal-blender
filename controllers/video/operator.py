@@ -25,6 +25,24 @@ def _get_scene_duration(scene: bpy.types.Scene) -> float:
     return frames / fps
 
 
+def _get_scene_fps(scene: bpy.types.Scene) -> float:
+    """Return the effective scene FPS (fps / fps_base)."""
+    return scene.render.fps / scene.render.fps_base
+
+
+def _get_dimensions(
+    context: bpy.types.Context, props: bpy.types.PropertyGroup
+) -> tuple[int, int]:
+    """Get output dimensions — from scene settings or manual override."""
+    if props.use_scene_resolution:
+        scene = context.scene
+        scale = scene.render.resolution_percentage / 100.0
+        w = int(scene.render.resolution_x * scale)
+        h = int(scene.render.resolution_y * scale)
+        return (w, h)
+    return (props.width, props.height)
+
+
 # ---------------------------------------------------------------------------
 # VSE operator: text-to-video and image-to-video (fire-and-forget)
 # ---------------------------------------------------------------------------
@@ -71,10 +89,15 @@ class FalVideoOperator(FalOperator):
         """Submit a text-to-video generation job."""
         model = TEXT_TO_VIDEO_MODELS[props.text_endpoint]
         duration = self._get_duration(context, props)
+        width, height = _get_dimensions(context, props)
+        fps = _get_scene_fps(context.scene) if props.use_scene_duration else None
         params = model.parameters(
             prompt=props.prompt,
             enable_prompt_expansion=props.enable_prompt_expansion,
             duration=duration,
+            fps=fps,
+            width=width,
+            height=height,
         )
         params = self.with_advanced_params(params, props)
 
@@ -116,11 +139,16 @@ class FalVideoOperator(FalOperator):
 
         model = IMAGE_TO_VIDEO_MODELS[props.image_endpoint]
         duration = self._get_duration(context, props)
+        width, height = _get_dimensions(context, props)
+        fps = _get_scene_fps(context.scene) if props.use_scene_duration else None
         params = model.parameters(
             prompt=props.prompt,
             enable_prompt_expansion=props.enable_prompt_expansion,
             image_url=image_url,
             duration=duration,
+            fps=fps,
+            width=width,
+            height=height,
         )
         params = self.with_advanced_params(params, props)
 

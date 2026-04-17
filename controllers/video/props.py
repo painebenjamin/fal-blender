@@ -56,6 +56,30 @@ class FalVideoPropertyGroup(bpy.types.PropertyGroup):
         default="5",
     )
 
+    use_scene_resolution: bpy.props.BoolProperty(
+        name="Use Scene Resolution",
+        description="Read dimensions from scene render settings (Output Properties)",
+        default=True,
+    )
+
+    width: bpy.props.IntProperty(
+        name="W",
+        description="Output width in pixels (only when 'Use Scene Resolution' is off)",
+        default=1024,
+        min=64,
+        max=4096,
+        step=16,
+    )
+
+    height: bpy.props.IntProperty(
+        name="H",
+        description="Output height in pixels (only when 'Use Scene Resolution' is off)",
+        default=1024,
+        min=64,
+        max=4096,
+        step=16,
+    )
+
     image_source: bpy.props.EnumProperty(
         name="Image Source",
         items=[

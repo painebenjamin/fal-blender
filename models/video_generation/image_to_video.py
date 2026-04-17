@@ -2,12 +2,21 @@ from __future__ import annotations
 
 from typing import Any, ClassVar
 
-from ..base import VisualFalModel
 from .base import (
+    KlingV3ProVideoModel,
+    KlingV3StandardVideoModel,
     LTX2DistilledVideoModel,
     LTX2VideoModel,
+    LTX23DistilledVideoModel,
+    LTX23VideoModel,
+    Seedance20FastVideoModel,
+    Seedance20VideoModel,
+    VideoFalModel,
+    Veo31FastVideoModel,
+    Veo31VideoModel,
     Wan22TurboVideoModel,
     Wan22VideoModel,
+    Wan27VideoModel,
 )
 
 __all__ = [
@@ -28,7 +37,7 @@ __all__ = [
 ]
 
 
-class ImageToVideoModel(VisualFalModel):
+class ImageToVideoModel(VideoFalModel):
     """Base model for image-to-video generation."""
 
     image_url_parameter: ClassVar[str | None] = "image_url"
@@ -38,20 +47,9 @@ class ImageToVideoModel(VisualFalModel):
     def parameters(cls, **kwargs: Any) -> dict[str, Any]:
         """Build API parameters for image-to-video generation."""
         params: dict[str, Any] = super().parameters(**kwargs)
-        prompt = kwargs.get("prompt", "")
-        if prompt:
-            params["prompt"] = prompt
         enable = kwargs.get("enable_prompt_expansion", True)
         params["enable_prompt_expansion"] = enable
         params["expand_prompt"] = enable
-
-        image_url = kwargs.get("image_url")
-        if image_url:
-            params["image_url"] = image_url
-
-        duration = kwargs.get("duration")
-        if duration:
-            params["duration"] = duration
         return params
 
 
@@ -79,64 +77,62 @@ class LTX2DistilledImageToVideoModel(ImageToVideoModel, LTX2DistilledVideoModel)
     endpoint = "fal-ai/ltx-2-19b/distilled/image-to-video"
 
 
-class Seedance20ImageToVideoModel(ImageToVideoModel):
-    """Seedance 2.0 image-to-video model."""
-
-    display_name = "Seedance 2.0"
-    endpoint = "bytedance/seedance-2.0/image-to-video"
-
-
-class Seedance20FastImageToVideoModel(ImageToVideoModel):
-    """Seedance 2.0 Fast image-to-video model."""
-
-    display_name = "Seedance 2.0 Fast"
-    endpoint = "bytedance/seedance-2.0/fast/image-to-video"
-
-
-class KlingV3StandardImageToVideoModel(ImageToVideoModel):
-    """Kling v3 Standard image-to-video model."""
-
-    display_name = "Kling v3 Standard"
-    endpoint = "fal-ai/kling-video/v3/standard/image-to-video"
-
-
-class KlingV3ProImageToVideoModel(ImageToVideoModel):
-    """Kling v3 Pro image-to-video model."""
-
-    display_name = "Kling v3 Pro"
-    endpoint = "fal-ai/kling-video/v3/pro/image-to-video"
-
-
-class Veo31ImageToVideoModel(ImageToVideoModel):
-    """Veo 3.1 image-to-video model."""
-
-    display_name = "Veo 3.1"
-    endpoint = "fal-ai/veo3.1/image-to-video"
-
-
-class Veo31FastImageToVideoModel(ImageToVideoModel):
-    """Veo 3.1 Fast image-to-video model."""
-
-    display_name = "Veo 3.1 Fast"
-    endpoint = "fal-ai/veo3.1/fast/image-to-video"
-
-
-class LTX23ImageToVideoModel(ImageToVideoModel):
+class LTX23ImageToVideoModel(ImageToVideoModel, LTX23VideoModel):
     """LTX 2.3 22B image-to-video model."""
 
-    display_name = "LTX 2.3 22B"
     endpoint = "fal-ai/ltx-2.3-22b/image-to-video"
 
 
-class LTX23DistilledImageToVideoModel(ImageToVideoModel):
+class LTX23DistilledImageToVideoModel(ImageToVideoModel, LTX23DistilledVideoModel):
     """LTX 2.3 22B Distilled image-to-video model."""
 
-    display_name = "LTX 2.3 22B Distilled"
     endpoint = "fal-ai/ltx-2.3-22b/distilled/image-to-video"
 
 
-class Wan27ImageToVideoModel(ImageToVideoModel):
+class Seedance20ImageToVideoModel(ImageToVideoModel, Seedance20VideoModel):
+    """Seedance 2.0 image-to-video model."""
+
+    endpoint = "bytedance/seedance-2.0/image-to-video"
+
+
+class Seedance20FastImageToVideoModel(ImageToVideoModel, Seedance20FastVideoModel):
+    """Seedance 2.0 Fast image-to-video model."""
+
+    endpoint = "bytedance/seedance-2.0/fast/image-to-video"
+
+
+class KlingV3StandardImageToVideoModel(ImageToVideoModel, KlingV3StandardVideoModel):
+    """Kling v3 Standard image-to-video model."""
+
+    endpoint = "fal-ai/kling-video/v3/standard/image-to-video"
+    # Kling i2v: size is inferred from the input image, don't emit aspect/resolution.
+    emit_aspect_ratio = False
+    emit_resolution = False
+
+
+class KlingV3ProImageToVideoModel(ImageToVideoModel, KlingV3ProVideoModel):
+    """Kling v3 Pro image-to-video model."""
+
+    endpoint = "fal-ai/kling-video/v3/pro/image-to-video"
+    emit_aspect_ratio = False
+    emit_resolution = False
+
+
+class Veo31ImageToVideoModel(ImageToVideoModel, Veo31VideoModel):
+    """Veo 3.1 image-to-video model."""
+
+    endpoint = "fal-ai/veo3.1/image-to-video"
+
+
+class Veo31FastImageToVideoModel(ImageToVideoModel, Veo31FastVideoModel):
+    """Veo 3.1 Fast image-to-video model."""
+
+    endpoint = "fal-ai/veo3.1/fast/image-to-video"
+
+
+class Wan27ImageToVideoModel(ImageToVideoModel, Wan27VideoModel):
     """Wan 2.7 image-to-video model."""
 
-    display_name = "Wan 2.7"
     endpoint = "fal-ai/wan/v2.7/image-to-video"
+    # Wan 2.7 i2v infers aspect_ratio from the image but still accepts resolution.
+    emit_aspect_ratio = False
