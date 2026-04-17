@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, TypeAlias
 import bpy
 
 from ..utils import get_endpoint_description, get_playground_url
+from .advanced_params import draw_advanced_params
 
 if TYPE_CHECKING:
     from ..models.base import FalModel
@@ -24,6 +25,7 @@ class FalControllerPanel:
     field_conditions: dict[str, ConditionFunc] = field(default_factory=dict)
     field_groupings: list[set[str]] = field(default_factory=list)
     endpoint_models: dict[str, type[FalModel]] = field(default_factory=dict)
+    show_advanced_params: bool = False
 
     _current_group_seen: set[str] = field(default_factory=set)
     _current_group: set[str] | None = None
@@ -247,8 +249,30 @@ class FalControllerPanel:
             visited_fields.add(field_name)
 
         self.draw_endpoint_info(layout, context, props)
+
+        # Draw advanced parameters section if enabled for this panel
+        if self.show_advanced_params and hasattr(props, "advanced_params"):
+            layout.separator()
+            self.draw_advanced_params(layout, context, props)
+
         self.draw_status(layout, context, props)
         self.draw_operator(
             layout, context, props, operator_name, operator_icon, operator_size
         )
         self._flush_current_group()
+
+    def draw_advanced_params(
+        self,
+        layout: bpy.types.UILayout,
+        context: bpy.types.Context,
+        props: bpy.types.PropertyGroup,
+    ) -> None:
+        """Draw the advanced parameters section."""
+        # Determine props path from the PropertyGroup
+        props_path = props.bl_rna.identifier.lower() + "_props"
+        # Try to find the actual scene attribute name
+        for attr in dir(context.scene):
+            if getattr(context.scene, attr, None) is props:
+                props_path = attr
+                break
+        draw_advanced_params(layout, props, props_path)

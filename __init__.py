@@ -16,6 +16,7 @@ from .app import (
     FalAIVSESceneProperties,
 )
 from .controllers import FalController
+from .controllers import advanced_params as _advanced_params
 from .job_queue import JobManager
 from .preferences import FAL_OT_OpenOutputFolder, FalPreferences
 
@@ -24,6 +25,7 @@ def register() -> None:
     """
     Register the fal.ai addon.
     """
+    _advanced_params.register()
     bpy.utils.register_class(FAL_OT_OpenOutputFolder)
     bpy.utils.register_class(FalPreferences)
     bpy.utils.register_class(FalAI3DSceneProperties)
@@ -46,6 +48,7 @@ def unregister() -> None:
     """
     Unregister the fal.ai addon.
     """
+    _advanced_params.unregister()
     bpy.utils.unregister_class(FAL_OT_OpenOutputFolder)
     bpy.utils.unregister_class(FalPreferences)
     bpy.utils.unregister_class(FalAI3DSceneProperties)

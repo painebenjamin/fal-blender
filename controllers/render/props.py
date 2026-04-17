@@ -8,6 +8,7 @@ from ...models import (
     ImageRefinementModel,
     SketchGuidedImageGenerationModel,
 )
+from ..advanced_params import FalAdvancedParameter
 
 
 class FalRenderPropertyGroup(bpy.types.PropertyGroup):
@@ -236,4 +237,22 @@ class FalRenderPropertyGroup(bpy.types.PropertyGroup):
         name="First Frame Texture",
         description="Blender image to use as first frame",
         type=bpy.types.Image,
+    )
+
+    # ── Advanced Parameters ─────────────────────────────────────────────
+    show_advanced_params: bpy.props.BoolProperty(
+        name="Show Advanced Parameters",
+        description="Toggle visibility of advanced parameters section",
+        default=False,
+    )
+
+    advanced_params: bpy.props.CollectionProperty(
+        type=FalAdvancedParameter,
+        name="Advanced Parameters",
+        description="Additional API parameters for power users",
+    )
+
+    advanced_params_index: bpy.props.IntProperty(
+        name="Advanced Parameter Index",
+        default=0,
     )

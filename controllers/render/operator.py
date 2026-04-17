@@ -33,6 +33,7 @@ from ...utils import (
     upload_blender_image,
     upload_file,
 )
+from ..advanced_params import get_advanced_params_dict
 from ..operators import FalOperator
 from .utils import (
     calc_scene_depth_bounds,
@@ -97,6 +98,16 @@ class FalRenderOperator(FalOperator):
         else:  # VIDEO
             return bool(props.prompt.strip())
 
+    def _merge_advanced_params(self, args: dict[str, Any]) -> dict[str, Any]:
+        """Merge advanced params into API arguments.
+
+        Advanced params override model params, allowing power users
+        to customize any parameter.
+        """
+        if self._advanced_params:
+            args = {**args, **self._advanced_params}
+        return args
+
     def __call__(
         self,
         context: bpy.types.Context,
@@ -133,6 +144,7 @@ class FalRenderOperator(FalOperator):
         self._canny_future = None
         self._canny_frames: list = []
         self._parallel_threads = 0
+        self._advanced_params = get_advanced_params_dict(props)
 
         if self._render_type == "IMAGE":
             self._mode = props.mode
@@ -438,6 +450,7 @@ class FalRenderOperator(FalOperator):
             height=self._render_h,
             seed=self._seed if self._seed >= 0 else None,
         )
+        args = self._merge_advanced_params(args)
 
         rw, rh = self._render_w, self._render_h
 
@@ -623,6 +636,7 @@ class FalRenderOperator(FalOperator):
             enable_prompt_expansion=self._expand_prompt,
             image_path=tmp,
         )
+        args = self._merge_advanced_params(args)
 
         rw, rh = self._render_w, self._render_h
 
@@ -694,6 +708,7 @@ class FalRenderOperator(FalOperator):
             height=self._render_h,
             seed=self._seed if self._seed >= 0 else None,
         )
+        args = self._merge_advanced_params(args)
 
         rw, rh = self._render_w, self._render_h
 
@@ -763,6 +778,7 @@ class FalRenderOperator(FalOperator):
             height=self._render_h,
             seed=self._seed if self._seed >= 0 else None,
         )
+        args = self._merge_advanced_params(args)
 
         rw, rh = self._render_w, self._render_h
 
@@ -897,6 +913,7 @@ class FalRenderOperator(FalOperator):
             width=self._render_w,
             height=self._render_h,
         )
+        params = self._merge_advanced_params(params)
 
         def on_complete(job: FalJob) -> None:
             _handle_video_result(job)
@@ -1130,6 +1147,7 @@ class FalRenderOperator(FalOperator):
             width=self._render_w,
             height=self._render_h,
         )
+        params = self._merge_advanced_params(params)
 
         def on_complete(job: FalJob) -> None:
             _handle_video_result(job)
