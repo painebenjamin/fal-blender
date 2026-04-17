@@ -185,17 +185,25 @@ def test_confirm_message_has_model_and_size():
     message = FalVideoOperator.confirm_message(ctx, props)
     button = FalVideoOperator.confirm_button(ctx, props)
 
+    model = catalog[first_key]
+    expected_size = model.describe_output_size(1280, 720)
+
     assert "text-to-video" in title.lower(), f"Unexpected title: {title}"
     assert "7s" in message, f"Duration missing from message: {message}"
-    assert "1280x720" in message, f"Dimensions missing from message: {message}"
-    assert catalog[first_key].display_name in message, \
+    assert expected_size in message, \
+        f"Effective size '{expected_size}' missing from message: {message}"
+    # When the model clamps/reshapes, the message should also show the raw request.
+    if expected_size != "1280x720":
+        assert "1280x720" in message, \
+            f"Expected requested-size disclosure for clamp: {message}"
+    assert model.display_name in message, \
         f"Model name missing from message: {message}"
     assert button == "Generate"
 
     props.mode = "IMAGE"
     assert "image-to-video" in FalVideoOperator.confirm_title(ctx, props).lower()
 
-    print("✓ Confirm message includes model, duration, and dimensions")
+    print("✓ Confirm message includes model, duration, and effective dimensions")
 
 
 def test_invoke_shows_confirm_for_video_and_skips_for_image():

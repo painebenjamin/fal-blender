@@ -91,8 +91,17 @@ class FalVideoOperator(FalOperator):
         else:
             duration = int(props.duration)
         width, height = _get_dimensions(context, props)
+        size_label = (
+            model.describe_output_size(width, height) if model else f"{width}x{height}"
+        )
+        requested = f"{width}x{height}"
+        size_detail = (
+            f"{size_label} (requested {requested})"
+            if size_label != requested
+            else size_label
+        )
         return (
-            f"{model_label} — {duration}s at {width}x{height}. "
+            f"{model_label} — {duration}s at {size_detail}. "
             "This will incur a charge on your fal.ai account."
         )
 

@@ -112,25 +112,51 @@ class VisualFalModel(FalModel):
 
     @classmethod
     def _closest_resolution(cls, width: int, height: int) -> str:
-        """Find the closest resolution tier to the shortest pixel dimension.
+        """Find a resolution tier that meets or exceeds the requested size.
 
         Resolution labels like "720p" / "1080p" refer to the short side in a
         landscape-16:9 reference frame (720p = 1280×720), so matching on the
         short side gives the label a sensible name.
+
+        Prefer the smallest tier that is not meaningfully smaller than the
+        target — downscaling keeps detail, upscaling invents it. A 5%
+        tolerance lets exact matches stay on their tier (1024 stays 1K, not
+        2K). If the target exceeds every tier, fall back to the largest.
         """
         if not cls.resolutions:
             raise RuntimeError(
                 f"No resolutions defined for {cls.__name__}; either disable `emit_resolution` or define the resolutions in the model class."
             )
         shortest = min(width, height)
-        best_res = next(iter(cls.resolutions.keys()))
-        best_res_diff = float("inf")
-        for name, pixels in cls.resolutions.items():
-            diff = abs(shortest - pixels)
-            if diff < best_res_diff:
-                best_res_diff = diff
-                best_res = name
-        return best_res
+        threshold = shortest * 0.95
+        eligible = [
+            (name, pixels)
+            for name, pixels in cls.resolutions.items()
+            if pixels >= threshold
+        ]
+        if eligible:
+            return min(eligible, key=lambda item: item[1])[0]
+        return max(cls.resolutions.items(), key=lambda item: item[1])[0]
+
+    @classmethod
+    def describe_output_size(cls, width: int, height: int) -> str:
+        """Human-readable summary of what the model will actually generate.
+
+        Reflects the same mapping as ``_get_size_parameters`` so the string
+        shown in confirm dialogs matches the bytes actually sent to fal.
+        """
+        if cls.use_resolution_aspect_ratio:
+            parts: list[str] = []
+            if cls.emit_resolution and cls.resolutions:
+                parts.append(cls._closest_resolution(width, height))
+            if cls.emit_aspect_ratio and cls.aspect_ratios:
+                parts.append(cls._closest_aspect_ratio(width, height))
+            if parts:
+                return " ".join(parts)
+        if cls.modulo:
+            width = width // cls.modulo * cls.modulo
+            height = height // cls.modulo * cls.modulo
+        return f"{width}x{height}"
 
     @classmethod
     def _get_size_parameters(cls, width: int, height: int) -> dict[str, Any]:

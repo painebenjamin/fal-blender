@@ -131,8 +131,17 @@ class FalRenderOperator(FalOperator):
         width, height = get_dimensions(context, props)
         scene = context.scene
         frames = scene.frame_end - scene.frame_start + 1
+        size_label = (
+            model.describe_output_size(width, height) if model else f"{width}x{height}"
+        )
+        requested = f"{width}x{height}"
+        size_detail = (
+            f"{size_label} (requested {requested})"
+            if size_label != requested
+            else size_label
+        )
         return (
-            f"{model_label} — {duration}s at {width}x{height} ({frames} frames). "
+            f"{model_label} — {duration}s at {size_detail} ({frames} frames). "
             "Rendering the animation locally can take a while, and the fal.ai "
             "job will incur a charge on your account."
         )
