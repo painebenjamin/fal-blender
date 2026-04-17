@@ -76,6 +76,7 @@ class FalVideoOperator(FalOperator):
             enable_prompt_expansion=props.enable_prompt_expansion,
             duration=duration,
         )
+        params = self.with_advanced_params(params, props)
 
         def on_complete(job: FalJob) -> None:
             _handle_video_result(job)
@@ -121,6 +122,7 @@ class FalVideoOperator(FalOperator):
             image_url=image_url,
             duration=duration,
         )
+        params = self.with_advanced_params(params, props)
 
         def on_complete(job: FalJob) -> None:
             _handle_video_result(job)

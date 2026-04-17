@@ -79,6 +79,7 @@ class FalAudioOperator(FalOperator):
             voice=voice,
             duration=props.duration,
         )
+        params = self.with_advanced_params(params, props)
 
         def on_complete(job: FalJob) -> None:
             _handle_audio_result(job, "fal_tts")
@@ -117,6 +118,7 @@ class FalAudioOperator(FalOperator):
             audio_url=audio_url,
             text=props.text,
         )
+        params = self.with_advanced_params(params, props)
 
         def on_complete(job: FalJob) -> None:
             _handle_audio_result(job, "fal_tts_clone")
@@ -142,6 +144,7 @@ class FalAudioOperator(FalOperator):
             prompt=props.sfx_prompt,
             duration=props.duration,
         )
+        params = self.with_advanced_params(params, props)
 
         def on_complete(job: FalJob) -> None:
             _handle_audio_result(job, "fal_sfx")
@@ -167,6 +170,7 @@ class FalAudioOperator(FalOperator):
             prompt=props.music_prompt,
             duration=props.duration,
         )
+        params = self.with_advanced_params(params, props)
 
         def on_complete(job: FalJob) -> None:
             _handle_audio_result(job, "fal_music")

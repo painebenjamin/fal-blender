@@ -6,6 +6,7 @@ from typing import ClassVar
 import bpy
 
 from ..utils import snake_case
+from .advanced_params import get_advanced_params_dict
 
 
 class FalOperator(metaclass=ABCMeta):
@@ -55,6 +56,17 @@ class FalOperator(metaclass=ABCMeta):
         Report a message to the user.
         """
         self._operator_instance.report(levels, message)
+
+    @staticmethod
+    def with_advanced_params(
+        params: dict, props: bpy.types.PropertyGroup
+    ) -> dict:
+        """Return ``params`` merged with the user's advanced parameters.
+
+        Advanced params override model params, so power users can inject or
+        replace any field the SDK accepts.
+        """
+        return {**params, **get_advanced_params_dict(props)}
 
     @abstractmethod
     def __call__(

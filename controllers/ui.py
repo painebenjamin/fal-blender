@@ -25,7 +25,7 @@ class FalControllerPanel:
     field_conditions: dict[str, ConditionFunc] = field(default_factory=dict)
     field_groupings: list[set[str]] = field(default_factory=list)
     endpoint_models: dict[str, type[FalModel]] = field(default_factory=dict)
-    show_advanced_params: bool = False
+    show_advanced_params: bool = True
 
     _current_group_seen: set[str] = field(default_factory=set)
     _current_group: set[str] | None = None

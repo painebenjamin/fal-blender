@@ -8,9 +8,10 @@ from ...models import (
     ImageRefinementModel,
     SketchGuidedImageGenerationModel,
 )
-from ..advanced_params import FalAdvancedParameter
+from ..advanced_params import with_advanced_params
 
 
+@with_advanced_params
 class FalRenderPropertyGroup(bpy.types.PropertyGroup):
     """Property group for render settings."""
 
@@ -239,20 +240,3 @@ class FalRenderPropertyGroup(bpy.types.PropertyGroup):
         type=bpy.types.Image,
     )
 
-    # ── Advanced Parameters ─────────────────────────────────────────────
-    show_advanced_params: bpy.props.BoolProperty(
-        name="Show Advanced Parameters",
-        description="Toggle visibility of advanced parameters section",
-        default=False,
-    )
-
-    advanced_params: bpy.props.CollectionProperty(
-        type=FalAdvancedParameter,
-        name="Advanced Parameters",
-        description="Additional API parameters for power users",
-    )
-
-    advanced_params_index: bpy.props.IntProperty(
-        name="Advanced Parameter Index",
-        default=0,
-    )

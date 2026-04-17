@@ -1,8 +1,10 @@
 import bpy
 
 from ...models import ImageUpscalingModel, VideoUpscalingModel
+from ..advanced_params import with_advanced_params
 
 
+@with_advanced_params
 class FalUpscalePropertyGroup(bpy.types.PropertyGroup):
     """Properties for image and video upscaling configuration."""
 

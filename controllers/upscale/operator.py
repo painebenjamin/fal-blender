@@ -56,6 +56,7 @@ class FalUpscaleOperator(FalOperator):
         else:
             model = IMAGE_UPSCALING_MODELS[props.image_endpoint]
             params = model.parameters(image_url=source_url)
+        params = self.with_advanced_params(params, props)
 
         mode_str = props.mode.lower()
 

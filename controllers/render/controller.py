@@ -137,5 +137,4 @@ class FalRenderController(FalController):
             "depth_video_endpoint": DepthVideoModel,
             "edge_video_endpoint": EdgeVideoModel,
         },
-        show_advanced_params=True,
     )

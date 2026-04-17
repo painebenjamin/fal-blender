@@ -1,8 +1,10 @@
 import bpy
 
 from ...models import ImageToVideoModel, TextToVideoModel
+from ..advanced_params import with_advanced_params
 
 
+@with_advanced_params
 class FalVideoPropertyGroup(bpy.types.PropertyGroup):
     """Properties for text-to-video and image-to-video (VSE panel)."""
 

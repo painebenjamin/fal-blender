@@ -161,6 +161,7 @@ class FalGenerate3DOperator(FalOperator):
             prompt=props.prompt,
             generate_materials=props.generate_materials,
         )
+        params = self.with_advanced_params(params, props)
         name = props.prompt[:30]
 
         def on_complete(job: FalJob) -> None:
@@ -199,6 +200,7 @@ class FalGenerate3DOperator(FalOperator):
             image_path=image_path,
             prompt=props.prompt,
         )
+        params = self.with_advanced_params(params, props)
 
         def on_complete(job: FalJob) -> None:
             _handle_3d_result(job, "image_model")

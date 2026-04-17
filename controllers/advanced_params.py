@@ -6,6 +6,8 @@ that get merged into API requests.
 
 from __future__ import annotations
 
+import json
+
 import bpy
 
 __all__ = [
@@ -15,6 +17,8 @@ __all__ = [
     "FAL_OT_RemoveAdvancedParam",
     "draw_advanced_params",
     "get_advanced_params_dict",
+    "advanced_params_annotations",
+    "with_advanced_params",
 ]
 
 
@@ -47,6 +51,7 @@ class FalAdvancedParameter(bpy.types.PropertyGroup):
             ("INT", "Integer", "Whole number"),
             ("FLOAT", "Float", "Decimal number"),
             ("BOOL", "Boolean", "True/False"),
+            ("JSON", "JSON", "Raw JSON (object, array, number, etc.)"),
         ],
         default="STRING",
     )
@@ -204,13 +209,46 @@ def get_advanced_params_dict(props: bpy.types.PropertyGroup) -> dict:
                 result[key] = float(value)
             elif param.value_type == "BOOL":
                 result[key] = value.lower() in ("true", "1", "yes", "on")
+            elif param.value_type == "JSON":
+                result[key] = json.loads(value)
             else:  # STRING
                 result[key] = value
-        except (ValueError, AttributeError):
+        except (ValueError, AttributeError, json.JSONDecodeError):
             # Fall back to string on conversion errors
             result[key] = value
 
     return result
+
+
+def advanced_params_annotations() -> dict:
+    """Return the three PropertyGroup annotations required to host advanced params.
+
+    Merge into a PropertyGroup's ``__annotations__`` (see ``with_advanced_params``)
+    rather than restating them inline on every group.
+    """
+    return {
+        "show_advanced_params": bpy.props.BoolProperty(
+            name="Show Advanced Parameters",
+            description="Toggle visibility of advanced parameters section",
+            default=False,
+        ),
+        "advanced_params": bpy.props.CollectionProperty(
+            type=FalAdvancedParameter,
+            name="Advanced Parameters",
+            description="Additional API parameters for power users",
+        ),
+        "advanced_params_index": bpy.props.IntProperty(
+            name="Advanced Parameter Index",
+            default=0,
+        ),
+    }
+
+
+def with_advanced_params(cls: type) -> type:
+    """Class decorator that injects advanced-params fields into a PropertyGroup."""
+    existing = cls.__dict__.get("__annotations__", {})
+    cls.__annotations__ = {**existing, **advanced_params_annotations()}
+    return cls
 
 
 _CLASSES: tuple[type, ...] = (

@@ -64,6 +64,7 @@ class FalMaterialOperator(FalOperator):
             tiling_mode=props.tiling_mode,
             upscale_factor=props.upscale_factor,
         )
+        params = self.with_advanced_params(params, props)
 
         target_obj_name = context.active_object.name if context.active_object else None
         prompt_short = props.prompt[:20]
@@ -103,6 +104,7 @@ class FalMaterialOperator(FalOperator):
             output_format=props.output_format,
             upscale_factor=props.upscale_factor,
         )
+        params = self.with_advanced_params(params, props)
 
         target_obj_name = context.active_object.name if context.active_object else None
         label = (props.texture.name[:20] if props.texture else "") or "pbr"
@@ -138,6 +140,7 @@ class FalMaterialOperator(FalOperator):
             output_format=props.output_format,
             tiling_mode=props.tiling_mode,
         )
+        params = self.with_advanced_params(params, props)
 
         target_obj_name = context.active_object.name if context.active_object else None
         prompt_short = props.prompt[:20]

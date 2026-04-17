@@ -5,6 +5,7 @@ from ...models import (
     SoundEffectsGenerationModel,
     SpeechGenerationModel,
 )
+from ..advanced_params import with_advanced_params
 
 
 def _voice_preset_items(
@@ -16,6 +17,7 @@ def _voice_preset_items(
     return SpeechGenerationModel.get_voice_presets_for_model(model_key)
 
 
+@with_advanced_params
 class FalAudioPropertyGroup(bpy.types.PropertyGroup):
     """Property group for audio generation settings."""
 

@@ -1,8 +1,10 @@
 import bpy  # type: ignore[import-not-found]
 
 from ...models import MaterialGenerationModel, PBREstimationModel, TilingTextureModel
+from ..advanced_params import with_advanced_params
 
 
+@with_advanced_params
 class FalMaterialPropertyGroup(bpy.types.PropertyGroup):
     """Property group for material generation settings."""
 
