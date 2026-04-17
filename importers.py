@@ -4,6 +4,8 @@ from typing import Any
 
 import bpy
 
+print("fal.ai: importers module loaded (VSE refresh: scene-swap + refresh_all)")
+
 __all__ = [
     "apply_texture_to_object",
     "import_image_as_texture",
@@ -299,13 +301,20 @@ def _schedule_fit_retry(
 def _refresh_vse_for_scene(scene: bpy.types.Scene) -> None:
     """Force VSE areas showing this scene to pick up new strips.
 
-    When we add strips from a timer callback, area UI state can stay stuck
-    on the pre-callback snapshot (e.g. the VSE shows its "New" button even
-    though ``sequence_editor`` now exists). Reassigning ``window.scene`` to
-    the same scene is what clicking the scene-picker dropdown does — it
-    forces a full rebind of all areas and reliably clears the stale "New"
-    button. ``tag_redraw`` + ``view_all`` handle the timeline-zoom nicety
-    on top. Best-effort: skipped if the WM isn't reachable.
+    When ``sequence_editor_create()`` runs from a timer callback the VSE
+    area keeps showing its "No sequencer / New" placeholder until
+    something forces it to re-resolve ``scene.sequence_editor``.
+    ``area.tag_redraw()`` only schedules a repaint; it doesn't
+    invalidate the cached ``SpaceSeq`` binding. The reliable trigger is
+    the full scene-activation notifier that fires via
+    ``WM_window_set_active_scene`` — but Blender's RNA setter for
+    ``Window.scene`` short-circuits when assigning the current scene, so
+    ``window.scene = scene`` is a no-op. Swapping through a different
+    scene (the same effect as picking "New" in the dropdown and coming
+    back) forces both sides of the assignment through
+    ``WM_window_set_active_scene`` and emits ``NC_SCENE |
+    ND_SCENEBROWSE`` — which every area listens to. Paired with
+    ``sequencer.refresh_all`` that also clears cached thumbnails.
     """
     try:
         wm = bpy.context.window_manager
@@ -314,23 +323,39 @@ def _refresh_vse_for_scene(scene: bpy.types.Scene) -> None:
     if wm is None:
         return
 
+    scratch = next((s for s in bpy.data.scenes if s is not scene), None)
+    temp_scene = None
+    if scratch is None:
+        try:
+            temp_scene = bpy.data.scenes.new("__fal_vse_refresh__")
+            scratch = temp_scene
+        except Exception as exc:
+            print(f"fal.ai: could not create scratch scene: {exc}")
+
     for window in wm.windows:
         if window.scene is not scene:
             continue
-        # Reassign same-scene → mimics user re-selecting from the dropdown.
-        try:
-            window.scene = scene
-        except Exception:
-            pass
+        if scratch is not None:
+            try:
+                window.scene = scratch
+                window.scene = scene
+            except Exception as exc:
+                print(f"fal.ai: scene swap failed: {exc}")
         for area in window.screen.areas:
             if area.type != "SEQUENCE_EDITOR":
                 continue
             area.tag_redraw()
             try:
                 with bpy.context.temp_override(window=window, area=area):
-                    bpy.ops.sequencer.view_all()
+                    bpy.ops.sequencer.refresh_all()
             except Exception:
                 pass
+
+    if temp_scene is not None:
+        try:
+            bpy.data.scenes.remove(temp_scene, do_unlink=True)
+        except Exception as exc:
+            print(f"fal.ai: could not remove scratch scene: {exc}")
 
 
 def add_audio_to_vse(
