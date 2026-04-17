@@ -313,6 +313,86 @@ def test_panel_output_size_hint():
     print("✓ Output-size hint fires only when model reshapes the request")
 
 
+def test_has_usable_compositor_detects_empty_tree():
+    """has_usable_compositor should be False for a fresh 5.x compositor tree.
+
+    Regression guard for the "No Group Output or File Output nodes in scene"
+    error on Blender 5.2 fresh scenes — the tree exists with no output node.
+    """
+    if not hasattr(bpy.types.Scene, "fal_3d"):
+        print("⚠ Skipping has_usable_compositor test (extension not loaded)")
+        return
+
+    from fal_ai.utils import (
+        create_compositor_output_node,
+        ensure_compositor_enabled,
+        has_usable_compositor,
+    )
+
+    scene = bpy.context.scene
+    tree = ensure_compositor_enabled(scene)
+
+    for node in list(tree.nodes):
+        tree.nodes.remove(node)
+
+    assert not has_usable_compositor(scene), \
+        "Empty compositor tree should report as unusable"
+
+    create_compositor_output_node(tree)
+    assert has_usable_compositor(scene), \
+        "Tree with output node should report as usable"
+
+    for node in list(tree.nodes):
+        tree.nodes.remove(node)
+
+    print("✓ has_usable_compositor distinguishes empty vs wired trees")
+
+
+def test_refine_setup_disables_empty_compositor():
+    """_setup_refine should flip off use_compositing when the tree is empty.
+
+    Fresh 5.x scenes default ``use_compositing=True`` with no output node,
+    which makes ``bpy.ops.render.render()`` explode. Operators that don't
+    build their own compositor path must guard against it.
+    """
+    if not hasattr(bpy.types.Scene, "fal_3d"):
+        print("⚠ Skipping refine compositor guard test (extension not loaded)")
+        return
+
+    from fal_ai.controllers.render.operator import FalRenderOperator
+    from fal_ai.utils import ensure_compositor_enabled
+
+    scene = bpy.context.scene
+    tree = ensure_compositor_enabled(scene)
+    for node in list(tree.nodes):
+        tree.nodes.remove(node)
+
+    original_use_compositing = scene.render.use_compositing
+    original_res_x = scene.render.resolution_x
+    original_res_y = scene.render.resolution_y
+    original_res_pct = scene.render.resolution_percentage
+    scene.render.use_compositing = True
+
+    op = FalRenderOperator.__new__(FalRenderOperator)
+    op._saved = {}
+    op._render_w = 512
+    op._render_h = 512
+
+    try:
+        op._setup_refine(bpy.context)
+        assert not scene.render.use_compositing, \
+            "Empty compositor should be disabled during refine setup"
+        assert op._saved.get("use_compositing") is True, \
+            "Original use_compositing should be stashed for restore"
+    finally:
+        scene.render.resolution_x = original_res_x
+        scene.render.resolution_y = original_res_y
+        scene.render.resolution_percentage = original_res_pct
+        scene.render.use_compositing = original_use_compositing
+
+    print("✓ _setup_refine disables empty compositor and saves prior state")
+
+
 def test_pointer_property_for_images():
     """Test that PointerProperty works for Image selection."""
     # Create a test image
@@ -349,6 +429,8 @@ def run_all_tests():
         test_confirm_message_has_model_and_size,
         test_invoke_shows_confirm_for_video_and_skips_for_image,
         test_panel_output_size_hint,
+        test_has_usable_compositor_detects_empty_tree,
+        test_refine_setup_disables_empty_compositor,
         test_pointer_property_for_images,
     ]
     

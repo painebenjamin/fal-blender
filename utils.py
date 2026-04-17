@@ -542,6 +542,27 @@ def ensure_compositor_enabled(scene: bpy.types.Scene) -> bpy.types.NodeTree:
         return scene.node_tree
 
 
+def has_usable_compositor(scene: bpy.types.Scene) -> bool:
+    """Return True when the scene's compositor can produce an image.
+
+    Blender refuses to render with ``use_compositing=True`` when the tree is
+    empty or missing an output node, and the error only surfaces at render
+    time. Check up front so we can skip compositing for fresh 5.x scenes
+    (which default to ``use_compositing=True`` with an empty group).
+    """
+    import bpy
+
+    tree = get_compositor_node_tree(scene)
+    if tree is None:
+        return False
+    output_types = {
+        "NodeGroupOutput",
+        "CompositorNodeComposite",
+        "CompositorNodeOutputFile",
+    }
+    return any(node.bl_idname in output_types for node in tree.nodes)
+
+
 def create_compositor_output_node(
     tree: bpy.types.NodeTree,
 ) -> bpy.types.Node:

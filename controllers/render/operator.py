@@ -26,6 +26,7 @@ from ...utils import (
     get_compositor_node_tree,
     get_eevee_engine,
     get_world_color,
+    has_usable_compositor,
     restore_compositor,
     restore_world_color_links,
     set_world_color,
@@ -633,6 +634,8 @@ class FalRenderOperator(FalOperator):
         linestyle.thickness = max(2.0, self._render_w / 500.0)
         linestyle.alpha = 1.0
 
+        self._disable_empty_compositor(scene)
+
     def _finish_sketch(self, context: bpy.types.Context) -> None:
         """
         Save sketch render, post-process, restore scene, add labels, submit.
@@ -721,6 +724,8 @@ class FalRenderOperator(FalOperator):
         scene.render.resolution_x = self._render_w
         scene.render.resolution_y = self._render_h
         scene.render.resolution_percentage = 100
+
+        self._disable_empty_compositor(scene)
 
     def _finish_refine(self, context: bpy.types.Context) -> None:
         """
@@ -1246,6 +1251,19 @@ class FalRenderOperator(FalOperator):
         except Exception as e:
             print(f"fal.ai: Failed to capture first frame: {e}")
             return None
+
+    def _disable_empty_compositor(self, scene: bpy.types.Scene) -> None:
+        """Turn off ``use_compositing`` when the tree has no output node.
+
+        Blender 5.x fresh scenes default ``use_compositing=True`` with an
+        empty compositor group, which makes ``bpy.ops.render.render()`` raise
+        "No Group Output or File Output nodes in scene". Setup paths that
+        don't build their own compositor (refine, sketch) would otherwise hit
+        this.
+        """
+        if scene.render.use_compositing and not has_usable_compositor(scene):
+            self._saved.setdefault("use_compositing", scene.render.use_compositing)
+            scene.render.use_compositing = False
 
     # ── Unified state restoration ──────────────────────────────────────
 
