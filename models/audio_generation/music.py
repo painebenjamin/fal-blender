@@ -47,6 +47,8 @@ class MiniMaxMusicGenerationModel(MusicGenerationModel):
         lyrics = kwargs.get("lyrics")
         if lyrics:
             params["lyrics"] = lyrics
+        else:
+            params["is_instrumental"] = True
         return params
 
 
