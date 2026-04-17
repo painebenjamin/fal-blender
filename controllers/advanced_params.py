@@ -6,23 +6,26 @@ that get merged into API requests.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 import bpy
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
 
 __all__ = [
     "FalAdvancedParameter",
     "FAL_UL_AdvancedParamsList",
     "FAL_OT_AddAdvancedParam",
     "FAL_OT_RemoveAdvancedParam",
-    "register_advanced_params",
-    "unregister_advanced_params",
     "draw_advanced_params",
     "get_advanced_params_dict",
 ]
+
+
+def _resolve_props(context: bpy.types.Context, props_path: str) -> bpy.types.PropertyGroup | None:
+    """Resolve a dotted props_path against context.scene."""
+    obj: object = context.scene
+    for part in props_path.split("."):
+        obj = getattr(obj, part, None)
+        if obj is None:
+            return None
+    return obj  # type: ignore[return-value]
 
 
 class FalAdvancedParameter(bpy.types.PropertyGroup):
@@ -78,85 +81,58 @@ class FAL_UL_AdvancedParamsList(bpy.types.UIList):
             layout.label(text=item.key or "(empty)")
 
 
-def _make_add_operator(props_path: str) -> type[bpy.types.Operator]:
-    """Create an operator class for adding advanced parameters."""
+class FAL_OT_AddAdvancedParam(bpy.types.Operator):
+    """Add a new advanced parameter."""
 
-    class FAL_OT_AddAdvancedParam(bpy.types.Operator):
-        """Add a new advanced parameter."""
+    bl_idname = "fal.add_advanced_param"
+    bl_label = "Add Parameter"
+    bl_description = "Add a new advanced parameter"
+    bl_options = {"REGISTER", "UNDO"}
 
-        bl_idname = f"fal.add_advanced_param_{props_path.replace('.', '_')}"
-        bl_label = "Add Parameter"
-        bl_description = "Add a new advanced parameter"
-        bl_options = {"REGISTER", "UNDO"}
+    props_path: bpy.props.StringProperty(
+        name="Props Path",
+        description="Dotted path to the PropertyGroup on context.scene",
+        default="",
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
 
-        def execute(self, context: bpy.types.Context) -> set[str]:
-            props = eval(f"context.scene.{props_path}")
-            item = props.advanced_params.add()
-            item.key = ""
-            item.value = ""
-            props.advanced_params_index = len(props.advanced_params) - 1
-            return {"FINISHED"}
-
-    return FAL_OT_AddAdvancedParam
-
-
-def _make_remove_operator(props_path: str) -> type[bpy.types.Operator]:
-    """Create an operator class for removing advanced parameters."""
-
-    class FAL_OT_RemoveAdvancedParam(bpy.types.Operator):
-        """Remove the selected advanced parameter."""
-
-        bl_idname = f"fal.remove_advanced_param_{props_path.replace('.', '_')}"
-        bl_label = "Remove Parameter"
-        bl_description = "Remove the selected advanced parameter"
-        bl_options = {"REGISTER", "UNDO"}
-
-        def execute(self, context: bpy.types.Context) -> set[str]:
-            props = eval(f"context.scene.{props_path}")
-            idx = props.advanced_params_index
-            if 0 <= idx < len(props.advanced_params):
-                props.advanced_params.remove(idx)
-                props.advanced_params_index = max(0, idx - 1)
-            return {"FINISHED"}
-
-    return FAL_OT_RemoveAdvancedParam
+    def execute(self, context: bpy.types.Context) -> set[str]:
+        props = _resolve_props(context, self.props_path)
+        if props is None:
+            self.report({"ERROR"}, f"Could not resolve props at '{self.props_path}'")
+            return {"CANCELLED"}
+        item = props.advanced_params.add()
+        item.key = ""
+        item.value = ""
+        props.advanced_params_index = len(props.advanced_params) - 1
+        return {"FINISHED"}
 
 
-# Storage for dynamically created operators
-_registered_operators: dict[str, tuple[type, type]] = {}
+class FAL_OT_RemoveAdvancedParam(bpy.types.Operator):
+    """Remove the selected advanced parameter."""
 
+    bl_idname = "fal.remove_advanced_param"
+    bl_label = "Remove Parameter"
+    bl_description = "Remove the selected advanced parameter"
+    bl_options = {"REGISTER", "UNDO"}
 
-def register_advanced_params(props_path: str) -> tuple[str, str]:
-    """Register add/remove operators for a specific props path.
+    props_path: bpy.props.StringProperty(
+        name="Props Path",
+        description="Dotted path to the PropertyGroup on context.scene",
+        default="",
+        options={"HIDDEN", "SKIP_SAVE"},
+    )
 
-    Args:
-        props_path: Dot-separated path to props (e.g. 'falrendercontroller_props')
-
-    Returns:
-        Tuple of (add_op_idname, remove_op_idname)
-    """
-    if props_path in _registered_operators:
-        add_cls, remove_cls = _registered_operators[props_path]
-        return add_cls.bl_idname, remove_cls.bl_idname
-
-    add_cls = _make_add_operator(props_path)
-    remove_cls = _make_remove_operator(props_path)
-
-    bpy.utils.register_class(add_cls)
-    bpy.utils.register_class(remove_cls)
-
-    _registered_operators[props_path] = (add_cls, remove_cls)
-    return add_cls.bl_idname, remove_cls.bl_idname
-
-
-def unregister_advanced_params(props_path: str) -> None:
-    """Unregister operators for a specific props path."""
-    if props_path not in _registered_operators:
-        return
-
-    add_cls, remove_cls = _registered_operators.pop(props_path)
-    bpy.utils.unregister_class(remove_cls)
-    bpy.utils.unregister_class(add_cls)
+    def execute(self, context: bpy.types.Context) -> set[str]:
+        props = _resolve_props(context, self.props_path)
+        if props is None:
+            self.report({"ERROR"}, f"Could not resolve props at '{self.props_path}'")
+            return {"CANCELLED"}
+        idx = props.advanced_params_index
+        if 0 <= idx < len(props.advanced_params):
+            props.advanced_params.remove(idx)
+            props.advanced_params_index = max(0, idx - 1)
+        return {"FINISHED"}
 
 
 def draw_advanced_params(
@@ -170,12 +146,9 @@ def draw_advanced_params(
     Args:
         layout: Parent layout to draw into
         props: PropertyGroup containing advanced_params CollectionProperty
-        props_path: Path for operator registration
+        props_path: Dotted path from context.scene used by the operators to resolve props
         collapsed: Whether to start collapsed (default True)
     """
-    # Ensure operators are registered
-    add_op, remove_op = register_advanced_params(props_path)
-
     # Collapsible header
     box = layout.box()
     row = box.row()
@@ -203,10 +176,12 @@ def draw_advanced_params(
         rows=3,
     )
 
-    # Add/Remove buttons
+    # Add/Remove buttons — pass props_path as an operator property
     col = row.column(align=True)
-    col.operator(add_op, icon="ADD", text="")
-    col.operator(remove_op, icon="REMOVE", text="")
+    add = col.operator(FAL_OT_AddAdvancedParam.bl_idname, icon="ADD", text="")
+    add.props_path = props_path
+    remove = col.operator(FAL_OT_RemoveAdvancedParam.bl_idname, icon="REMOVE", text="")
+    remove.props_path = props_path
 
 
 def get_advanced_params_dict(props: bpy.types.PropertyGroup) -> dict:
@@ -240,17 +215,19 @@ def get_advanced_params_dict(props: bpy.types.PropertyGroup) -> dict:
     return result
 
 
+_CLASSES: tuple[type, ...] = (
+    FalAdvancedParameter,
+    FAL_UL_AdvancedParamsList,
+    FAL_OT_AddAdvancedParam,
+    FAL_OT_RemoveAdvancedParam,
+)
+
+
 def register() -> None:
-    """Register base classes."""
-    bpy.utils.register_class(FalAdvancedParameter)
-    bpy.utils.register_class(FAL_UL_AdvancedParamsList)
+    for cls in _CLASSES:
+        bpy.utils.register_class(cls)
 
 
 def unregister() -> None:
-    """Unregister base classes and all dynamic operators."""
-    # Unregister all dynamic operators
-    for props_path in list(_registered_operators.keys()):
-        unregister_advanced_params(props_path)
-
-    bpy.utils.unregister_class(FAL_UL_AdvancedParamsList)
-    bpy.utils.unregister_class(FalAdvancedParameter)
+    for cls in reversed(_CLASSES):
+        bpy.utils.unregister_class(cls)
