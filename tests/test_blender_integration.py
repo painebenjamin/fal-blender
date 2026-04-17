@@ -393,6 +393,52 @@ def test_refine_setup_disables_empty_compositor():
     print("✓ _setup_refine disables empty compositor and saves prior state")
 
 
+def test_fit_movie_strip_reports_readiness():
+    """_fit_movie_strip_to_target returns False until native dims are known.
+
+    Endpoints often round output dimensions (e.g. requesting 1920x1080 and
+    getting 1344x768 back), and Blender doesn't decode the video header
+    synchronously — ``elements[0].orig_width`` stays 0 for a beat. The fit
+    function must report that clearly so the caller can schedule a retry.
+    """
+    if not hasattr(bpy.types.Scene, "fal_3d"):
+        print("⚠ Skipping _fit_movie_strip_to_target test (extension not loaded)")
+        return
+
+    from fal_ai.importers import _fit_movie_strip_to_target
+
+    class _Element:
+        def __init__(self, w: int, h: int):
+            self.orig_width = w
+            self.orig_height = h
+
+    class _Transform:
+        def __init__(self):
+            self.scale_x = 1.0
+            self.scale_y = 1.0
+
+    class _Strip:
+        def __init__(self, w: int, h: int):
+            self.elements = [_Element(w, h)]
+            self.transform = _Transform()
+
+    scene = bpy.context.scene
+
+    # Native dims not ready yet → caller should schedule a retry.
+    pending = _Strip(0, 0)
+    assert _fit_movie_strip_to_target(scene, pending, 1920, 1080) is False
+
+    # Native dims known → scale uniformly to fit target, preserve aspect.
+    ready = _Strip(1344, 768)
+    assert _fit_movie_strip_to_target(scene, ready, 1920, 1080) is True
+    expected_scale = min(1920 / 1344, 1080 / 768)
+    assert abs(ready.transform.scale_x - expected_scale) < 1e-6
+    assert ready.transform.scale_x == ready.transform.scale_y, \
+        "Uniform scale should apply the same factor to x and y"
+
+    print("✓ _fit_movie_strip_to_target signals readiness for deferred retry")
+
+
 def test_vse_importer_uses_explicit_scene():
     """add_audio_to_vse should attach to the scene kwarg, not bpy.context.scene.
 
@@ -490,6 +536,7 @@ def run_all_tests():
         test_panel_output_size_hint,
         test_has_usable_compositor_detects_empty_tree,
         test_refine_setup_disables_empty_compositor,
+        test_fit_movie_strip_reports_readiness,
         test_vse_importer_uses_explicit_scene,
         test_pointer_property_for_images,
     ]

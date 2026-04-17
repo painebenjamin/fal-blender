@@ -218,17 +218,19 @@ def _fit_movie_strip_to_target(
     strip: Any,
     target_width: int | None,
     target_height: int | None,
-) -> None:
+) -> bool:
     """Scale a movie strip so its native frame fits inside the target dimensions.
 
     Uniform scale preserves aspect ratio, so a clip whose aspect differs from
     the target is letterboxed (not cropped) — the user can tweak
-    ``strip.transform.scale_*`` manually if they want cover-fit instead. If
-    the caller passes ``None`` for both dimensions, no scaling is applied
-    (leaves the strip at its native resolution).
+    ``strip.transform.scale_*`` manually if they want cover-fit instead.
+    When the caller passes ``None`` for either dimension, the scene's render
+    resolution fills in the gap.
+
+    Returns True when the scale was applied, False when it was skipped
+    (typically because Blender hasn't decoded the video header yet, so
+    ``elements[0].orig_width`` is still 0 — the caller can schedule a retry).
     """
-    if target_width is None and target_height is None:
-        return
     if target_width is None or target_height is None:
         rx, ry = _scene_render_resolution(scene)
         if target_width is None:
@@ -237,23 +239,61 @@ def _fit_movie_strip_to_target(
             target_height = ry
 
     if target_width <= 0 or target_height <= 0:
-        return
+        return False
 
     elements = getattr(strip, "elements", None)
     if not elements:
-        return
+        return False
     native_w = getattr(elements[0], "orig_width", 0)
     native_h = getattr(elements[0], "orig_height", 0)
     if native_w <= 0 or native_h <= 0:
-        return
+        return False
 
     transform = getattr(strip, "transform", None)
     if transform is None:
-        return
+        return False
 
     scale = min(target_width / native_w, target_height / native_h)
     transform.scale_x = scale
     transform.scale_y = scale
+    return True
+
+
+def _schedule_fit_retry(
+    scene: bpy.types.Scene,
+    strip: Any,
+    target_width: int | None,
+    target_height: int | None,
+    *,
+    max_attempts: int = 20,
+    interval: float = 0.15,
+) -> None:
+    """Retry ``_fit_movie_strip_to_target`` until Blender reports native dims.
+
+    ``strips.new_movie`` doesn't synchronously decode the video header, so
+    ``orig_width``/``orig_height`` are often 0 immediately after creation.
+    Poll on a timer — cheap, bounded — so the strip gets scaled as soon as
+    Blender fills the dims in.
+    """
+    strip_ref = strip.name
+    remaining = {"attempts": max_attempts}
+
+    def _attempt() -> float | None:
+        se = scene.sequence_editor
+        if se is None:
+            return None
+        current = _vse_editable_strips(se).get(strip_ref)
+        if current is None:
+            return None
+        if _fit_movie_strip_to_target(scene, current, target_width, target_height):
+            _refresh_vse_for_scene(scene)
+            return None
+        remaining["attempts"] -= 1
+        if remaining["attempts"] <= 0:
+            return None
+        return interval
+
+    bpy.app.timers.register(_attempt, first_interval=interval)
 
 
 def _refresh_vse_for_scene(scene: bpy.types.Scene) -> None:
@@ -261,8 +301,11 @@ def _refresh_vse_for_scene(scene: bpy.types.Scene) -> None:
 
     When we add strips from a timer callback, area UI state can stay stuck
     on the pre-callback snapshot (e.g. the VSE shows its "New" button even
-    though ``sequence_editor`` now exists). ``tag_redraw`` + ``view_all``
-    reconciles it. Best-effort: skipped if the WM isn't reachable.
+    though ``sequence_editor`` now exists). Reassigning ``window.scene`` to
+    the same scene is what clicking the scene-picker dropdown does — it
+    forces a full rebind of all areas and reliably clears the stale "New"
+    button. ``tag_redraw`` + ``view_all`` handle the timeline-zoom nicety
+    on top. Best-effort: skipped if the WM isn't reachable.
     """
     try:
         wm = bpy.context.window_manager
@@ -274,6 +317,11 @@ def _refresh_vse_for_scene(scene: bpy.types.Scene) -> None:
     for window in wm.windows:
         if window.scene is not scene:
             continue
+        # Reassign same-scene → mimics user re-selecting from the dropdown.
+        try:
+            window.scene = scene
+        except Exception:
+            pass
         for area in window.screen.areas:
             if area.type != "SEQUENCE_EDITOR":
                 continue
@@ -365,7 +413,8 @@ def add_video_to_vse(
         frame_start=frame_start,
     )
 
-    _fit_movie_strip_to_target(scene, strip, target_width, target_height)
+    if not _fit_movie_strip_to_target(scene, strip, target_width, target_height):
+        _schedule_fit_retry(scene, strip, target_width, target_height)
 
     sound_channel = channel + 1
     while sound_channel in used_channels:
