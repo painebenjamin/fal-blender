@@ -204,6 +204,58 @@ def _vse_editable_strips(se: bpy.types.SequenceEditor):
     return se.strips if hasattr(se, "strips") else se.sequences
 
 
+def _scene_render_resolution(scene: bpy.types.Scene) -> tuple[int, int]:
+    """Return the scene's effective render resolution (including percentage scale)."""
+    scale = scene.render.resolution_percentage / 100.0
+    return (
+        int(scene.render.resolution_x * scale),
+        int(scene.render.resolution_y * scale),
+    )
+
+
+def _fit_movie_strip_to_target(
+    scene: bpy.types.Scene,
+    strip: Any,
+    target_width: int | None,
+    target_height: int | None,
+) -> None:
+    """Scale a movie strip so its native frame fits inside the target dimensions.
+
+    Uniform scale preserves aspect ratio, so a clip whose aspect differs from
+    the target is letterboxed (not cropped) — the user can tweak
+    ``strip.transform.scale_*`` manually if they want cover-fit instead. If
+    the caller passes ``None`` for both dimensions, no scaling is applied
+    (leaves the strip at its native resolution).
+    """
+    if target_width is None and target_height is None:
+        return
+    if target_width is None or target_height is None:
+        rx, ry = _scene_render_resolution(scene)
+        if target_width is None:
+            target_width = rx
+        if target_height is None:
+            target_height = ry
+
+    if target_width <= 0 or target_height <= 0:
+        return
+
+    elements = getattr(strip, "elements", None)
+    if not elements:
+        return
+    native_w = getattr(elements[0], "orig_width", 0)
+    native_h = getattr(elements[0], "orig_height", 0)
+    if native_w <= 0 or native_h <= 0:
+        return
+
+    transform = getattr(strip, "transform", None)
+    if transform is None:
+        return
+
+    scale = min(target_width / native_w, target_height / native_h)
+    transform.scale_x = scale
+    transform.scale_y = scale
+
+
 def add_audio_to_vse(
     filepath: str,
     *,
@@ -237,6 +289,8 @@ def add_video_to_vse(
     filepath: str,
     *,
     name: str = "fal_video",
+    target_width: int | None = None,
+    target_height: int | None = None,
 ) -> Any:
     """Add a video file as a movie + sound strip pair in the VSE.
 
@@ -244,6 +298,12 @@ def add_video_to_vse(
     the channel directly above the movie strip (mirroring Blender's
     native drag-and-drop behaviour).  Videos without audio produce
     only the movie strip.
+
+    If ``target_width`` / ``target_height`` are provided (or defaulted from
+    the scene render resolution), the movie strip's ``transform.scale`` is
+    set so the clip fits that target while preserving aspect ratio — this
+    is how we reconcile model output dimensions with the user's requested
+    resolution without re-encoding.
     """
     scene = bpy.context.scene
 
@@ -266,6 +326,8 @@ def add_video_to_vse(
         channel=channel,
         frame_start=frame_start,
     )
+
+    _fit_movie_strip_to_target(scene, strip, target_width, target_height)
 
     sound_channel = channel + 1
     while sound_channel in used_channels:

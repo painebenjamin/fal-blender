@@ -102,7 +102,7 @@ class FalVideoOperator(FalOperator):
         params = self.with_advanced_params(params, props)
 
         def on_complete(job: FalJob) -> None:
-            _handle_video_result(job)
+            _handle_video_result(job, target_width=width, target_height=height)
 
         job = FalJob(
             endpoint=model.endpoint,
@@ -153,7 +153,7 @@ class FalVideoOperator(FalOperator):
         params = self.with_advanced_params(params, props)
 
         def on_complete(job: FalJob) -> None:
-            _handle_video_result(job)
+            _handle_video_result(job, target_width=width, target_height=height)
 
         job = FalJob(
             endpoint=model.endpoint,
@@ -169,8 +169,13 @@ class FalVideoOperator(FalOperator):
 # ---------------------------------------------------------------------------
 # Result handler (module-level — must not reference operator self)
 # ---------------------------------------------------------------------------
-def _handle_video_result(job: FalJob) -> None:
-    """Download video result and import to VSE."""
+def _handle_video_result(
+    job: FalJob,
+    *,
+    target_width: int | None = None,
+    target_height: int | None = None,
+) -> None:
+    """Download video result and import to VSE, scaled to the requested target."""
     if job.status == "error":
         print(f"fal.ai: Video generation failed: {job.error}")
         return
@@ -191,5 +196,10 @@ def _handle_video_result(job: FalJob) -> None:
         return
 
     local_path = download_file(video_url, suffix=".mp4")
-    add_video_to_vse(local_path, name="fal_video")
+    add_video_to_vse(
+        local_path,
+        name="fal_video",
+        target_width=target_width,
+        target_height=target_height,
+    )
     print("fal.ai: Video imported to VSE!")
