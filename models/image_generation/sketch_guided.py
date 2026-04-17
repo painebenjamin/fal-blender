@@ -104,6 +104,7 @@ class Seedream45EditModel(SketchGuidedImageGenerationModel):
     display_name = "Seedream 4.5 Edit"
     endpoint = "fal-ai/bytedance/seedream/v4.5/edit"
     image_urls_parameter = "image_urls"
+    size_parameter = "image_size"
 
 
 class Seedream5LiteEditModel(SketchGuidedImageGenerationModel):
@@ -112,3 +113,4 @@ class Seedream5LiteEditModel(SketchGuidedImageGenerationModel):
     display_name = "Seedream 5 Lite Edit"
     endpoint = "fal-ai/bytedance/seedream/v5/lite/edit"
     image_urls_parameter = "image_urls"
+    size_parameter = "image_size"
