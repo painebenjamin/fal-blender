@@ -59,9 +59,10 @@ class FalUpscaleOperator(FalOperator):
         params = self.with_advanced_params(params, props)
 
         mode_str = props.mode.lower()
+        origin_scene = context.scene
 
         def on_complete(job: FalJob) -> None:
-            _handle_upscale_result(job, is_video)
+            _handle_upscale_result(job, is_video, scene=origin_scene)
 
         job = FalJob(
             endpoint=model.endpoint,
@@ -111,7 +112,12 @@ def _find_result_url(result: dict, is_video: bool) -> str | None:
     return None
 
 
-def _handle_upscale_result(job: FalJob, is_video: bool) -> None:
+def _handle_upscale_result(
+    job: FalJob,
+    is_video: bool,
+    *,
+    scene: bpy.types.Scene | None = None,
+) -> None:
     """Download the upscaled result and import into Blender."""
     if job.status == "error":
         print(f"fal.ai: Upscale failed: {job.error}")
@@ -127,7 +133,7 @@ def _handle_upscale_result(job: FalJob, is_video: bool) -> None:
     local_path = download_file(result_url, suffix=suffix)
 
     if is_video:
-        add_video_to_vse(local_path, name="fal_upscaled")
+        add_video_to_vse(local_path, name="fal_upscaled", scene=scene)
         print("fal.ai: Upscaled video added to VSE")
     else:
         import_image_to_editor(local_path, name="fal_upscaled")

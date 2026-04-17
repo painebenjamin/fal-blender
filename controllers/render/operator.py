@@ -969,9 +969,15 @@ class FalRenderOperator(FalOperator):
         params = self._merge_advanced_params(params)
 
         render_w, render_h = self._render_w, self._render_h
+        origin_scene = context.scene
 
         def on_complete(job: FalJob) -> None:
-            _handle_video_result(job, target_width=render_w, target_height=render_h)
+            _handle_video_result(
+                job,
+                target_width=render_w,
+                target_height=render_h,
+                scene=origin_scene,
+            )
 
         job = FalJob(
             endpoint=self._model.endpoint,
@@ -1205,9 +1211,15 @@ class FalRenderOperator(FalOperator):
         params = self._merge_advanced_params(params)
 
         render_w, render_h = self._render_w, self._render_h
+        origin_scene = context.scene
 
         def on_complete(job: FalJob) -> None:
-            _handle_video_result(job, target_width=render_w, target_height=render_h)
+            _handle_video_result(
+                job,
+                target_width=render_w,
+                target_height=render_h,
+                scene=origin_scene,
+            )
 
         job = FalJob(
             endpoint=self._model.endpoint,
@@ -1411,6 +1423,7 @@ def _handle_video_result(
     *,
     target_width: int | None = None,
     target_height: int | None = None,
+    scene: bpy.types.Scene | None = None,
 ) -> None:
     """Download video result and import to VSE, scaled to the requested target."""
     if job.status == "error":
@@ -1438,5 +1451,6 @@ def _handle_video_result(
         name="fal_video",
         target_width=target_width,
         target_height=target_height,
+        scene=scene,
     )
     print("fal.ai: Video imported to VSE!")
