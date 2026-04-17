@@ -98,6 +98,45 @@ class FalRenderOperator(FalOperator):
         else:  # VIDEO
             return bool(props.prompt.strip())
 
+    @classmethod
+    def needs_confirm(
+        cls, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> bool:
+        """Only video renders confirm — image renders are cheap enough to skip."""
+        return props.render_type == "VIDEO"
+
+    @classmethod
+    def confirm_title(
+        cls, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> str:
+        mode = "depth" if props.video_mode == "DEPTH" else "edge"
+        return f"Render animation and submit for {mode} video generation?"
+
+    @classmethod
+    def confirm_message(
+        cls, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> str:
+        if props.video_mode == "DEPTH":
+            model = DEPTH_VIDEO_MODELS.get(props.depth_video_endpoint)
+        else:
+            model = EDGE_VIDEO_MODELS.get(props.edge_video_endpoint)
+        model_label = (
+            getattr(model, "display_name", None)
+            or getattr(model, "endpoint", "fal.ai model")
+        )
+        if props.use_scene_duration:
+            duration = max(1, int(round(_get_scene_duration(context.scene))))
+        else:
+            duration = int(props.duration)
+        width, height = get_dimensions(context, props)
+        scene = context.scene
+        frames = scene.frame_end - scene.frame_start + 1
+        return (
+            f"{model_label} — {duration}s at {width}x{height} ({frames} frames). "
+            "Rendering the animation locally can take a while, and the fal.ai "
+            "job will incur a charge on your account."
+        )
+
     def _merge_advanced_params(self, args: dict[str, Any]) -> dict[str, Any]:
         """Merge advanced params into API arguments.
 

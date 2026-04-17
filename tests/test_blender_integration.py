@@ -132,6 +132,143 @@ def test_media_type_for_video_output():
         print("✓ Blender 4 FFMPEG file_format works")
 
 
+def test_video_operators_opt_into_confirm():
+    """FalVideoOperator always confirms; FalRenderOperator only for VIDEO."""
+    if not hasattr(bpy.types.Scene, "fal_3d"):
+        print("⚠ Skipping confirm opt-in test (extension not loaded)")
+        return
+
+    from fal_ai.controllers.video.operator import FalVideoOperator
+    from fal_ai.controllers.render.operator import FalRenderOperator
+
+    ctx = bpy.context
+    v_props = ctx.scene.falvideocontroller_props
+    r_props = ctx.scene.falrendercontroller_props
+
+    v_props.mode = "TEXT"
+    assert FalVideoOperator.needs_confirm(ctx, v_props) is True
+    v_props.mode = "IMAGE"
+    assert FalVideoOperator.needs_confirm(ctx, v_props) is True
+
+    r_props.render_type = "VIDEO"
+    assert FalRenderOperator.needs_confirm(ctx, r_props) is True
+    r_props.render_type = "IMAGE"
+    assert FalRenderOperator.needs_confirm(ctx, r_props) is False
+
+    print("✓ Video operators opt into confirm; image renders skip it")
+
+
+def test_confirm_message_has_model_and_size():
+    """The confirm body should name the model and the request size."""
+    if not hasattr(bpy.types.Scene, "fal_3d"):
+        print("⚠ Skipping confirm message test (extension not loaded)")
+        return
+
+    from fal_ai.controllers.video.operator import FalVideoOperator
+    from fal_ai.models import TextToVideoModel
+
+    ctx = bpy.context
+    props = ctx.scene.falvideocontroller_props
+    props.mode = "TEXT"
+    props.prompt = "a cat surfing"
+    props.use_scene_duration = False
+    props.duration = 7
+    props.use_scene_resolution = False
+    props.width = 1280
+    props.height = 720
+
+    catalog = TextToVideoModel.catalog()
+    first_key = next(iter(catalog.keys()))
+    props.text_endpoint = first_key
+
+    title = FalVideoOperator.confirm_title(ctx, props)
+    message = FalVideoOperator.confirm_message(ctx, props)
+    button = FalVideoOperator.confirm_button(ctx, props)
+
+    assert "text-to-video" in title.lower(), f"Unexpected title: {title}"
+    assert "7s" in message, f"Duration missing from message: {message}"
+    assert "1280x720" in message, f"Dimensions missing from message: {message}"
+    assert catalog[first_key].display_name in message, \
+        f"Model name missing from message: {message}"
+    assert button == "Generate"
+
+    props.mode = "IMAGE"
+    assert "image-to-video" in FalVideoOperator.confirm_title(ctx, props).lower()
+
+    print("✓ Confirm message includes model, duration, and dimensions")
+
+
+def test_invoke_shows_confirm_for_video_and_skips_for_image():
+    """Monkey-patch invoke_confirm, verify it fires for video and not for image render."""
+    if not hasattr(bpy.types.Scene, "fal_3d"):
+        print("⚠ Skipping invoke_confirm routing test (extension not loaded)")
+        return
+
+    captured: list[dict] = []
+    original = bpy.types.WindowManager.invoke_confirm
+
+    def fake_invoke_confirm(self, operator, event, **kwargs):
+        captured.append({"operator": operator.bl_idname, **kwargs})
+        return {"RUNNING_MODAL"}
+
+    try:
+        bpy.types.WindowManager.invoke_confirm = fake_invoke_confirm
+    except (AttributeError, TypeError) as e:
+        print(f"⚠ Skipping: cannot monkey-patch invoke_confirm ({e})")
+        return
+
+    try:
+        # Video (T2V) — should trigger confirm.
+        v_props = bpy.context.scene.falvideocontroller_props
+        v_props.mode = "TEXT"
+        v_props.prompt = "test prompt"
+        bpy.ops.fal.fal_video_operator("INVOKE_DEFAULT")
+
+        video_calls = [c for c in captured if c["operator"] == "fal.fal_video_operator"]
+        assert len(video_calls) == 1, \
+            f"Expected 1 confirm for video, got {len(video_calls)}: {captured}"
+        kwargs = video_calls[0]
+        assert "title" in kwargs and kwargs["title"], "confirm title missing"
+        assert "message" in kwargs and kwargs["message"], "confirm message missing"
+        assert kwargs.get("confirm_text") == "Generate"
+
+        # Image render — confirm must NOT fire.
+        r_props = bpy.context.scene.falrendercontroller_props
+        r_props.render_type = "IMAGE"
+        r_props.mode = "DEPTH"
+        r_props.prompt = "test prompt"
+
+        if bpy.context.scene.camera is None:
+            cam_data = bpy.data.cameras.new("TestCamera")
+            cam = bpy.data.objects.new("TestCamera", cam_data)
+            bpy.context.scene.collection.objects.link(cam)
+            bpy.context.scene.camera = cam
+
+        before = len(captured)
+        # Image render actually starts a real render — we only care that the
+        # dialog does NOT fire. Wrap in try to swallow downstream errors.
+        try:
+            bpy.ops.fal.fal_render_operator("INVOKE_DEFAULT")
+        except Exception:
+            pass
+        image_calls = [
+            c for c in captured[before:]
+            if c["operator"] == "fal.fal_render_operator"
+        ]
+        assert len(image_calls) == 0, \
+            f"Image render should not confirm, got: {image_calls}"
+
+        print("✓ Confirm fires for video, skipped for image render")
+    finally:
+        bpy.types.WindowManager.invoke_confirm = original
+        # Cancel any render that may have started.
+        try:
+            from fal_ai.controllers.render.operator import FalRenderOperator
+            FalRenderOperator._rendering = False
+        except Exception:
+            pass
+
+
 def test_pointer_property_for_images():
     """Test that PointerProperty works for Image selection."""
     # Create a test image
@@ -164,6 +301,9 @@ def run_all_tests():
         test_scene_resolution_reading,
         test_render_result_has_data_attribute,
         test_media_type_for_video_output,
+        test_video_operators_opt_into_confirm,
+        test_confirm_message_has_model_and_size,
+        test_invoke_shows_confirm_for_video_and_skips_for_image,
         test_pointer_property_for_images,
     ]
     

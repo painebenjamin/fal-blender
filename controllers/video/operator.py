@@ -62,6 +62,40 @@ class FalVideoOperator(FalOperator):
         else:  # IMAGE
             return bool(props.image_path.strip() or props.image_source == "RENDER")
 
+    @classmethod
+    def needs_confirm(
+        cls, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> bool:
+        """Video generation is always confirmed — these jobs are expensive."""
+        return True
+
+    @classmethod
+    def confirm_title(
+        cls, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> str:
+        if props.mode == "TEXT":
+            return "Submit text-to-video generation?"
+        return "Submit image-to-video generation?"
+
+    @classmethod
+    def confirm_message(
+        cls, context: bpy.types.Context, props: bpy.types.PropertyGroup
+    ) -> str:
+        if props.mode == "TEXT":
+            model = TEXT_TO_VIDEO_MODELS.get(props.text_endpoint)
+        else:
+            model = IMAGE_TO_VIDEO_MODELS.get(props.image_endpoint)
+        model_label = getattr(model, "display_name", None) or getattr(model, "endpoint", "fal.ai model")
+        if props.use_scene_duration:
+            duration = max(1, int(round(_get_scene_duration(context.scene))))
+        else:
+            duration = int(props.duration)
+        width, height = _get_dimensions(context, props)
+        return (
+            f"{model_label} — {duration}s at {width}x{height}. "
+            "This will incur a charge on your fal.ai account."
+        )
+
     def __call__(
         self,
         context: bpy.types.Context,
