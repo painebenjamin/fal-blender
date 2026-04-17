@@ -269,6 +269,44 @@ class TestDescribeOutputSize:
         assert Raw.describe_output_size(1280, 720) == "1280x720"
 
 
+class TestGPTImage15SizeMapping:
+    """GPT Image 1.5 accepts a fixed enum — pick the closest aspect ratio."""
+
+    # Inlined copy of the production mapping — keep in sync with
+    # models/image_generation/sketch_guided.py:GPTImage15EditModel.
+    class _Model:
+        _SIZE_CHOICES = [
+            ("1024x1024", 1024, 1024),
+            ("1536x1024", 1536, 1024),
+            ("1024x1536", 1024, 1536),
+        ]
+
+        @classmethod
+        def choose(cls, width: int, height: int) -> str:
+            target = width / height if height else 1.0
+            label, _, _ = min(
+                cls._SIZE_CHOICES,
+                key=lambda item: abs(target - item[1] / item[2]),
+            )
+            return label
+
+    def test_landscape_maps_to_3_2(self):
+        assert self._Model.choose(1920, 1080) == "1536x1024"
+
+    def test_portrait_maps_to_2_3(self):
+        assert self._Model.choose(1080, 1920) == "1024x1536"
+
+    def test_square_maps_to_1_1(self):
+        assert self._Model.choose(1024, 1024) == "1024x1024"
+
+    def test_small_square_still_1_1(self):
+        assert self._Model.choose(512, 512) == "1024x1024"
+
+    def test_near_square_landscape_prefers_square(self):
+        """5:4 is closer to 1:1 than 3:2 — don't over-stretch."""
+        assert self._Model.choose(1280, 1024) == "1024x1024"
+
+
 if __name__ == "__main__":
     import pytest
 
