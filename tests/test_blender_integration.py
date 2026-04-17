@@ -277,6 +277,42 @@ def test_invoke_shows_confirm_for_video_and_skips_for_image():
             pass
 
 
+def test_panel_output_size_hint():
+    """Panel should show a hint when the model reshapes the requested size."""
+    if not hasattr(bpy.types.Scene, "fal_3d"):
+        print("⚠ Skipping output-size hint test (extension not loaded)")
+        return
+
+    from fal_ai.controllers.render.controller import FalRenderController
+
+    ctx = bpy.context
+    props = ctx.scene.falrendercontroller_props
+
+    # Image mode + Sketch + Nano Banana (only has 1K tier) + 1920x1080 should
+    # trip the hint: the request is 1920x1080 but NB1 is locked to 1K.
+    props.render_type = "IMAGE"
+    props.mode = "SKETCH"
+    props.sketch_endpoint = "NanoBanana"
+    props.use_scene_resolution = False
+    props.width = 1920
+    props.height = 1080
+
+    panel = FalRenderController.panel_3d
+    hint = panel.output_size_hint(ctx, props)
+    assert hint is not None, "Expected hint when NB1 clamps 1920x1080 to 1K"
+    assert "Will generate at" in hint
+    assert "1K" in hint
+
+    # Exact-match size — no hint, no noise.
+    props.width = 1024
+    props.height = 1024
+    exact_hint = panel.output_size_hint(ctx, props)
+    assert exact_hint is None, \
+        f"Expected no hint for exact size match, got: {exact_hint}"
+
+    print("✓ Output-size hint fires only when model reshapes the request")
+
+
 def test_pointer_property_for_images():
     """Test that PointerProperty works for Image selection."""
     # Create a test image
@@ -312,6 +348,7 @@ def run_all_tests():
         test_video_operators_opt_into_confirm,
         test_confirm_message_has_model_and_size,
         test_invoke_shows_confirm_for_video_and_skips_for_image,
+        test_panel_output_size_hint,
         test_pointer_property_for_images,
     ]
     

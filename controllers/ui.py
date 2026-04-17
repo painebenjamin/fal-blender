@@ -204,6 +204,70 @@ class FalControllerPanel:
         if message:
             layout.label(text=message)
 
+    def current_dimensions(
+        self,
+        context: bpy.types.Context,
+        props: bpy.types.PropertyGroup,
+    ) -> tuple[int, int] | None:
+        """Return the WxH the active model will receive, or None if not known.
+
+        Convention: controllers surface ``use_scene_resolution`` plus
+        ``width`` / ``height`` props. When ``use_scene_resolution`` is True,
+        derive from the scene render settings; otherwise use the explicit
+        manual values.
+        """
+        if getattr(props, "use_scene_resolution", False):
+            scene = context.scene
+            scale = scene.render.resolution_percentage / 100.0
+            return (
+                int(scene.render.resolution_x * scale),
+                int(scene.render.resolution_y * scale),
+            )
+        if hasattr(props, "width") and hasattr(props, "height"):
+            return int(props.width), int(props.height)
+        return None
+
+    def output_size_hint(
+        self,
+        context: bpy.types.Context,
+        props: bpy.types.PropertyGroup,
+    ) -> str | None:
+        """Return hint text when the model will reshape the requested size.
+
+        Returns ``None`` when no active model is found, dimensions can't be
+        resolved, or the effective size matches the request (no surprise to
+        warn about).
+        """
+        model = self._get_active_model(context, props)
+        if model is None or not hasattr(model, "describe_output_size"):
+            return None
+        dims = self.current_dimensions(context, props)
+        if dims is None:
+            return None
+        w, h = dims
+        try:
+            effective = model.describe_output_size(w, h)
+        except Exception:
+            return None
+        requested = f"{w}x{h}"
+        if effective == requested:
+            return None
+        return f"Will generate at: {effective}"
+
+    def draw_output_size_hint(
+        self,
+        layout: bpy.types.UILayout,
+        context: bpy.types.Context,
+        props: bpy.types.PropertyGroup,
+    ) -> None:
+        """Render the output-size hint above the Generate button, if any."""
+        hint = self.output_size_hint(context, props)
+        if hint is None:
+            return
+        row = layout.row()
+        row.scale_y = 0.8
+        row.label(text=hint, icon="INFO")
+
     def draw_operator(
         self,
         layout: bpy.types.UILayout,
@@ -258,6 +322,7 @@ class FalControllerPanel:
             self.draw_advanced_params(layout, context, props)
 
         self.draw_status(layout, context, props)
+        self.draw_output_size_hint(layout, context, props)
         self.draw_operator(
             layout, context, props, operator_name, operator_icon, operator_size
         )
