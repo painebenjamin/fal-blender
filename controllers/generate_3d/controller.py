@@ -1,8 +1,33 @@
+from __future__ import annotations
+
 from ...models import ImageTo3DModel, TextTo3DModel
 from ..base import FalController
 from ..ui import FalControllerPanel
 from .operator import FalGenerate3DOperator
 from .props import FalGenerate3DPropertyGroup
+
+
+def _selected_model(ctx, props):
+    """Return the model class currently selected by the mode/endpoint enums."""
+    if props.mode == "TEXT":
+        catalog = TextTo3DModel.catalog()
+        key = props.text_endpoint
+    else:
+        catalog = ImageTo3DModel.catalog()
+        key = props.image_endpoint
+    return catalog.get(key)
+
+
+def _endpoint_supports(field_name):
+    """Condition factory: True if the selected endpoint declares this UI field."""
+
+    def check(ctx, props):
+        model = _selected_model(ctx, props)
+        if model is None:
+            return False
+        return field_name in getattr(model, "ui_parameter_map", {})
+
+    return check
 
 
 class FalGenerate3DController(FalController):
@@ -19,9 +44,33 @@ class FalGenerate3DController(FalController):
             "text_endpoint",
             "image_endpoint",
             "prompt",
+            "negative_prompt",
+            "texture_prompt",
             "image_source",
             "image_path",
             "generate_materials",
+            # Meshy-specific
+            "meshy_mode",
+            "art_style",
+            # Hunyuan
+            "hunyuan_generate_type",
+            "enable_geometry",
+            # Tripo h3.1 quality knobs
+            "geometry_quality",
+            "texture_quality",
+            "quad",
+            "auto_size",
+            "orientation",
+            "texture_alignment",
+            # Shared
+            "face_count",
+            "symmetry_mode",
+            "pose_mode",
+            "enable_rigging",
+            "enable_animation",
+            "rigging_height_meters",
+            "seed",
+            "texture_seed",
         ],
         field_conditions={
             "text_endpoint": lambda ctx, props: props.mode == "TEXT",
@@ -29,6 +78,33 @@ class FalGenerate3DController(FalController):
             "image_source": lambda ctx, props: props.mode == "IMAGE",
             "image_path": lambda ctx, props: props.mode == "IMAGE"
             and props.image_source == "FILE",
+            "negative_prompt": _endpoint_supports("negative_prompt"),
+            "texture_prompt": _endpoint_supports("texture_prompt"),
+            "meshy_mode": _endpoint_supports("meshy_mode"),
+            "art_style": _endpoint_supports("art_style"),
+            "hunyuan_generate_type": _endpoint_supports("hunyuan_generate_type"),
+            "enable_geometry": _endpoint_supports("enable_geometry"),
+            "geometry_quality": _endpoint_supports("geometry_quality"),
+            "texture_quality": _endpoint_supports("texture_quality"),
+            "quad": _endpoint_supports("quad"),
+            "auto_size": _endpoint_supports("auto_size"),
+            "orientation": _endpoint_supports("orientation"),
+            "texture_alignment": _endpoint_supports("texture_alignment"),
+            "face_count": _endpoint_supports("face_count"),
+            "symmetry_mode": _endpoint_supports("symmetry_mode"),
+            "pose_mode": _endpoint_supports("pose_mode"),
+            "enable_rigging": _endpoint_supports("enable_rigging"),
+            # Animation/rig-height are only useful once rigging is on.
+            "enable_animation": lambda ctx, props: (
+                _endpoint_supports("enable_animation")(ctx, props)
+                and props.enable_rigging
+            ),
+            "rigging_height_meters": lambda ctx, props: (
+                _endpoint_supports("rigging_height_meters")(ctx, props)
+                and props.enable_rigging
+            ),
+            "seed": _endpoint_supports("seed"),
+            "texture_seed": _endpoint_supports("texture_seed"),
         },
         endpoint_models={
             "text_endpoint": TextTo3DModel,

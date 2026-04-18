@@ -53,3 +53,8 @@ class TripoH31ImageTo3DModel(ImageTo3DModel, TripoH31Model):
     """Tripo H3.1 image-to-3D model."""
 
     endpoint = "tripo3d/h3.1/image-to-3d"
+    ui_parameter_map = {
+        **TripoH31Model.ui_parameter_map,
+        "orientation": "orientation",
+        "texture_alignment": "texture_alignment",
+    }

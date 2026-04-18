@@ -19,6 +19,18 @@ class MeshGenerationModel(FalModel):
     enable_prompt_expansion_parameter: ClassVar[str | None] = None
     prompt_parameter: ClassVar[str | None] = "prompt"
 
+    # Maps a UI property name → API field name (or None to drop).
+    # Populated by subclasses to declare which Blender UI controls apply.
+    # The controller panel uses membership to decide which fields to show;
+    # the operator passes every UI prop as a kwarg, and ``parameters()``
+    # forwards only those declared here.
+    ui_parameter_map: ClassVar[dict[str, str]] = {}
+
+    # Per-model clamp ranges for the unified ``face_count`` UI slider.
+    # (min, max) — the UI property declares a wide range; we clamp at
+    # submit time so each endpoint gets values within its actual schema.
+    face_count_range: ClassVar[tuple[int, int] | None] = None
+
     @classmethod
     def parameters(cls, **kwargs: Any) -> dict[str, Any]:
         """Build the API parameters from static defaults and an optional image path."""
@@ -59,6 +71,23 @@ class MeshGenerationModel(FalModel):
                 "enable_prompt_expansion", True
             )
 
+        # Forward declared UI params. Empty strings, None, and sentinel
+        # "NONE" enum values are treated as "leave at server default".
+        for ui_name, api_name in cls.ui_parameter_map.items():
+            if ui_name not in kwargs:
+                continue
+            value = kwargs[ui_name]
+            if value is None:
+                continue
+            if isinstance(value, str):
+                if not value.strip() or value == "NONE":
+                    continue
+            # Clamp the unified face_count slider to this model's schema
+            if ui_name == "face_count" and cls.face_count_range:
+                lo, hi = cls.face_count_range
+                value = max(lo, min(hi, int(value)))
+            params[api_name] = value
+
         return params
 
 
@@ -71,18 +100,39 @@ class MeshyV6PreviewModel(FalModel):
     }
     image_url_parameter = "image_url"
     generate_materials_parameter = "generate_pbr"
+    face_count_range = (100, 300_000)
+    ui_parameter_map = {
+        "face_count": "target_polycount",
+        "seed": "seed",
+        "meshy_mode": "mode",
+        "art_style": "art_style",
+        "symmetry_mode": "symmetry_mode",
+        "pose_mode": "pose_mode",
+        "enable_rigging": "enable_rigging",
+        "enable_animation": "enable_animation",
+        "rigging_height_meters": "rigging_height_meters",
+        "texture_prompt": "texture_prompt",
+    }
 
 
 class Hunyuan3DV31ProModel(FalModel):
     display_name = "Hunyuan 3D v3.1 Pro"
     image_url_parameter = "input_image_url"
     generate_materials_parameter = "generate_pbr"
+    face_count_range = (40_000, 1_500_000)
+    ui_parameter_map = {
+        "face_count": "face_count",
+        "hunyuan_generate_type": "generate_type",
+    }
 
 
 class Hunyuan3DV31RapidModel(FalModel):
     display_name = "Hunyuan 3D v3.1 Rapid"
     image_url_parameter = "input_image_url"
     generate_materials_parameter = "generate_pbr"
+    ui_parameter_map = {
+        "enable_geometry": "enable_geometry",
+    }
 
 
 class TripoP1Model(FalModel):
@@ -90,6 +140,11 @@ class TripoP1Model(FalModel):
     display_name = "Tripo P1"
     image_url_parameter = "image_url"
     static_parameters: ClassVar[dict[str, Any]] = {"texture": True}
+    face_count_range = (48, 20_000)
+    ui_parameter_map = {
+        "face_count": "face_limit",
+        "seed": "model_seed",
+    }
 
 
 class TripoH31Model(FalModel):
@@ -98,3 +153,13 @@ class TripoH31Model(FalModel):
     image_url_parameter = "image_url"
     generate_materials_parameter = "pbr"
     static_parameters: ClassVar[dict[str, Any]] = {"texture": True, "pbr": True}
+    face_count_range = (1_000, 2_000_000)
+    ui_parameter_map = {
+        "face_count": "face_limit",
+        "seed": "model_seed",
+        "texture_seed": "texture_seed",
+        "quad": "quad",
+        "auto_size": "auto_size",
+        "geometry_quality": "geometry_quality",
+        "texture_quality": "texture_quality",
+    }

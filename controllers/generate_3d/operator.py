@@ -16,6 +16,32 @@ TEXT_TO_3D_MODELS = TextTo3DModel.catalog()
 IMAGE_TO_3D_MODELS = ImageTo3DModel.catalog()
 
 
+def _collect_ui_params(
+    props: bpy.types.PropertyGroup,
+    model_cls: type,
+) -> dict:
+    """Pull every UI prop the selected model declares into a kwargs dict.
+
+    Skips the common kwargs (prompt, image_*) that callers already pass
+    explicitly, and drops sentinel values so the model's ``parameters()``
+    can apply defaults:
+      - seeds of -1 → random
+      - 'NONE' enum → unset
+      - empty strings → unset (handled in ``parameters()``)
+    """
+    ui_map = getattr(model_cls, "ui_parameter_map", {})
+    out: dict = {}
+    for ui_name in ui_map:
+        if not hasattr(props, ui_name):
+            continue
+        value = getattr(props, ui_name)
+        # Seeds use -1 as "random / leave unset"
+        if ui_name.endswith("seed") and value == -1:
+            continue
+        out[ui_name] = value
+    return out
+
+
 def _extract_url(val: object) -> str | None:
     """Extract a URL string from a response value (dict with ``url`` key or bare string)."""
     if isinstance(val, dict) and "url" in val:
@@ -160,6 +186,7 @@ class FalGenerate3DOperator(FalOperator):
         params = model.parameters(
             prompt=props.prompt,
             generate_materials=props.generate_materials,
+            **_collect_ui_params(props, model),
         )
         params = self.with_advanced_params(params, props)
         name = props.prompt[:30]
@@ -199,6 +226,8 @@ class FalGenerate3DOperator(FalOperator):
         params = model.parameters(
             image_path=image_path,
             prompt=props.prompt,
+            generate_materials=props.generate_materials,
+            **_collect_ui_params(props, model),
         )
         params = self.with_advanced_params(params, props)
 

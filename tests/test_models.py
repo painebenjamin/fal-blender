@@ -307,6 +307,100 @@ class TestGPTImage15SizeMapping:
         assert self._Model.choose(1280, 1024) == "1024x1024"
 
 
+class TestMeshGenerationUIParameterMap:
+    """The MeshGenerationModel forwards declared UI params and clamps
+    ``face_count`` to each endpoint's schema range. Runs here (bpy-free)
+    against a local mirror of the base-class logic from
+    ``models/mesh_generation/base.py`` — keep them in sync when behavior
+    changes."""
+
+    class _MeshModel:
+        """Minimal mirror of the MeshGenerationModel forwarding rules."""
+
+        ui_parameter_map: ClassVar[dict[str, str]] = {}
+        face_count_range: ClassVar[tuple[int, int] | None] = None
+
+        @classmethod
+        def parameters(cls, **kwargs: Any) -> dict[str, Any]:
+            params: dict[str, Any] = {}
+            for ui_name, api_name in cls.ui_parameter_map.items():
+                if ui_name not in kwargs:
+                    continue
+                value = kwargs[ui_name]
+                if value is None:
+                    continue
+                if isinstance(value, str):
+                    if not value.strip() or value == "NONE":
+                        continue
+                if ui_name == "face_count" and cls.face_count_range:
+                    lo, hi = cls.face_count_range
+                    value = max(lo, min(hi, int(value)))
+                params[api_name] = value
+            return params
+
+    def _make(self, ui_map, face_range=None):
+        M = type("M", (self._MeshModel,), {})
+        M.ui_parameter_map = ui_map
+        M.face_count_range = face_range
+        return M
+
+    def test_declared_ui_param_is_forwarded_under_api_name(self):
+        M = self._make({"face_count": "target_polycount"}, face_range=(100, 300_000))
+        assert M.parameters(face_count=30_000) == {"target_polycount": 30_000}
+
+    def test_undeclared_ui_param_is_dropped(self):
+        M = self._make({"seed": "model_seed"})
+        # quad is not in the map — should never reach the params dict.
+        assert M.parameters(seed=42, quad=True) == {"model_seed": 42}
+
+    def test_face_count_clamped_to_endpoint_range(self):
+        # Tripo P1 caps at 20_000 even though the UI slider allows 2M.
+        M = self._make({"face_count": "face_limit"}, face_range=(48, 20_000))
+        assert M.parameters(face_count=1_000_000) == {"face_limit": 20_000}
+        assert M.parameters(face_count=10) == {"face_limit": 48}
+        assert M.parameters(face_count=5_000) == {"face_limit": 5_000}
+
+    def test_sentinel_none_enum_is_dropped(self):
+        # pose_mode="NONE" means "leave unset" — should not be forwarded.
+        M = self._make({"pose_mode": "pose_mode"})
+        assert M.parameters(pose_mode="NONE") == {}
+        assert M.parameters(pose_mode="a-pose") == {"pose_mode": "a-pose"}
+
+    def test_empty_string_is_dropped(self):
+        # An empty negative_prompt should not send the server an empty string.
+        M = self._make({"negative_prompt": "negative_prompt"})
+        assert M.parameters(negative_prompt="") == {}
+        assert M.parameters(negative_prompt="blurry") == {"negative_prompt": "blurry"}
+
+    def test_none_value_is_dropped(self):
+        M = self._make({"seed": "model_seed"})
+        assert M.parameters(seed=None) == {}
+
+    def test_multiple_fields_forwarded_and_renamed(self):
+        # Real-world Tripo H3.1 subset.
+        M = self._make(
+            {
+                "face_count": "face_limit",
+                "seed": "model_seed",
+                "quad": "quad",
+                "geometry_quality": "geometry_quality",
+            },
+            face_range=(1_000, 2_000_000),
+        )
+        result = M.parameters(
+            face_count=500_000,
+            seed=123,
+            quad=True,
+            geometry_quality="detailed",
+        )
+        assert result == {
+            "face_limit": 500_000,
+            "model_seed": 123,
+            "quad": True,
+            "geometry_quality": "detailed",
+        }
+
+
 if __name__ == "__main__":
     import pytest
 
