@@ -60,7 +60,10 @@ class FalPreferences(bpy.types.AddonPreferences):
         """
         Draw the preferences.
         """
+        from . import branding
+
         layout = self.layout
+        branding.draw_header(layout, scale=6.0)
         layout.prop(self, "api_key")
 
         env_key = os.environ.get("FAL_KEY", "")
