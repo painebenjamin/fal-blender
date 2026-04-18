@@ -91,7 +91,7 @@ class MeshGenerationModel(FalModel):
         return params
 
 
-class MeshyV6PreviewModel(FalModel):
+class MeshyV6PreviewModel(MeshGenerationModel):
     display_name = "Meshy v6 Preview"
     static_parameters = {
         "should_remesh": False,
@@ -115,7 +115,7 @@ class MeshyV6PreviewModel(FalModel):
     }
 
 
-class Hunyuan3DV31ProModel(FalModel):
+class Hunyuan3DV31ProModel(MeshGenerationModel):
     display_name = "Hunyuan 3D v3.1 Pro"
     image_url_parameter = "input_image_url"
     generate_materials_parameter = "generate_pbr"
@@ -126,7 +126,7 @@ class Hunyuan3DV31ProModel(FalModel):
     }
 
 
-class Hunyuan3DV31RapidModel(FalModel):
+class Hunyuan3DV31RapidModel(MeshGenerationModel):
     display_name = "Hunyuan 3D v3.1 Rapid"
     image_url_parameter = "input_image_url"
     generate_materials_parameter = "generate_pbr"
@@ -135,7 +135,7 @@ class Hunyuan3DV31RapidModel(FalModel):
     }
 
 
-class TripoP1Model(FalModel):
+class TripoP1Model(MeshGenerationModel):
     """Tripo P1 model base."""
     display_name = "Tripo P1"
     image_url_parameter = "image_url"
@@ -147,7 +147,7 @@ class TripoP1Model(FalModel):
     }
 
 
-class TripoH31Model(FalModel):
+class TripoH31Model(MeshGenerationModel):
     """Tripo H3.1 model base."""
     display_name = "Tripo H3.1"
     image_url_parameter = "image_url"

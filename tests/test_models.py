@@ -401,6 +401,59 @@ class TestMeshGenerationUIParameterMap:
         }
 
 
+class TestMeshMixinMRO:
+    """Regression test: the per-endpoint mixin (Meshy/Hunyuan/Tripo) must
+    win MRO lookup over the ``MeshGenerationModel`` defaults. When the
+    mixin extended ``FalModel`` directly, C3 linearization placed
+    ``MeshGenerationModel`` *before* the mixin, so the mixin's populated
+    ``ui_parameter_map`` / ``image_url_parameter`` were shadowed by the
+    base's empty defaults — silently erasing every per-endpoint control.
+    Fix: the mixin extends ``MeshGenerationModel``, which makes C3 put
+    the mixin before the base.
+
+    This mirrors the real class shape from
+    ``models/mesh_generation/base.py`` — keep them in sync."""
+
+    def _build(self, mixin_extends_base: bool):
+        """Build a minimal copy of the mesh class hierarchy; the flag
+        toggles whether the per-endpoint mixin extends the mesh base."""
+
+        class FalModel:
+            pass
+
+        class MeshGenerationModel(FalModel):
+            image_url_parameter: ClassVar = None
+            ui_parameter_map: ClassVar[dict] = {}
+
+        parent = MeshGenerationModel if mixin_extends_base else FalModel
+
+        class MeshyMixin(parent):
+            image_url_parameter = "image_url"
+            ui_parameter_map = {"face_count": "target_polycount"}
+
+        class ImageTo3DModel(MeshGenerationModel):
+            pass
+
+        class MeshyImageModel(ImageTo3DModel, MeshyMixin):
+            endpoint = "x"
+
+        return MeshyImageModel
+
+    def test_mixin_extending_falmodel_is_shadowed(self):
+        """Documents the bug — when the mixin extends FalModel, the
+        MeshGenerationModel default shadows the mixin's value."""
+        M = self._build(mixin_extends_base=False)
+        assert M.image_url_parameter is None, "MRO bug surface: shadowed by base"
+        assert M.ui_parameter_map == {}, "MRO bug surface: shadowed by base"
+
+    def test_mixin_extending_mesh_base_wins(self):
+        """The fix — mixin extends MeshGenerationModel so C3 puts it
+        before the base in the concrete class's MRO."""
+        M = self._build(mixin_extends_base=True)
+        assert M.image_url_parameter == "image_url"
+        assert M.ui_parameter_map == {"face_count": "target_polycount"}
+
+
 if __name__ == "__main__":
     import pytest
 
