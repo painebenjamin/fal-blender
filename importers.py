@@ -460,5 +460,12 @@ def add_video_to_vse(
     except Exception:
         sound_strip = None
 
+    # Blender's default render.use_sequencer=True makes F12 render the VSE
+    # composite once strips exist — unwanted since our strips are previews,
+    # not the intended final output. Users can re-enable in Output Properties.
+    if scene.render.use_sequencer:
+        scene.render.use_sequencer = False
+        print("fal.ai: Disabled scene.render.use_sequencer so F12 keeps rendering the 3D view.")
+
     _refresh_vse_for_scene(scene)
     return strip

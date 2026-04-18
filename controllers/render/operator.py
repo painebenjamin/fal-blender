@@ -1418,6 +1418,30 @@ def _handle_image_result(
     print("fal.ai: Render complete!")
 
 
+def _notify_video_ready(job_label: str) -> None:
+    """Show a one-shot popup so the user knows the generated video is in the VSE.
+
+    Called from ``JobManager._poll`` (main thread timer), so ``popup_menu`` is
+    safe. Best-effort — if no window is available we just fall back to stdout.
+    """
+    lines = [
+        "Video added to the VSE at the current frame.",
+        "Switch to the Video Editing workspace to preview it.",
+    ]
+
+    def draw(menu: Any, _context: bpy.types.Context) -> None:
+        menu.layout.label(text=f"✓ {job_label} complete")
+        for line in lines:
+            menu.layout.label(text=line)
+
+    try:
+        bpy.context.window_manager.popup_menu(
+            draw, title="fal.ai — Video Ready", icon="FILE_MOVIE"
+        )
+    except Exception as e:
+        print(f"fal.ai: Could not show video-ready popup: {e}")
+
+
 def _handle_video_result(
     job: FalJob,
     *,
@@ -1454,3 +1478,4 @@ def _handle_video_result(
         scene=scene,
     )
     print("fal.ai: Video imported to VSE!")
+    _notify_video_ready(job.label or "Video")
