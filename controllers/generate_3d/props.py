@@ -140,29 +140,6 @@ class FalGenerate3DPropertyGroup(bpy.types.PropertyGroup):
         default="NONE",
     )
 
-    # Meshy-only: rigging toggle.
-    enable_rigging: bpy.props.BoolProperty(
-        name="Auto-Rig",
-        description="Auto-rig humanoid meshes",
-        default=False,
-    )
-
-    # Meshy-only: animation toggle (requires rigging).
-    enable_animation: bpy.props.BoolProperty(
-        name="Auto-Animate",
-        description="Apply a default animation (requires rigging)",
-        default=False,
-    )
-
-    # Meshy-only: rigging height scale.
-    rigging_height_meters: bpy.props.FloatProperty(
-        name="Rig Height (m)",
-        description="Character height in meters for rigging",
-        default=1.7,
-        min=0.1,
-        max=10.0,
-    )
-
     # Meshy-only: optional separate texture prompt.
     texture_prompt: bpy.props.StringProperty(
         name="Texture Prompt",

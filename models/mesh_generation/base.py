@@ -108,9 +108,6 @@ class MeshyV6PreviewModel(MeshGenerationModel):
         "art_style": "art_style",
         "symmetry_mode": "symmetry_mode",
         "pose_mode": "pose_mode",
-        "enable_rigging": "enable_rigging",
-        "enable_animation": "enable_animation",
-        "rigging_height_meters": "rigging_height_meters",
         "texture_prompt": "texture_prompt",
     }
 

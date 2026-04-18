@@ -66,9 +66,6 @@ class FalGenerate3DController(FalController):
             "face_count",
             "symmetry_mode",
             "pose_mode",
-            "enable_rigging",
-            "enable_animation",
-            "rigging_height_meters",
             "seed",
             "texture_seed",
         ],
@@ -93,16 +90,6 @@ class FalGenerate3DController(FalController):
             "face_count": _endpoint_supports("face_count"),
             "symmetry_mode": _endpoint_supports("symmetry_mode"),
             "pose_mode": _endpoint_supports("pose_mode"),
-            "enable_rigging": _endpoint_supports("enable_rigging"),
-            # Animation/rig-height are only useful once rigging is on.
-            "enable_animation": lambda ctx, props: (
-                _endpoint_supports("enable_animation")(ctx, props)
-                and props.enable_rigging
-            ),
-            "rigging_height_meters": lambda ctx, props: (
-                _endpoint_supports("rigging_height_meters")(ctx, props)
-                and props.enable_rigging
-            ),
             "seed": _endpoint_supports("seed"),
             "texture_seed": _endpoint_supports("texture_seed"),
         },
