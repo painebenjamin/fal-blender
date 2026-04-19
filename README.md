@@ -2,19 +2,26 @@
 
 AI-powered 3D, materials, rendering, video, and audio — directly inside Blender.
 
-**Work in progress and not officially supported. If/when this is officially supported, the repository will be moved under fal's GitHub organization.**
+**Update: this package will soon be transferred to the `fal-ai` organization as the official fal blender extension!** Links will be posted when complete. 
+
+~Work in progress and not officially supported. If/when this is officially supported, the repository will be moved under fal's GitHub organization.~
 
 ---
 
 ## Quick Start
 
-1. Install the addon (see [Installation](#installation))
+1. Install the addon (see [Installation](#installation)) - supports Blender 4.2 and up on all platforms
 2. Enable **fal.ai — AI Generation Suite** in `Edit → Preferences → Add-ons`
 3. Set your [fal.ai](https://fal.ai) API key in the addon preferences
 4. Open the sidebar (`N`) in either the **3D Viewport** or the **Video Sequence Editor** and click the **fal.ai** tab
 5. Pick a workflow, configure its parameters, and click **Generate**
 
 Jobs run in the background — keep working and they'll appear in the **Active Jobs** sub-panel. Multiple jobs can run at once.
+
+<div align="center">
+<img width="564" height="453" alt="image" src="https://github.com/user-attachments/assets/6b46660a-c4eb-41dd-9ec9-a6c9adb75cca" /><br />
+<em>The fal.ai Blender extension preferences window.</em>
+</div>
 
 ---
 
