@@ -43,14 +43,11 @@ def icon_id() -> int:
 
 def draw_header(
     layout: bpy.types.UILayout,
-    scale: float = 5.0,
-    scale_y: float = 0.6,
+    scale: float = 2.5,
 ) -> None:
     """Render the fal wordmark centered at the top of a panel."""
     if _previews is None:
         return
-    col = layout.column()
-    col.scale_y = scale_y
-    row = col.row()
+    row = layout.row()
     row.alignment = "CENTER"
     row.template_icon(icon_value=wordmark_icon_id(), scale=scale)
