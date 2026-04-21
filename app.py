@@ -1,6 +1,5 @@
 import bpy
 
-from . import branding
 from .controllers import FalController
 from .job_queue import JobManager
 from .utils import get_request_playground_url
@@ -72,8 +71,6 @@ class FAL_PT_3D_MainPanel(bpy.types.Panel):
         scene = context.scene
         fal_3d = scene.fal_3d
 
-        branding.draw_header(layout)
-
         # Tab row
         row = layout.row(align=True)
         row.prop(fal_3d, "active_controller")
@@ -95,8 +92,6 @@ class FAL_PT_VSE_MainPanel(bpy.types.Panel):
         layout = self.layout
         scene = context.scene
         fal_vse = scene.fal_vse
-
-        branding.draw_header(layout)
 
         # Tab row
         row = layout.row(align=True)
