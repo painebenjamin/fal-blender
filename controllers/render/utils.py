@@ -380,8 +380,8 @@ def render_to_canny(
     render_path: str,
     width: int,
     height: int,
-    low_threshold: int = 50,
-    high_threshold: int = 150,
+    low_threshold: int = 100,
+    high_threshold: int = 200,
     sigma: float = 1.4,
 ) -> None:
     """Convert a rendered image to Canny edge detection output.
