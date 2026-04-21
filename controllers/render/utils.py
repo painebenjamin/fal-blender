@@ -382,7 +382,7 @@ def render_to_canny(
     height: int,
     low_threshold: int = 100,
     high_threshold: int = 200,
-    sigma: float = 1.4,
+    sigma: float = 1.0,
 ) -> None:
     """Convert a rendered image to Canny edge detection output.
 
@@ -395,20 +395,25 @@ def render_to_canny(
     img = Image.open(render_path).convert("L")
     pixels = np.array(img, dtype=np.float64)
 
-    # 1. Gaussian blur (separable convolution via np.convolve)
-    size = int(2 * np.ceil(2 * sigma) + 1)
-    x = np.arange(size) - size // 2
-    kernel = np.exp(-x**2 / (2 * sigma**2))
-    kernel /= kernel.sum()
+    # 1. Optional Gaussian blur (separable convolution with reflect padding —
+    #    zero-padding here was producing a strong edge ring around the image)
+    if sigma > 0:
+        size = int(2 * np.ceil(2 * sigma) + 1)
+        x = np.arange(size) - size // 2
+        kernel = np.exp(-x**2 / (2 * sigma**2))
+        kernel /= kernel.sum()
+        pad = size // 2
 
-    # Horizontal pass
-    blurred = np.apply_along_axis(
-        lambda row: np.convolve(row, kernel, mode="same"), axis=1, arr=pixels
-    )
-    # Vertical pass
-    blurred = np.apply_along_axis(
-        lambda col: np.convolve(col, kernel, mode="same"), axis=0, arr=blurred
-    )
+        padded_h = np.pad(pixels, ((0, 0), (pad, pad)), mode="reflect")
+        blurred = np.apply_along_axis(
+            lambda row: np.convolve(row, kernel, mode="valid"), axis=1, arr=padded_h
+        )
+        padded_v = np.pad(blurred, ((pad, pad), (0, 0)), mode="reflect")
+        blurred = np.apply_along_axis(
+            lambda col: np.convolve(col, kernel, mode="valid"), axis=0, arr=padded_v
+        )
+    else:
+        blurred = pixels
 
     # 2. Sobel gradients via array slicing
     Gx = (
@@ -421,7 +426,8 @@ def render_to_canny(
         - 1 * blurred[2:, :-2] - 2 * blurred[2:, 1:-1] - 1 * blurred[2:, 2:]
     )
 
-    magnitude = np.hypot(Gx, Gy)
+    # L1 magnitude (matches cv2 default; recovers low-contrast edges that L2 misses)
+    magnitude = np.abs(Gx) + np.abs(Gy)
     direction = np.arctan2(Gy, Gx)
 
     # 3. Non-maximum suppression (vectorized)
@@ -434,8 +440,8 @@ def render_to_canny(
     h, w = magnitude.shape
     suppressed = np.zeros_like(magnitude)
 
-    # Pad magnitude for safe neighbor access
-    mag_pad = np.pad(magnitude, 1, mode="constant", constant_values=0)
+    # Pad magnitude with edge replication so border pixels aren't auto-suppressed
+    mag_pad = np.pad(magnitude, 1, mode="edge")
 
     # Direction 0 (horizontal): compare with left/right neighbors
     mask0 = d == 0
@@ -494,8 +500,15 @@ def render_to_canny(
     result[promoted] = strong_val
     result[~promoted] = 0
 
-    # Pad result back to original size (Sobel shrinks by 1 on each edge)
+    # Pad result back to original size (Sobel shrinks by 1 on each edge);
+    # replicate the outermost row/col into the 1-pixel border so it doesn't
+    # show up as a dark frame.
+    res = result.astype(np.uint8)
     full = np.zeros((height, width), dtype=np.uint8)
-    full[1:1 + result.shape[0], 1:1 + result.shape[1]] = result.astype(np.uint8)
+    full[1:1 + res.shape[0], 1:1 + res.shape[1]] = res
+    full[0, 1:1 + res.shape[1]] = res[0, :]
+    full[-1, 1:1 + res.shape[1]] = res[-1, :]
+    full[:, 0] = full[:, 1]
+    full[:, -1] = full[:, -2]
 
     Image.fromarray(full).convert("RGB").save(render_path)
