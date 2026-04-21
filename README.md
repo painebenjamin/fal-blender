@@ -99,8 +99,8 @@ Renders a Mist depth pass, then generates an AI image guided by scene depth. Gre
 
 | Endpoint | Notes |
 |----------|-------|
-| Z-Image Turbo (ControlNet) | Fast, general-purpose |
-| FLUX.1 [dev] (ControlNet) | Higher quality, slower |
+| [Z-Image Turbo (ControlNet)](https://fal.ai/models/fal-ai/z-image/turbo/controlnet) | Fast, general-purpose |
+| [FLUX.1 \[dev\] (ControlNet)](https://fal.ai/models/fal-ai/flux-general) | Higher quality, slower |
 
 #### Edge-to-Image
 
@@ -110,8 +110,8 @@ Runs Canny edge detection on a scene render and uses the edges as structural gui
 
 | Endpoint | Notes |
 |----------|-------|
-| Z-Image Turbo (ControlNet) | Fast |
-| FLUX.1 [dev] (ControlNet) | Higher quality |
+| [Z-Image Turbo (ControlNet)](https://fal.ai/models/fal-ai/z-image/turbo/controlnet) | Fast |
+| [FLUX.1 \[dev\] (ControlNet)](https://fal.ai/models/fal-ai/flux-general) | Higher quality |
 
 #### Sketch-to-Image
 
@@ -121,9 +121,12 @@ Renders a Freestyle line drawing (optionally with object-name labels overlaid) a
 
 | Endpoint | Notes |
 |----------|-------|
-| Nano Banana / Nano Banana Pro / Nano Banana 2 | Google's image-edit models |
-| GPT Image 1.5 Edit | OpenAI's image-edit |
-| Seedream 4.5 Edit / Seedream 5 Lite Edit | ByteDance's image-edit |
+| [Nano Banana](https://fal.ai/models/fal-ai/nano-banana/edit) | Google's image-edit |
+| [Nano Banana Pro](https://fal.ai/models/fal-ai/nano-banana-pro/edit) | Google's image-edit, higher quality |
+| [Nano Banana 2](https://fal.ai/models/fal-ai/nano-banana-2/edit) | Google's image-edit, newer |
+| [GPT Image 1.5 Edit](https://fal.ai/models/fal-ai/gpt-image-1.5/edit) | OpenAI's image-edit |
+| [Seedream 4.5 Edit](https://fal.ai/models/fal-ai/bytedance/seedream/v4.5/edit) | ByteDance's image-edit |
+| [Seedream 5 Lite Edit](https://fal.ai/models/fal-ai/bytedance/seedream/v5/lite/edit) | ByteDance's image-edit, lite variant |
 
 #### Render-to-Image
 
@@ -133,8 +136,12 @@ Renders the scene normally and refines the result with img2img. A strength slide
 
 | Endpoint | Notes |
 |----------|-------|
-| Nano Banana / Nano Banana Pro / Nano Banana 2 | Image-edit style |
-| Z-Image Turbo / FLUX.1 [dev] / FLUX.2 Klein 9B | Img2img with strength control |
+| [Nano Banana](https://fal.ai/models/fal-ai/nano-banana/edit) | Image-edit style |
+| [Nano Banana Pro](https://fal.ai/models/fal-ai/nano-banana-pro/edit) | Image-edit style, higher quality |
+| [Nano Banana 2](https://fal.ai/models/fal-ai/nano-banana-2/edit) | Image-edit style, newer |
+| [Z-Image Turbo](https://fal.ai/models/fal-ai/z-image/turbo/image-to-image) | Img2img with strength control, fast |
+| [FLUX.1 \[dev\]](https://fal.ai/models/fal-ai/flux/dev/image-to-image) | Img2img with strength control |
+| [FLUX.2 Klein 9B](https://fal.ai/models/fal-ai/flux-2/klein/9b/edit) | Img2img with strength control |
 
 ---
 
@@ -150,10 +157,12 @@ Exports a depth animation across the scene's frame range and generates a depth-g
 
 | Endpoint | Notes |
 |----------|-------|
-| LTX-2 19B / LTX-2 19B Distilled | Open-weight, fast |
-| LTX 2.3 22B Ref V2V / LTX 2.3 22B Distilled Ref V2V | Newer LTX with reference-image support |
-| Wan-VACE 14B | Good at natural motion |
-| Wan Fun 2.2 A14B | Stylized |
+| [LTX-2 19B](https://fal.ai/models/fal-ai/ltx-2-19b/video-to-video) | Open-weight, fast |
+| [LTX-2 19B Distilled](https://fal.ai/models/fal-ai/ltx-2-19b/distilled/video-to-video) | Open-weight, faster |
+| [LTX 2.3 22B Ref V2V](https://fal.ai/models/fal-ai/ltx-2.3-22b/reference-video-to-video) | Newer LTX with reference-image support |
+| [LTX 2.3 22B Distilled Ref V2V](https://fal.ai/models/fal-ai/ltx-2.3-22b/distilled/reference-video-to-video) | Distilled, with reference-image support |
+| [Wan-VACE 14B](https://fal.ai/models/fal-ai/wan-vace-14b/depth) | Good at natural motion |
+| [Wan Fun 2.2 A14B](https://fal.ai/models/fal-ai/wan-22-vace-fun-a14b/depth) | Stylized |
 
 #### Edge-to-Video
 
@@ -163,8 +172,10 @@ Canny edges are computed per frame (in parallel threads) and fed to the model as
 
 | Endpoint | Notes |
 |----------|-------|
-| LTX-2 19B / LTX-2 19B Distilled | |
-| LTX 2.3 22B Ref V2V / LTX 2.3 22B Distilled Ref V2V | Supports a reference image |
+| [LTX-2 19B](https://fal.ai/models/fal-ai/ltx-2-19b/video-to-video) | Open-weight |
+| [LTX-2 19B Distilled](https://fal.ai/models/fal-ai/ltx-2-19b/distilled/video-to-video) | Open-weight, faster |
+| [LTX 2.3 22B Ref V2V](https://fal.ai/models/fal-ai/ltx-2.3-22b/reference-video-to-video) | Supports a reference image |
+| [LTX 2.3 22B Distilled Ref V2V](https://fal.ai/models/fal-ai/ltx-2.3-22b/distilled/reference-video-to-video) | Distilled, with reference image |
 
 Video results import into the Video Sequence Editor. The addon auto-disables `scene.render.use_sequencer` so F12 keeps rendering the 3D view, and pops up a notification when the clip lands.
 
@@ -186,10 +197,14 @@ Generate speech from text using a named preset voice.
 
 | Endpoint | Notes |
 |----------|-------|
-| ElevenLabs TTS Turbo v2.5 / v3 | Broad voice catalog |
-| MiniMax Speech Turbo / 2.8 HD | |
-| Kokoro | Open-weight |
-| xAI TTS / Gemini Flash TTS / Inworld TTS | |
+| [ElevenLabs TTS Turbo v2.5](https://fal.ai/models/fal-ai/elevenlabs/tts/turbo-v2.5) | Broad voice catalog |
+| [ElevenLabs v3](https://fal.ai/models/fal-ai/elevenlabs/tts/eleven-v3) | Broad voice catalog, newer |
+| [MiniMax Speech Turbo](https://fal.ai/models/fal-ai/minimax/speech-2.8-turbo) | |
+| [MiniMax Speech 2.8 HD](https://fal.ai/models/fal-ai/minimax/speech-2.8-hd) | Higher quality |
+| [Kokoro](https://fal.ai/models/fal-ai/kokoro/american-english) | Open-weight |
+| [xAI TTS](https://fal.ai/models/xai/tts/v1) | |
+| [Gemini Flash TTS](https://fal.ai/models/fal-ai/gemini-3.1-flash-tts) | |
+| [Inworld TTS](https://fal.ai/models/fal-ai/inworld-tts) | |
 
 #### Text-to-Speech (Voice Clone)
 
@@ -199,7 +214,7 @@ Same catalog (for endpoints that support it) but conditioned on a reference audi
 
 | Endpoint | Notes |
 |----------|-------|
-| ElevenLabs / MiniMax / others | Any endpoint in the TTS catalog that accepts a voice reference |
+| [MiniMax Voice Clone](https://fal.ai/models/fal-ai/minimax/voice-clone) | Used by MiniMax Speech Turbo and 2.8 HD |
 
 #### Text-to-SFX
 
@@ -209,8 +224,8 @@ Generate sound effects from a text description.
 
 | Endpoint | Notes |
 |----------|-------|
-| ElevenLabs Sound Effects v2 | |
-| CassetteAI SFX | |
+| [ElevenLabs Sound Effects v2](https://fal.ai/models/fal-ai/elevenlabs/sound-effects/v2) | |
+| [CassetteAI SFX](https://fal.ai/models/cassetteai/sound-effects-generator) | |
 
 #### Text-to-Music
 
@@ -220,10 +235,10 @@ Generate music from a text prompt with duration control.
 
 | Endpoint | Notes |
 |----------|-------|
-| ElevenLabs Music | |
-| MiniMax Music 2.6 | |
-| Stable Audio 2.5 | |
-| CassetteAI Music | |
+| [ElevenLabs Music](https://fal.ai/models/fal-ai/elevenlabs/music) | |
+| [MiniMax Music 2.6](https://fal.ai/models/fal-ai/minimax-music/v2.6) | |
+| [Stable Audio 2.5](https://fal.ai/models/fal-ai/stable-audio-25/text-to-audio) | |
+| [CassetteAI Music](https://fal.ai/models/cassetteai/music-generator) | |
 
 ---
 
@@ -239,13 +254,20 @@ Generate a video clip directly from a prompt.
 
 | Endpoint | Notes |
 |----------|-------|
-| LTX-2 19B / LTX-2 19B Distilled | |
-| LTX 2.3 22B / LTX 2.3 22B Distilled | |
-| Seedance 2.0 / Seedance 2.0 Fast | |
-| Kling v3 Standard / Kling v3 Pro | |
-| Veo 3.1 / Veo 3.1 Fast | |
-| Wan 2.2 / Wan 2.2 Turbo / Wan 2.7 | |
-| Sora 2 | |
+| [LTX-2 19B](https://fal.ai/models/fal-ai/ltx-2-19b/text-to-video) | Open-weight |
+| [LTX-2 19B Distilled](https://fal.ai/models/fal-ai/ltx-2-19b/distilled/text-to-video) | Open-weight, faster |
+| [LTX 2.3 22B](https://fal.ai/models/fal-ai/ltx-2.3-22b/text-to-video) | Newer LTX |
+| [LTX 2.3 22B Distilled](https://fal.ai/models/fal-ai/ltx-2.3-22b/distilled/text-to-video) | Newer LTX, faster |
+| [Seedance 2.0](https://fal.ai/models/bytedance/seedance-2.0/text-to-video) | ByteDance |
+| [Seedance 2.0 Fast](https://fal.ai/models/bytedance/seedance-2.0/fast/text-to-video) | ByteDance, faster |
+| [Kling v3 Standard](https://fal.ai/models/fal-ai/kling-video/v3/standard/text-to-video) | |
+| [Kling v3 Pro](https://fal.ai/models/fal-ai/kling-video/v3/pro/text-to-video) | Higher quality |
+| [Veo 3.1](https://fal.ai/models/fal-ai/veo3.1) | Google |
+| [Veo 3.1 Fast](https://fal.ai/models/fal-ai/veo3.1/fast) | Google, faster |
+| [Wan 2.2](https://fal.ai/models/fal-ai/wan/v2.2-a14b/text-to-video) | |
+| [Wan 2.2 Turbo](https://fal.ai/models/fal-ai/wan/v2.2-a14b/text-to-video/turbo) | Faster |
+| [Wan 2.7](https://fal.ai/models/fal-ai/wan/v2.7/text-to-video) | Newer |
+| [Sora 2](https://fal.ai/models/fal-ai/sora-2/text-to-video) | OpenAI |
 
 #### Image-to-Video
 
@@ -255,7 +277,19 @@ Animate a still image. Same catalog of video endpoints (those that support image
 
 | Endpoint | Notes |
 |----------|-------|
-| Any video endpoint with `image_url` support | |
+| [LTX-2 19B](https://fal.ai/models/fal-ai/ltx-2-19b/image-to-video) | Open-weight |
+| [LTX-2 19B Distilled](https://fal.ai/models/fal-ai/ltx-2-19b/distilled/image-to-video) | Open-weight, faster |
+| [LTX 2.3 22B](https://fal.ai/models/fal-ai/ltx-2.3-22b/image-to-video) | Newer LTX |
+| [LTX 2.3 22B Distilled](https://fal.ai/models/fal-ai/ltx-2.3-22b/distilled/image-to-video) | Newer LTX, faster |
+| [Seedance 2.0](https://fal.ai/models/bytedance/seedance-2.0/image-to-video) | ByteDance |
+| [Seedance 2.0 Fast](https://fal.ai/models/bytedance/seedance-2.0/fast/image-to-video) | ByteDance, faster |
+| [Kling v3 Standard](https://fal.ai/models/fal-ai/kling-video/v3/standard/image-to-video) | Size inferred from input image |
+| [Kling v3 Pro](https://fal.ai/models/fal-ai/kling-video/v3/pro/image-to-video) | Higher quality; size inferred from input image |
+| [Veo 3.1](https://fal.ai/models/fal-ai/veo3.1/image-to-video) | Google |
+| [Veo 3.1 Fast](https://fal.ai/models/fal-ai/veo3.1/fast/image-to-video) | Google, faster |
+| [Wan 2.2](https://fal.ai/models/fal-ai/wan/v2.2-a14b/image-to-video) | |
+| [Wan 2.2 Turbo](https://fal.ai/models/fal-ai/wan/v2.2-a14b/image-to-video/turbo) | Faster |
+| [Wan 2.7](https://fal.ai/models/fal-ai/wan/v2.7/image-to-video) | Newer; aspect ratio inferred from input image |
 
 ---
 
@@ -271,9 +305,9 @@ Upscale an image from a file on disk, the current render result, or a texture sl
 
 | Endpoint | Notes |
 |----------|-------|
-| SeedVR2 9B | Highest quality |
-| AuraSR | Fast 4x |
-| Clarity Upscaler | Detail-preserving |
+| [SeedVR2 9B](https://fal.ai/models/fal-ai/seedvr/upscale/image) | Highest quality |
+| [AuraSR](https://fal.ai/models/fal-ai/aura-sr) | Fast 4x |
+| [Clarity Upscaler](https://fal.ai/models/fal-ai/clarity-upscaler) | Detail-preserving |
 
 ### Upscale Video
 
@@ -283,8 +317,8 @@ Upscale a video file on disk or from the VSE.
 
 | Endpoint | Notes |
 |----------|-------|
-| SeedVR2 9B | |
-| Topaz Video | |
+| [SeedVR2 9B](https://fal.ai/models/fal-ai/seedvr/upscale/video) | |
+| [Topaz Video](https://fal.ai/models/fal-ai/topaz/upscale/video) | |
 
 ---
 
