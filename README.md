@@ -31,61 +31,57 @@ Available in the 3D Viewport sidebar under the **fal.ai** tab.
 
 ### 3D Generation
 
-One controller, two modes. Imports the resulting mesh at the 3D cursor as GLB (falls back to OBJ + MTL + texture when needed).
+https://github.com/user-attachments/assets/4dbb0511-933b-43e6-986a-343f606cedc3
+
+Generates 3D models from image or text and imports the resulting mesh at the 3D cursor as GLB (falls back to OBJ + MTL + texture when needed).
 
 #### Text-to-3D
-
-<!-- video: text-to-3d -->
 
 Generate a textured 3D mesh from a prompt. Exposes endpoint-specific controls (face budget, symmetry, pose hints, art style, quad vs triangle topology, etc.) conditionally based on which endpoint you pick.
 
 | Endpoint | Notes |
 |----------|-------|
-| Meshy v6 Preview | Fast geometry + texture, 100–300k face budget, pose / symmetry hints |
-| Hunyuan 3D v3.1 Pro | High-fidelity, 40k–1.5M faces, optional geometry-only output |
-| Hunyuan 3D v3.1 Rapid | Quick turnaround, geometry-only toggle |
-| Tripo P1 | Low-poly friendly, 48–20k face budget |
-| Tripo H3.1 | Quad topology option, real-world auto-sizing, separate texture-seed |
+| [Meshy v6 Preview](https://fal.ai/models/fal-ai/meshy/v6-preview/text-to-3d) | Fast geometry + texture, 100–300k face budget, pose / symmetry hints |
+| [Hunyuan 3D v3.1 Pro](https://fal.ai/models/fal-ai/hunyuan-3d/v3.1/pro/text-to-3d) | High-fidelity, 40k–1.5M faces, optional geometry-only output |
+| [Hunyuan 3D v3.1 Rapid](https://fal.ai/models/fal-ai/hunyuan-3d/v3.1/rapid/text-to-3d) | Quick turnaround, geometry-only toggle |
+| [Tripo P1](https://fal.ai/models/tripo3d/p1/text-to-3d) | Low-poly friendly, 48–20k face budget |
+| [Tripo H3.1](https://fal.ai/models/tripo3d/h3.1/text-to-3d) | Quad topology option, real-world auto-sizing, separate texture-seed |
 
 #### Image-to-3D
-
-<!-- video: image-to-3d -->
 
 Same endpoints, but conditioned on a source image (file on disk or current render result). Prompt is still available as an optional guide.
 
 | Endpoint | Notes |
 |----------|-------|
-| Meshy v6 Preview | Pose / symmetry hints, texture prompt |
-| Hunyuan 3D v3.1 Pro | Geometry-only option |
-| Hunyuan 3D v3.1 Rapid | Geometry-only option |
-| Tripo P1 | Low-poly |
-| Tripo H3.1 | Orientation + texture-alignment controls for image-to-3D |
+| [Meshy v6 Preview](https://fal.ai/models/fal-ai/meshy/v6-preview/image-to-3d) | Pose / symmetry hints, texture prompt |
+| [Hunyuan 3D v3.1 Pro](https://fal.ai/models/fal-ai/hunyuan-3d/v3.1/pro/image-to-3d) | Geometry-only option |
+| [Hunyuan 3D v3.1 Rapid](https://fal.ai/models/fal-ai/hunyuan-3d/v3.1/rapid/image-to-3d) | Geometry-only option |
+| [Tripo P1](https://fal.ai/models/tripo3d/p1/image-to-3d) | Low-poly |
+| [Tripo H3.1](https://fal.ai/models/tripo3d/h3.1/image-to-3d) | Orientation + texture-alignment controls for image-to-3D |
 
 ---
 
 ### Materials
 
-One controller, three modes. Produces a full Principled BSDF material (base color, roughness, metalness, normal, displacement) applied to the selected object.
+https://github.com/user-attachments/assets/8d65a83b-8fee-48c6-b0e5-83446ebc98cf
+
+Produces a full Principled BSDF material (base color, roughness, metalness, normal, displacement) applied to the selected object.
 
 #### Text-to-Material
 
-<!-- video: text-to-material -->
-
-Generate a complete tiling PBR material from a text prompt. Runs the full Patina pipeline.
+Generate a complete tiling PBR material from a text prompt.
 
 | Endpoint | Notes |
 |----------|-------|
-| Patina | Generates base color + all PBR maps from a prompt |
+| [PATINA Material](https://fal.ai/models/fal-ai/patina/material) | Generates base color + all PBR maps from a prompt |
 
 #### Image-to-Maps
-
-<!-- video: image-to-maps -->
 
 Estimate PBR maps (roughness, normal, displacement, metalness) from an existing base-color image. Useful when you already have a texture and want the rest of the stack.
 
 | Endpoint | Notes |
 |----------|-------|
-| Patina (PBR from Image) | Estimates PBR maps from a supplied base-color image |
+| [PATINA](https://fal.ai/models/fal-ai/patina) | Estimates PBR maps from a supplied base-color image |
 
 There's also a **Tiling Texture** sub-mode if you just want a seamless base color from a prompt without the PBR stack.
 
@@ -93,7 +89,7 @@ There's also a **Tiling Texture** sub-mode if you just want a seamless base colo
 
 ### Image Rendering (Neural Render)
 
-One controller, four image modes. Each mode does a quick technical render of the scene (depth, edges, sketch, or a normal render), then hands that off to fal as conditioning for an AI image.
+Each mode does a quick technical render of the scene (depth, edges, sketch, or a normal render), then hands that off to fal as conditioning for an AI image.
 
 #### Depth-to-Image
 
