@@ -33,6 +33,69 @@ def get_dimensions(
     return (props.width, props.height)
 
 
+_MESH_VERTEX_SAMPLES = 25
+
+
+def _iter_anchor_candidates(
+    obj: bpy.types.Object, depsgraph: bpy.types.Depsgraph
+) -> Any:
+    """Yield world-space candidate anchor points for an object, in priority order.
+
+    Origin → bound-box center → bound-box face centers → bound-box corners →
+    evenly-spaced mesh vertex samples. The caller picks the first candidate
+    that is both visible (projects in-frame) and not occluded.
+    """
+    from mathutils import Vector  # type: ignore[import-not-found]
+
+    matrix = obj.matrix_world
+    yield matrix.translation
+
+    if not hasattr(obj, "bound_box"):
+        return
+
+    corners_local = [Vector(c) for c in obj.bound_box]
+    if not corners_local:
+        return
+
+    min_x = min(c.x for c in corners_local)
+    max_x = max(c.x for c in corners_local)
+    min_y = min(c.y for c in corners_local)
+    max_y = max(c.y for c in corners_local)
+    min_z = min(c.z for c in corners_local)
+    max_z = max(c.z for c in corners_local)
+    mid_x = (min_x + max_x) / 2.0
+    mid_y = (min_y + max_y) / 2.0
+    mid_z = (min_z + max_z) / 2.0
+
+    yield matrix @ Vector((mid_x, mid_y, mid_z))
+
+    for face_center in (
+        Vector((min_x, mid_y, mid_z)),
+        Vector((max_x, mid_y, mid_z)),
+        Vector((mid_x, min_y, mid_z)),
+        Vector((mid_x, max_y, mid_z)),
+        Vector((mid_x, mid_y, min_z)),
+        Vector((mid_x, mid_y, max_z)),
+    ):
+        yield matrix @ face_center
+
+    for corner in corners_local:
+        yield matrix @ corner
+
+    if getattr(obj, "type", None) == "MESH":
+        try:
+            mesh = obj.evaluated_get(depsgraph).data
+            verts = mesh.vertices
+            n = len(verts)
+        except (AttributeError, RuntimeError):
+            return
+        if n == 0:
+            return
+        stride = max(1, n // _MESH_VERTEX_SAMPLES)
+        for i in range(0, n, stride):
+            yield matrix @ verts[i].co
+
+
 def overlay_labels(
     context: bpy.types.Context,
     image_path: str,
@@ -110,21 +173,6 @@ def overlay_labels(
             return (px, py)
         return None
 
-    def project_3d_to_2d_unclamped(world_pos: Any) -> tuple[float, float] | None:
-        """Project a 3D world position to 2D coordinates without clamping."""
-        co = (
-            projection_matrix
-            @ view_matrix
-            @ Vector((world_pos[0], world_pos[1], world_pos[2], 1.0))
-        )
-        if co.w <= 0:
-            return None
-        ndc_x = co.x / co.w
-        ndc_y = co.y / co.w
-        px = (ndc_x * 0.5 + 0.5) * width
-        py = (1.0 - (ndc_y * 0.5 + 0.5)) * height
-        return (px, py)
-
     img = Image.open(image_path).convert("RGB")
     draw = ImageDraw.Draw(img)
 
@@ -134,62 +182,26 @@ def overlay_labels(
     margin = int(height * 0.04)
     line_width = max(1, base_font_size // 12)
 
-    depsgraph = context.evaluated_depsgraph_get()
     placed_labels = []
 
     for obj, label in labeled:
         anchor = None
-        label_pos = None
 
-        origin_occluded = camera and is_occluded(
-            scene, depsgraph, camera, obj, width, height
-        )
-        if not origin_occluded:
-            origin_2d = project_3d_to_2d(obj.matrix_world.translation)
-            if origin_2d:
-                anchor = origin_2d
-
-        if anchor is None and hasattr(obj, "bound_box"):
-            from mathutils import Vector  # type: ignore[import-not-found]
-
-            for corner in obj.bound_box:
-                world_pt = obj.matrix_world @ Vector(corner)
-                if camera and is_occluded(
-                    scene,
-                    depsgraph,
-                    camera,
-                    obj,
-                    width,
-                    height,
-                    override_pos=world_pt,
-                ):
-                    continue
-                candidate = project_3d_to_2d(world_pt)
-                if candidate is not None:
-                    anchor = candidate
-                    break
-
-        if anchor is None:
-            raw = project_3d_to_2d_unclamped(obj.matrix_world.translation)
-            if raw is not None:
-                proj_x, proj_y = int(raw[0]), int(raw[1])
-                target_x = max(margin, min(proj_x, width - margin))
-                target_y = max(margin, min(proj_y, height - margin))
-
-                dist_left = target_x
-                dist_right = width - target_x
-                dist_top = target_y
-                dist_bottom = height - target_y
-                min_dist = min(dist_left, dist_right, dist_top, dist_bottom)
-
-                if min_dist == dist_left:
-                    anchor = (margin, target_y)
-                elif min_dist == dist_right:
-                    anchor = (width - margin, target_y)
-                elif min_dist == dist_top:
-                    anchor = (target_x, margin)
-                else:
-                    anchor = (target_x, height - margin)
+        for world_pt in _iter_anchor_candidates(obj, depsgraph):
+            if camera and is_occluded(
+                scene,
+                depsgraph,
+                camera,
+                obj,
+                width,
+                height,
+                override_pos=world_pt,
+            ):
+                continue
+            candidate = project_3d_to_2d(world_pt)
+            if candidate is not None:
+                anchor = candidate
+                break
 
         if anchor is None:
             continue

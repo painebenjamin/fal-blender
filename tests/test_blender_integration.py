@@ -522,6 +522,111 @@ def test_pointer_property_for_images():
     bpy.data.images.remove(test_img)
 
 
+def test_label_anchor_avoids_occluded_surfaces():
+    """Regression: a label whose origin AND bbox corners are occluded must
+    find a visible surface point, not snap to an image margin.
+
+    Reproduces the sketch-render "stray wall label" bug — a back-wall plane
+    was occluded by a foreground cube, the origin + all bbox corners failed
+    the visibility check, and the previous margin-snap fallback planted the
+    leader line on the bottom edge of the frame — visually behind the
+    blocker. The fix samples mesh vertices as a final candidate source and
+    removes the margin snap.
+    """
+    if not hasattr(bpy.types.Scene, "fal_3d"):
+        print("⚠ Skipping label anchor test (extension not loaded)")
+        return
+
+    from fal_ai.controllers.render.utils import (
+        _iter_anchor_candidates,
+        is_occluded,
+    )
+
+    scene = bpy.context.scene
+
+    # Clean slate — start with an empty scene to keep occlusion deterministic.
+    for obj in list(scene.objects):
+        bpy.data.objects.remove(obj, do_unlink=True)
+
+    cam_data = bpy.data.cameras.new("TestLabelCam")
+    cam = bpy.data.objects.new("TestLabelCam", cam_data)
+    scene.collection.objects.link(cam)
+    scene.camera = cam
+    cam.location = (0, -6, 1)
+    cam.rotation_euler = (1.5708, 0, 0)  # look along +Y
+
+    # Back wall behind the scene — its origin is directly behind the blocker.
+    bpy.ops.mesh.primitive_plane_add(size=8, location=(0, 3, 1))
+    wall = bpy.context.active_object
+    wall.rotation_euler = (1.5708, 0, 0)  # stand upright facing the camera
+    wall["fal_ai_label"] = "wall"
+
+    # Big opaque cube directly in front of the wall's origin.
+    bpy.ops.mesh.primitive_cube_add(size=2, location=(0, 0, 1))
+    blocker = bpy.context.active_object
+
+    bpy.context.view_layer.update()
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+
+    width, height = 960, 540
+    candidates = list(_iter_anchor_candidates(wall, depsgraph))
+    assert len(candidates) > 8, \
+        f"Expected origin + bbox center + face centers + corners, got {len(candidates)}"
+
+    # Origin must be occluded by the blocker (sanity check on the scene setup).
+    assert is_occluded(scene, depsgraph, cam, wall, width, height), \
+        "Test scene broken: wall origin should be occluded by blocker"
+
+    # At least one candidate on the wall must be visible around the blocker —
+    # that's the whole point of face centers + vertex sampling.
+    visible_count = sum(
+        1
+        for pt in candidates
+        if not is_occluded(
+            scene, depsgraph, cam, wall, width, height, override_pos=pt
+        )
+    )
+    assert visible_count > 0, \
+        "Wall should have at least one visible surface point past the blocker"
+
+    # Now grow the blocker until the entire wall is hidden — every candidate
+    # must be rejected and overlay_labels must draw nothing.
+    blocker.scale = (10, 1, 10)
+    bpy.context.view_layer.update()
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+
+    all_occluded = all(
+        is_occluded(
+            scene, depsgraph, cam, wall, width, height, override_pos=pt
+        )
+        for pt in _iter_anchor_candidates(wall, depsgraph)
+    )
+    assert all_occluded, "Fully blocked wall should have no visible candidates"
+
+    # overlay_labels against a blank canvas should leave it untouched when
+    # every labeled object is fully occluded.
+    import hashlib
+    import os
+    import tempfile
+    from PIL import Image
+
+    from fal_ai.controllers.render.utils import overlay_labels
+
+    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+    tmp.close()
+    try:
+        Image.new("RGB", (width, height), (255, 255, 255)).save(tmp.name)
+        before = hashlib.md5(open(tmp.name, "rb").read()).hexdigest()
+        overlay_labels(bpy.context, tmp.name, width, height)
+        after = hashlib.md5(open(tmp.name, "rb").read()).hexdigest()
+        assert before == after, \
+            "Fully occluded label should not draw onto the image"
+    finally:
+        os.unlink(tmp.name)
+
+    print("✓ Label anchor picker avoids occluded surfaces and skips truly hidden labels")
+
+
 def run_all_tests():
     """Run all tests and report results."""
     tests = [
@@ -539,6 +644,7 @@ def run_all_tests():
         test_fit_movie_strip_reports_readiness,
         test_vse_importer_uses_explicit_scene,
         test_pointer_property_for_images,
+        test_label_anchor_avoids_occluded_surfaces,
     ]
     
     passed = 0
