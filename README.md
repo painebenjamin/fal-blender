@@ -91,6 +91,8 @@ There's also a **Tiling Texture** sub-mode if you just want a seamless base colo
 
 Each mode does a quick technical render of the scene (depth, edges, sketch, or a normal render), then hands that off to fal as conditioning for an AI image.
 
+*Note: All videos in this section have processing time truncated.*
+
 #### Depth-to-Image
 
 https://github.com/user-attachments/assets/b7646563-6361-4b2c-b573-17977e1d0e33
@@ -148,11 +150,13 @@ Renders the scene normally and refines the result with img2img or an edit model.
 
 ---
 
-### Video Rendering (Neural Render)
+### Video Rendering
 
 https://github.com/user-attachments/assets/5645a408-225b-4d67-b1f6-934c456d5f2a
 
 Same controller as image rendering, but the mode switcher is set to **Video**. Renders an animation sequence as depth or edges, then generates a video conditioned on that sequence.
+
+*Note: The above video has processing time truncated.*
 
 #### Depth-to-Video
 
@@ -192,8 +196,6 @@ One controller, three modes.
 
 #### Text-to-Speech (Presets)
 
-<!-- video: tts-presets -->
-
 Generate speech from text using a named preset voice.
 
 | Endpoint | Notes |
@@ -209,8 +211,6 @@ Generate speech from text using a named preset voice.
 
 #### Text-to-Speech (Voice Clone)
 
-<!-- video: tts-voice-clone -->
-
 Same catalog (for endpoints that support it) but conditioned on a reference audio file — the model clones that voice.
 
 | Endpoint | Notes |
@@ -218,8 +218,6 @@ Same catalog (for endpoints that support it) but conditioned on a reference audi
 | [MiniMax Voice Clone](https://fal.ai/models/fal-ai/minimax/voice-clone) | Used by MiniMax Speech Turbo and 2.8 HD |
 
 #### Text-to-SFX
-
-<!-- video: text-to-sfx -->
 
 Generate sound effects from a text description.
 
@@ -229,8 +227,6 @@ Generate sound effects from a text description.
 | [CassetteAI SFX](https://fal.ai/models/cassetteai/sound-effects-generator) | |
 
 #### Text-to-Music
-
-<!-- video: text-to-music -->
 
 Generate music from a text prompt with duration control.
 
@@ -248,8 +244,6 @@ Generate music from a text prompt with duration control.
 One controller, two modes. Before submitting a video job you'll see a confirm dialog with the effective size, duration, and cost-relevant settings.
 
 #### Text-to-Video
-
-<!-- video: text-to-video -->
 
 Generate a video clip directly from a prompt.
 
@@ -271,8 +265,6 @@ Generate a video clip directly from a prompt.
 | [Sora 2](https://fal.ai/models/fal-ai/sora-2/text-to-video) | OpenAI |
 
 #### Image-to-Video
-
-<!-- video: image-to-video -->
 
 Animate a still image. Same catalog of video endpoints (those that support image conditioning).
 
@@ -300,8 +292,6 @@ These appear in both the 3D Viewport sidebar and the VSE sidebar with shared con
 
 ### Upscale Image
 
-<!-- video: upscale-image -->
-
 Upscale an image from a file on disk, the current render result, or a texture slot on the active object.
 
 | Endpoint | Notes |
@@ -311,8 +301,6 @@ Upscale an image from a file on disk, the current render result, or a texture sl
 | [Clarity Upscaler](https://fal.ai/models/fal-ai/clarity-upscaler) | Detail-preserving |
 
 ### Upscale Video
-
-<!-- video: upscale-video -->
 
 Upscale a video file on disk or from the VSE.
 
