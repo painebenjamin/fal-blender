@@ -7,6 +7,7 @@ if _os.path.isdir(_vendor_dir) and _vendor_dir not in _sys.path:
 
 import bpy
 
+from . import branding as _branding
 from .app import (
     FAL_PT_3D_JobsPanel,
     FAL_PT_3D_MainPanel,
@@ -15,7 +16,6 @@ from .app import (
     FalAI3DSceneProperties,
     FalAIVSESceneProperties,
 )
-from . import branding as _branding
 from .controllers import FalController
 from .controllers import advanced_params as _advanced_params
 from .job_queue import JobManager

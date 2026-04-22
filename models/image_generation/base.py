@@ -1,13 +1,19 @@
+from typing import Any
+
 from ..base import VisualFalModel
 
 __all__ = [
-    "NanoBanana",
-    "NanoBananaPro",
-    "NanoBanana2",
-    "ZImageBase",
-    "ZImageTurbo",
     "FLUX1Dev",
     "FLUX2Klein9B",
+    "GPTImage15",
+    "GPTImage2",
+    "NanoBanana",
+    "NanoBanana2",
+    "NanoBananaPro",
+    "Seedream45",
+    "Seedream5Lite",
+    "ZImageBase",
+    "ZImageTurbo",
 ]
 
 
@@ -16,6 +22,7 @@ class NanoBanana(VisualFalModel):
 
     display_name = "Nano Banana"
     use_resolution_aspect_ratio = True
+    image_urls_parameter = "image_urls"
     aspect_ratios = [
         "21:9",
         "16:9",
@@ -36,6 +43,7 @@ class NanoBananaPro(VisualFalModel):
 
     display_name = "Nano Banana Pro"
     use_resolution_aspect_ratio = True
+    image_urls_parameter = "image_urls"
     aspect_ratios = [
         "21:9",
         "16:9",
@@ -60,6 +68,7 @@ class NanoBanana2(VisualFalModel):
 
     display_name = "Nano Banana 2"
     use_resolution_aspect_ratio = True
+    image_urls_parameter = "image_urls"
     aspect_ratios = [
         "8:1",
         "4:1",
@@ -89,6 +98,8 @@ class ZImageTurbo(VisualFalModel):
 
     display_name = "Z-Image Turbo"
     size_parameter = "image_size"
+    image_url_parameter = "image_url"
+    prompt_expansion_parameter = "enable_prompt_expansion"
 
 
 class ZImageBase(VisualFalModel):
@@ -96,6 +107,8 @@ class ZImageBase(VisualFalModel):
 
     display_name = "Z-Image Base"
     size_parameter = "image_size"
+    image_url_parameter = "image_url"
+    prompt_expansion_parameter = "enable_prompt_expansion"
 
 
 class FLUX1Dev(VisualFalModel):
@@ -103,10 +116,72 @@ class FLUX1Dev(VisualFalModel):
 
     display_name = "FLUX.1 [dev]"
     size_parameter = "image_size"
+    image_url_parameter = "image_url"
 
 
 class FLUX2Klein9B(VisualFalModel):
     """FLUX.2 Klein 9B image generation model."""
 
     display_name = "FLUX.2 Klein 9B"
+    size_parameter = "image_size"
+    image_url_parameter = "image_url"
+    prompt_expansion_parameter = "enable_prompt_expansion"
+
+
+class GPTImage15(VisualFalModel):
+    """GPT Image 1.5 image generation model.
+
+    The API accepts only three fixed ``image_size`` values — 1024x1024 (1:1),
+    1536x1024 (3:2), 1024x1536 (2:3). Requests are mapped by closest aspect
+    ratio so a 1920x1080 request lands on ``1536x1024`` instead of falling
+    through as raw width/height the endpoint would reject.
+    """
+
+    display_name = "GPT Image 1.5"
+    image_urls_parameter = "image_urls"
+
+    _SIZE_CHOICES: list[tuple[str, int, int]] = [
+        ("1024x1024", 1024, 1024),
+        ("1536x1024", 1536, 1024),
+        ("1024x1536", 1024, 1536),
+    ]
+
+    @classmethod
+    def _choose_image_size(cls, width: int, height: int) -> str:
+        target = width / height if height else 1.0
+        label, _, _ = min(
+            cls._SIZE_CHOICES,
+            key=lambda item: abs(target - item[1] / item[2]),
+        )
+        return label
+
+    @classmethod
+    def _get_size_parameters(cls, width: int, height: int) -> dict[str, Any]:
+        return {"image_size": cls._choose_image_size(width, height)}
+
+    @classmethod
+    def describe_output_size(cls, width: int, height: int) -> str:
+        return cls._choose_image_size(width, height)
+
+
+class GPTImage2(VisualFalModel):
+    """GPT Image 2 image generation model."""
+
+    display_name = "GPT Image 2"
+    size_parameter = "image_size"
+    image_urls_parameter = "image_urls"
+
+
+class Seedream45(VisualFalModel):
+    """Seedream 4.5 image generation model."""
+
+    display_name = "Seedream 4.5"
+    size_parameter = "image_size"
+    image_urls_parameter = "image_urls"
+
+
+class Seedream5Lite(VisualFalModel):
+    """Seedream 5 Lite image generation model."""
+
+    display_name = "Seedream 5 Lite"
     size_parameter = "image_size"

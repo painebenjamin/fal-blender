@@ -4,20 +4,28 @@ from ..base import VisualFalModel
 from .base import (
     FLUX1Dev,
     FLUX2Klein9B,
+    GPTImage2,
+    GPTImage15,
     NanoBanana,
     NanoBanana2,
     NanoBananaPro,
+    Seedream5Lite,
+    Seedream45,
     ZImageTurbo,
 )
 
 __all__ = [
-    "ImageRefinementModel",
-    "NanoBananaImageRefinementModel",
-    "NanoBananaProImageRefinementModel",
-    "NanoBanana2ImageRefinementModel",
-    "ZImageTurboImageRefinementModel",
     "FLUX1DevImageRefinementModel",
     "FLUX2Klein9BImageRefinementModel",
+    "GPTImage15ImageRefinementModel",
+    "GPTImage2ImageRefinementModel",
+    "ImageRefinementModel",
+    "NanoBanana2ImageRefinementModel",
+    "NanoBananaImageRefinementModel",
+    "NanoBananaProImageRefinementModel",
+    "Seedream45ImageRefinementModel",
+    "Seedream5LiteImageRefinementModel",
+    "ZImageTurboImageRefinementModel",
 ]
 
 
@@ -51,37 +59,55 @@ class NanoBananaImageRefinementModel(ImageRefinementModel, NanoBanana):
     """Image refinement using the Nano Banana model."""
 
     endpoint = "fal-ai/nano-banana/edit"
-    image_urls_parameter = "image_urls"
 
 
 class NanoBananaProImageRefinementModel(ImageRefinementModel, NanoBananaPro):
     """Image refinement using the Nano Banana Pro model."""
 
     endpoint = "fal-ai/nano-banana-pro/edit"
-    image_urls_parameter = "image_urls"
 
 
 class NanoBanana2ImageRefinementModel(ImageRefinementModel, NanoBanana2):
     """Image refinement using the Nano Banana 2 model."""
 
     endpoint = "fal-ai/nano-banana-2/edit"
-    image_urls_parameter = "image_urls"
 
 
 class ZImageTurboImageRefinementModel(ImageRefinementModel, ZImageTurbo):
     """Image refinement using the Z-Image Turbo model (img2img, no system prompt)."""
 
     endpoint = "fal-ai/z-image/turbo/image-to-image"
-    image_url_parameter = "image_url"
-    prompt_expansion_parameter = "enable_prompt_expansion"
     supports_system_prompt = False  # img2img model, not an edit model
+
+
+class GPTImage15ImageRefinementModel(ImageRefinementModel, GPTImage15):
+    """Image refinement using the GPT Image 1.5 model."""
+
+    endpoint = "fal-ai/gpt-image-1.5/edit"
+
+
+class GPTImage2ImageRefinementModel(ImageRefinementModel, GPTImage2):
+    """Image refinement using the GPT Image 2 model."""
+
+    endpoint = "openai/gpt-image-2/edit"
+
+
+class Seedream45ImageRefinementModel(ImageRefinementModel, Seedream45):
+    """Image refinement using the Seedream 4.5 model."""
+
+    endpoint = "fal-ai/bytedance/seedream/v4.5/edit"
+
+
+class Seedream5LiteImageRefinementModel(ImageRefinementModel, Seedream5Lite):
+    """Image refinement using the Seedream 5 Lite model."""
+
+    endpoint = "fal-ai/bytedance/seedream/v5/lite/edit"
 
 
 class FLUX1DevImageRefinementModel(ImageRefinementModel, FLUX1Dev):
     """Image refinement using the FLUX.1 [dev] model (img2img, no system prompt)."""
 
     endpoint = "fal-ai/flux/dev/image-to-image"
-    image_url_parameter = "image_url"
     supports_system_prompt = False  # img2img model, not an edit model
 
     @classmethod
@@ -96,7 +122,6 @@ class FLUX2Klein9BImageRefinementModel(ImageRefinementModel, FLUX2Klein9B):
     """Image refinement using the FLUX.2 Klein 9B edit model."""
 
     endpoint = "fal-ai/flux-2/klein/9b/edit"
-    image_urls_parameter = "image_urls"
 
     @classmethod
     def parameters(cls, **kwargs: Any) -> dict[str, Any]:

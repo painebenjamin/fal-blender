@@ -30,7 +30,9 @@ ADVANCED_PARAMS_FIELDS: frozenset[str] = frozenset(
 )
 
 
-def _resolve_props(context: bpy.types.Context, props_path: str) -> bpy.types.PropertyGroup | None:
+def _resolve_props(
+    context: bpy.types.Context, props_path: str
+) -> bpy.types.PropertyGroup | None:
     """Resolve an RNA path (from PropertyGroup.path_from_id) against context.scene."""
     try:
         return context.scene.path_resolve(props_path)

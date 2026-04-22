@@ -465,7 +465,9 @@ def add_video_to_vse(
     # not the intended final output. Users can re-enable in Output Properties.
     if scene.render.use_sequencer:
         scene.render.use_sequencer = False
-        print("fal.ai: Disabled scene.render.use_sequencer so F12 keeps rendering the 3D view.")
+        print(
+            "fal.ai: Disabled scene.render.use_sequencer so F12 keeps rendering the 3D view."
+        )
 
     _refresh_vse_for_scene(scene)
     return strip

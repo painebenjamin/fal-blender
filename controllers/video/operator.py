@@ -1,17 +1,13 @@
 from __future__ import annotations
 
 import tempfile
-from typing import Any
 
 import bpy
 
 from ...importers import add_video_to_vse
 from ...job_queue import FalJob, JobManager
 from ...models import ImageToVideoModel, TextToVideoModel
-from ...utils import (
-    download_file,
-    upload_file,
-)
+from ...utils import download_file, upload_file
 from ..operators import FalOperator
 
 TEXT_TO_VIDEO_MODELS = TextToVideoModel.catalog()
@@ -85,7 +81,9 @@ class FalVideoOperator(FalOperator):
             model = TEXT_TO_VIDEO_MODELS.get(props.text_endpoint)
         else:
             model = IMAGE_TO_VIDEO_MODELS.get(props.image_endpoint)
-        model_label = getattr(model, "display_name", None) or getattr(model, "endpoint", "fal.ai model")
+        model_label = getattr(model, "display_name", None) or getattr(
+            model, "endpoint", "fal.ai model"
+        )
         if props.use_scene_duration:
             duration = max(1, int(round(_get_scene_duration(context.scene))))
         else:

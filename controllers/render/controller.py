@@ -35,15 +35,19 @@ def _is_video(context, props) -> bool:
 
 def _image_mode(mode):
     """Return a condition that checks render_type == IMAGE and mode matches."""
+
     def check(context, props) -> bool:
         return props.render_type == "IMAGE" and props.mode == mode
+
     return check
 
 
 def _video_mode(mode):
     """Return a condition that checks render_type == VIDEO and video_mode matches."""
+
     def check(context, props) -> bool:
         return props.render_type == "VIDEO" and props.video_mode == mode
+
     return check
 
 

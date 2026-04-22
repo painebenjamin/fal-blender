@@ -22,17 +22,12 @@ class ZImageTurboEdgeGuidedImageGenerationModel(
     """Edge-guided image generation using the Z-Image Turbo model."""
 
     endpoint = "fal-ai/z-image/turbo/controlnet"
-    image_url_parameter = "image_url"
-    prompt_expansion_parameter = "enable_prompt_expansion"
 
 
-class FLUX1DevEdgeGuidedImageGenerationModel(
-    EdgeGuidedImageGenerationModel, FLUX1Dev
-):
+class FLUX1DevEdgeGuidedImageGenerationModel(EdgeGuidedImageGenerationModel, FLUX1Dev):
     """Edge-guided image generation using the FLUX.1 [dev] model with ControlNet unions."""
 
     endpoint = "fal-ai/flux-general"
-    image_url_parameter = "image_url"
 
     @classmethod
     def parameters(cls, **kwargs: Any) -> dict[str, Any]:

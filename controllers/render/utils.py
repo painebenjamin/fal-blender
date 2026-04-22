@@ -401,8 +401,8 @@ def render_to_canny(
     Pure NumPy implementation — no OpenCV or scikit-image needed.
     Overwrites the image at render_path with white edges on black background.
     """
-    from PIL import Image
     import numpy as np
+    from PIL import Image
 
     img = Image.open(render_path).convert("L")
     pixels = np.array(img, dtype=np.float64)
@@ -412,7 +412,7 @@ def render_to_canny(
     if sigma > 0:
         size = int(2 * np.ceil(2 * sigma) + 1)
         x = np.arange(size) - size // 2
-        kernel = np.exp(-x**2 / (2 * sigma**2))
+        kernel = np.exp(-(x**2) / (2 * sigma**2))
         kernel /= kernel.sum()
         pad = size // 2
 
@@ -429,13 +429,20 @@ def render_to_canny(
 
     # 2. Sobel gradients via array slicing
     Gx = (
-        -1 * blurred[:-2, :-2] + 1 * blurred[:-2, 2:]
-        - 2 * blurred[1:-1, :-2] + 2 * blurred[1:-1, 2:]
-        - 1 * blurred[2:, :-2] + 1 * blurred[2:, 2:]
+        -1 * blurred[:-2, :-2]
+        + 1 * blurred[:-2, 2:]
+        - 2 * blurred[1:-1, :-2]
+        + 2 * blurred[1:-1, 2:]
+        - 1 * blurred[2:, :-2]
+        + 1 * blurred[2:, 2:]
     )
     Gy = (
-        1 * blurred[:-2, :-2] + 2 * blurred[:-2, 1:-1] + 1 * blurred[:-2, 2:]
-        - 1 * blurred[2:, :-2] - 2 * blurred[2:, 1:-1] - 1 * blurred[2:, 2:]
+        1 * blurred[:-2, :-2]
+        + 2 * blurred[:-2, 1:-1]
+        + 1 * blurred[:-2, 2:]
+        - 1 * blurred[2:, :-2]
+        - 2 * blurred[2:, 1:-1]
+        - 1 * blurred[2:, 2:]
     )
 
     # L1 magnitude (matches cv2 default; recovers low-contrast edges that L2 misses)
@@ -457,26 +464,30 @@ def render_to_canny(
 
     # Direction 0 (horizontal): compare with left/right neighbors
     mask0 = d == 0
-    q0 = mag_pad[1:h + 1, 2:w + 2]  # right
-    r0 = mag_pad[1:h + 1, 0:w]      # left
+    q0 = mag_pad[1 : h + 1, 2 : w + 2]  # right
+    r0 = mag_pad[1 : h + 1, 0:w]  # left
 
     # Direction 1 (diagonal 45°): compare with bottom-left/top-right
     mask1 = d == 1
-    q1 = mag_pad[2:h + 2, 0:w]      # bottom-left
-    r1 = mag_pad[0:h, 2:w + 2]      # top-right
+    q1 = mag_pad[2 : h + 2, 0:w]  # bottom-left
+    r1 = mag_pad[0:h, 2 : w + 2]  # top-right
 
     # Direction 2 (vertical): compare with top/bottom neighbors
     mask2 = d == 2
-    q2 = mag_pad[2:h + 2, 1:w + 1]  # below
-    r2 = mag_pad[0:h, 1:w + 1]      # above
+    q2 = mag_pad[2 : h + 2, 1 : w + 1]  # below
+    r2 = mag_pad[0:h, 1 : w + 1]  # above
 
     # Direction 3 (diagonal 135°): compare with top-left/bottom-right
     mask3 = d == 3
-    q3 = mag_pad[0:h, 0:w]          # top-left
-    r3 = mag_pad[2:h + 2, 2:w + 2]  # bottom-right
+    q3 = mag_pad[0:h, 0:w]  # top-left
+    r3 = mag_pad[2 : h + 2, 2 : w + 2]  # bottom-right
 
-    for mask, q, r in [(mask0, q0, r0), (mask1, q1, r1),
-                       (mask2, q2, r2), (mask3, q3, r3)]:
+    for mask, q, r in [
+        (mask0, q0, r0),
+        (mask1, q1, r1),
+        (mask2, q2, r2),
+        (mask3, q3, r3),
+    ]:
         keep = mask & (magnitude >= q) & (magnitude >= r)
         suppressed[keep] = magnitude[keep]
 
@@ -517,9 +528,9 @@ def render_to_canny(
     # show up as a dark frame.
     res = result.astype(np.uint8)
     full = np.zeros((height, width), dtype=np.uint8)
-    full[1:1 + res.shape[0], 1:1 + res.shape[1]] = res
-    full[0, 1:1 + res.shape[1]] = res[0, :]
-    full[-1, 1:1 + res.shape[1]] = res[-1, :]
+    full[1 : 1 + res.shape[0], 1 : 1 + res.shape[1]] = res
+    full[0, 1 : 1 + res.shape[1]] = res[0, :]
+    full[-1, 1 : 1 + res.shape[1]] = res[-1, :]
     full[:, 0] = full[:, 1]
     full[:, -1] = full[:, -2]
 

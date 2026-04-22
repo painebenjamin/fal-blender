@@ -134,6 +134,7 @@ class Hunyuan3DV31RapidModel(MeshGenerationModel):
 
 class TripoP1Model(MeshGenerationModel):
     """Tripo P1 model base."""
+
     display_name = "Tripo P1"
     image_url_parameter = "image_url"
     static_parameters: ClassVar[dict[str, Any]] = {"texture": True}
@@ -146,6 +147,7 @@ class TripoP1Model(MeshGenerationModel):
 
 class TripoH31Model(MeshGenerationModel):
     """Tripo H3.1 model base."""
+
     display_name = "Tripo H3.1"
     image_url_parameter = "image_url"
     generate_materials_parameter = "pbr"

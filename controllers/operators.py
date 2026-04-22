@@ -90,9 +90,7 @@ class FalOperator(metaclass=ABCMeta):
         self._operator_instance.report(levels, message)
 
     @staticmethod
-    def with_advanced_params(
-        params: dict, props: bpy.types.PropertyGroup
-    ) -> dict:
+    def with_advanced_params(params: dict, props: bpy.types.PropertyGroup) -> dict:
         """Return ``params`` merged with the user's advanced parameters.
 
         Advanced params override model params, so power users can inject or

@@ -3,12 +3,16 @@ from __future__ import annotations
 import os
 import tempfile
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, ClassVar
 
 import bpy
 
-from ...importers import add_video_to_vse, import_image_to_editor, resize_image_to_target
+from ...importers import (
+    add_video_to_vse,
+    import_image_to_editor,
+    resize_image_to_target,
+)
 from ...job_queue import FalJob, JobManager
 from ...models import (
     DepthGuidedImageGenerationModel,
@@ -121,9 +125,8 @@ class FalRenderOperator(FalOperator):
             model = DEPTH_VIDEO_MODELS.get(props.depth_video_endpoint)
         else:
             model = EDGE_VIDEO_MODELS.get(props.edge_video_endpoint)
-        model_label = (
-            getattr(model, "display_name", None)
-            or getattr(model, "endpoint", "fal.ai model")
+        model_label = getattr(model, "display_name", None) or getattr(
+            model, "endpoint", "fal.ai model"
         )
         if props.use_scene_duration:
             duration = max(1, int(round(_get_scene_duration(context.scene))))
@@ -168,9 +171,7 @@ class FalRenderOperator(FalOperator):
         Invoke the operator.
         """
         if not invoke:
-            raise RuntimeError(
-                "Render operator should be used as a modal operator"
-            )
+            raise RuntimeError("Render operator should be used as a modal operator")
 
         self._render_type = props.render_type
         self._prompt = props.prompt
@@ -202,7 +203,9 @@ class FalRenderOperator(FalOperator):
             if self._mode == "DEPTH":
                 self._model = DEPTH_GUIDED_IMAGE_GENERATION_MODELS[props.depth_endpoint]
             elif self._mode == "SKETCH":
-                self._model = SKETCH_GUIDED_IMAGE_GENERATION_MODELS[props.sketch_endpoint]
+                self._model = SKETCH_GUIDED_IMAGE_GENERATION_MODELS[
+                    props.sketch_endpoint
+                ]
             elif self._mode == "EDGE":
                 self._model = EDGE_GUIDED_IMAGE_GENERATION_MODELS[props.edge_endpoint]
             else:
@@ -296,7 +299,9 @@ class FalRenderOperator(FalOperator):
 
         # Enter modal loop
         wm = context.window_manager
-        self._timer = wm.event_timer_add(0.25 if not self._animation else 0.5, window=context.window)
+        self._timer = wm.event_timer_add(
+            0.25 if not self._animation else 0.5, window=context.window
+        )
         wm.modal_handler_add(self._operator_instance)
         self.report({"INFO"}, "Rendering...")
         return {"RUNNING_MODAL"}
@@ -1024,11 +1029,7 @@ class FalRenderOperator(FalOperator):
     def _start_edge_video_canny(self, context: bpy.types.Context) -> None:
         """Start background Canny edge detection on rendered frames."""
         # Find rendered PNG frames
-        frames = sorted(
-            f
-            for f in os.listdir(self._frames_dir)
-            if f.endswith(".png")
-        )
+        frames = sorted(f for f in os.listdir(self._frames_dir) if f.endswith(".png"))
 
         if not frames:
             self._restore_state(context)
@@ -1075,7 +1076,9 @@ class FalRenderOperator(FalOperator):
             print(f"fal.ai:   Throughput: {len(frames)/total_time:.1f} fps")
 
         # Start processing in background thread
-        print(f"fal.ai: Starting Canny edge detection on {len(frames)} frames ({w}x{h}) with {num_threads} threads...")
+        print(
+            f"fal.ai: Starting Canny edge detection on {len(frames)} frames ({w}x{h}) with {num_threads} threads..."
+        )
         executor = ThreadPoolExecutor(max_workers=1)
         self._canny_future = executor.submit(process_frames_parallel)
         executor.shutdown(wait=False)  # Don't block, let it run in background
@@ -1191,7 +1194,9 @@ class FalRenderOperator(FalOperator):
         if not os.path.exists(result_path):
             # Debug: list what's actually in the temp dir
             if self._tmp_dir and os.path.exists(self._tmp_dir):
-                print(f"fal.ai: Contents of {self._tmp_dir}: {os.listdir(self._tmp_dir)}")
+                print(
+                    f"fal.ai: Contents of {self._tmp_dir}: {os.listdir(self._tmp_dir)}"
+                )
             self.report({"ERROR"}, f"Edge video not found at {result_path}")
             return
 

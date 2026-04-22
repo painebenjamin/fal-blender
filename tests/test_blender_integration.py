@@ -21,29 +21,30 @@ def _ensure_extension_enabled():
     """Try to enable the fal.ai extension if not already loaded."""
     if hasattr(bpy.types.Scene, "fal_3d"):
         return True  # Already loaded
-    
+
     from pathlib import Path
 
     # Get Blender's user extension path via official API
-    user_extensions = Path(bpy.utils.user_resource('EXTENSIONS')) / "user_default"
+    user_extensions = Path(bpy.utils.user_resource("EXTENSIONS")) / "user_default"
     fal_path = user_extensions / "fal_ai"
-    
+
     if fal_path.exists() and str(user_extensions) not in sys.path:
         sys.path.insert(0, str(user_extensions))
         print(f"Added extension path: {user_extensions}")
-    
+
     # Try addon_utils — this calls register() automatically
     try:
         import addon_utils
-        addon_utils.enable('fal_ai', default_set=True)
+
+        addon_utils.enable("fal_ai", default_set=True)
     except Exception as e:
         print(f"addon_utils.enable failed: {e}")
-    
+
     # Check if it worked
     if hasattr(bpy.types.Scene, "fal_3d"):
         print("fal.ai extension enabled")
         return True
-    
+
     return False
 
 
@@ -53,12 +54,12 @@ def test_extension_registers():
         print("⚠ Skipping: extension not installed or couldn't be enabled")
         print("  Install via: Edit > Preferences > Get Extensions")
         return
-    
+
     # Verify scene property groups
-    assert hasattr(bpy.types.Scene, "fal_3d"), \
-        "3D scene property group not registered"
-    assert hasattr(bpy.types.Scene, "fal_vse"), \
-        "VSE scene property group not registered"
+    assert hasattr(bpy.types.Scene, "fal_3d"), "3D scene property group not registered"
+    assert hasattr(
+        bpy.types.Scene, "fal_vse"
+    ), "VSE scene property group not registered"
     print("✓ Extension property groups registered")
 
 
@@ -68,14 +69,14 @@ def test_operators_registered():
     if not hasattr(bpy.types.Scene, "fal_3d"):
         print("⚠ Skipping operator test (extension not loaded)")
         return
-    
+
     # Check that our operators exist
     operators = [
         "FAL_OT_fal_render_operator",
         "FAL_OT_fal_video_operator",
         "FAL_OT_fal_upscale_operator",
     ]
-    
+
     for op_name in operators:
         assert hasattr(bpy.types, op_name), f"Operator {op_name} not registered"
     print("✓ Operators registered")
@@ -84,17 +85,17 @@ def test_operators_registered():
 def test_scene_resolution_reading():
     """Test that we can read scene resolution correctly."""
     scene = bpy.context.scene
-    
+
     # Set known values
     scene.render.resolution_x = 1920
     scene.render.resolution_y = 1080
     scene.render.resolution_percentage = 50
-    
+
     # Calculate expected
     scale = scene.render.resolution_percentage / 100.0
     expected_w = int(scene.render.resolution_x * scale)
     expected_h = int(scene.render.resolution_y * scale)
-    
+
     assert expected_w == 960, f"Expected width 960, got {expected_w}"
     assert expected_h == 540, f"Expected height 540, got {expected_h}"
     print("✓ Scene resolution reading works")
@@ -104,13 +105,13 @@ def test_render_result_has_data_attribute():
     """Test that Image.has_data exists (Blender 5 compatibility)."""
     # Create a test image
     img = bpy.data.images.new("test_image", width=64, height=64)
-    
+
     # Check has_data attribute exists
     assert hasattr(img, "has_data"), "Image.has_data attribute not found"
-    
+
     # A new image should have data
     assert img.has_data, "New image should have data"
-    
+
     # Cleanup
     bpy.data.images.remove(img)
     print("✓ Image.has_data attribute works")
@@ -119,7 +120,7 @@ def test_render_result_has_data_attribute():
 def test_media_type_for_video_output():
     """Test Blender 5 video output settings."""
     scene = bpy.context.scene
-    
+
     # Check if media_type exists (Blender 5+)
     if hasattr(scene.render.image_settings, "media_type"):
         scene.render.image_settings.media_type = "VIDEO"
@@ -138,8 +139,8 @@ def test_video_operators_opt_into_confirm():
         print("⚠ Skipping confirm opt-in test (extension not loaded)")
         return
 
-    from fal_ai.controllers.video.operator import FalVideoOperator
     from fal_ai.controllers.render.operator import FalRenderOperator
+    from fal_ai.controllers.video.operator import FalVideoOperator
 
     ctx = bpy.context
     v_props = ctx.scene.falvideocontroller_props
@@ -190,14 +191,15 @@ def test_confirm_message_has_model_and_size():
 
     assert "text-to-video" in title.lower(), f"Unexpected title: {title}"
     assert "7s" in message, f"Duration missing from message: {message}"
-    assert expected_size in message, \
-        f"Effective size '{expected_size}' missing from message: {message}"
+    assert (
+        expected_size in message
+    ), f"Effective size '{expected_size}' missing from message: {message}"
     # When the model clamps/reshapes, the message should also show the raw request.
     if expected_size != "1280x720":
-        assert "1280x720" in message, \
-            f"Expected requested-size disclosure for clamp: {message}"
-    assert model.display_name in message, \
-        f"Model name missing from message: {message}"
+        assert (
+            "1280x720" in message
+        ), f"Expected requested-size disclosure for clamp: {message}"
+    assert model.display_name in message, f"Model name missing from message: {message}"
     assert button == "Generate"
 
     props.mode = "IMAGE"
@@ -233,8 +235,9 @@ def test_invoke_shows_confirm_for_video_and_skips_for_image():
         bpy.ops.fal.fal_video_operator("INVOKE_DEFAULT")
 
         video_calls = [c for c in captured if c["operator"] == "fal.fal_video_operator"]
-        assert len(video_calls) == 1, \
-            f"Expected 1 confirm for video, got {len(video_calls)}: {captured}"
+        assert (
+            len(video_calls) == 1
+        ), f"Expected 1 confirm for video, got {len(video_calls)}: {captured}"
         kwargs = video_calls[0]
         assert "title" in kwargs and kwargs["title"], "confirm title missing"
         assert "message" in kwargs and kwargs["message"], "confirm message missing"
@@ -260,11 +263,11 @@ def test_invoke_shows_confirm_for_video_and_skips_for_image():
         except Exception:
             pass
         image_calls = [
-            c for c in captured[before:]
-            if c["operator"] == "fal.fal_render_operator"
+            c for c in captured[before:] if c["operator"] == "fal.fal_render_operator"
         ]
-        assert len(image_calls) == 0, \
-            f"Image render should not confirm, got: {image_calls}"
+        assert (
+            len(image_calls) == 0
+        ), f"Image render should not confirm, got: {image_calls}"
 
         print("✓ Confirm fires for video, skipped for image render")
     finally:
@@ -272,6 +275,7 @@ def test_invoke_shows_confirm_for_video_and_skips_for_image():
         # Cancel any render that may have started.
         try:
             from fal_ai.controllers.render.operator import FalRenderOperator
+
             FalRenderOperator._rendering = False
         except Exception:
             pass
@@ -307,8 +311,9 @@ def test_panel_output_size_hint():
     props.width = 1024
     props.height = 1024
     exact_hint = panel.output_size_hint(ctx, props)
-    assert exact_hint is None, \
-        f"Expected no hint for exact size match, got: {exact_hint}"
+    assert (
+        exact_hint is None
+    ), f"Expected no hint for exact size match, got: {exact_hint}"
 
     print("✓ Output-size hint fires only when model reshapes the request")
 
@@ -335,12 +340,12 @@ def test_has_usable_compositor_detects_empty_tree():
     for node in list(tree.nodes):
         tree.nodes.remove(node)
 
-    assert not has_usable_compositor(scene), \
-        "Empty compositor tree should report as unusable"
+    assert not has_usable_compositor(
+        scene
+    ), "Empty compositor tree should report as unusable"
 
     create_compositor_output_node(tree)
-    assert has_usable_compositor(scene), \
-        "Tree with output node should report as usable"
+    assert has_usable_compositor(scene), "Tree with output node should report as usable"
 
     for node in list(tree.nodes):
         tree.nodes.remove(node)
@@ -380,10 +385,12 @@ def test_refine_setup_disables_empty_compositor():
 
     try:
         op._setup_refine(bpy.context)
-        assert not scene.render.use_compositing, \
-            "Empty compositor should be disabled during refine setup"
-        assert op._saved.get("use_compositing") is True, \
-            "Original use_compositing should be stashed for restore"
+        assert (
+            not scene.render.use_compositing
+        ), "Empty compositor should be disabled during refine setup"
+        assert (
+            op._saved.get("use_compositing") is True
+        ), "Original use_compositing should be stashed for restore"
     finally:
         scene.render.resolution_x = original_res_x
         scene.render.resolution_y = original_res_y
@@ -433,8 +440,9 @@ def test_fit_movie_strip_reports_readiness():
     assert _fit_movie_strip_to_target(scene, ready, 1920, 1080) is True
     expected_scale = min(1920 / 1344, 1080 / 768)
     assert abs(ready.transform.scale_x - expected_scale) < 1e-6
-    assert ready.transform.scale_x == ready.transform.scale_y, \
-        "Uniform scale should apply the same factor to x and y"
+    assert (
+        ready.transform.scale_x == ready.transform.scale_y
+    ), "Uniform scale should apply the same factor to x and y"
 
     print("✓ _fit_movie_strip_to_target signals readiness for deferred retry")
 
@@ -474,14 +482,17 @@ def test_vse_importer_uses_explicit_scene():
             wav.setframerate(44100)
             wav.writeframes(b"\x00\x00" * 4410)
 
-        assert origin_scene.sequence_editor is None, \
-            "Origin scene should start without a sequence_editor"
+        assert (
+            origin_scene.sequence_editor is None
+        ), "Origin scene should start without a sequence_editor"
         strip = add_audio_to_vse(tmp.name, name="fal_test", scene=origin_scene)
         assert strip is not None, "Expected a strip to be created"
-        assert origin_scene.sequence_editor is not None, \
-            "Sequence editor should be created on the explicit scene"
-        assert not other_scene.sequence_editor, \
-            "Other scene should be untouched when scene kwarg is passed"
+        assert (
+            origin_scene.sequence_editor is not None
+        ), "Sequence editor should be created on the explicit scene"
+        assert (
+            not other_scene.sequence_editor
+        ), "Other scene should be untouched when scene kwarg is passed"
 
         # _refresh_vse_for_scene is best-effort — must not raise even when
         # no VSE areas exist (background mode).
@@ -502,7 +513,7 @@ def test_pointer_property_for_images():
     """Test that PointerProperty works for Image selection."""
     # Create a test image
     test_img = bpy.data.images.new("test_texture", width=64, height=64)
-    
+
     # Check that our property groups can hold image references
     # (This tests the texture selector fix)
     # Controller props are registered as {controllername}_props
@@ -517,7 +528,7 @@ def test_pointer_property_for_images():
             print("⚠ texture property not found on upscale props")
     else:
         print("⚠ Skipping PointerProperty test (extension not loaded)")
-    
+
     # Cleanup
     bpy.data.images.remove(test_img)
 
@@ -537,10 +548,7 @@ def test_label_anchor_avoids_occluded_surfaces():
         print("⚠ Skipping label anchor test (extension not loaded)")
         return
 
-    from fal_ai.controllers.render.utils import (
-        _iter_anchor_candidates,
-        is_occluded,
-    )
+    from fal_ai.controllers.render.utils import _iter_anchor_candidates, is_occluded
 
     scene = bpy.context.scene
 
@@ -570,24 +578,25 @@ def test_label_anchor_avoids_occluded_surfaces():
 
     width, height = 960, 540
     candidates = list(_iter_anchor_candidates(wall, depsgraph))
-    assert len(candidates) > 8, \
-        f"Expected origin + bbox center + face centers + corners, got {len(candidates)}"
+    assert (
+        len(candidates) > 8
+    ), f"Expected origin + bbox center + face centers + corners, got {len(candidates)}"
 
     # Origin must be occluded by the blocker (sanity check on the scene setup).
-    assert is_occluded(scene, depsgraph, cam, wall, width, height), \
-        "Test scene broken: wall origin should be occluded by blocker"
+    assert is_occluded(
+        scene, depsgraph, cam, wall, width, height
+    ), "Test scene broken: wall origin should be occluded by blocker"
 
     # At least one candidate on the wall must be visible around the blocker —
     # that's the whole point of face centers + vertex sampling.
     visible_count = sum(
         1
         for pt in candidates
-        if not is_occluded(
-            scene, depsgraph, cam, wall, width, height, override_pos=pt
-        )
+        if not is_occluded(scene, depsgraph, cam, wall, width, height, override_pos=pt)
     )
-    assert visible_count > 0, \
-        "Wall should have at least one visible surface point past the blocker"
+    assert (
+        visible_count > 0
+    ), "Wall should have at least one visible surface point past the blocker"
 
     # Now grow the blocker until the entire wall is hidden — every candidate
     # must be rejected and overlay_labels must draw nothing.
@@ -596,9 +605,7 @@ def test_label_anchor_avoids_occluded_surfaces():
     depsgraph = bpy.context.evaluated_depsgraph_get()
 
     all_occluded = all(
-        is_occluded(
-            scene, depsgraph, cam, wall, width, height, override_pos=pt
-        )
+        is_occluded(scene, depsgraph, cam, wall, width, height, override_pos=pt)
         for pt in _iter_anchor_candidates(wall, depsgraph)
     )
     assert all_occluded, "Fully blocked wall should have no visible candidates"
@@ -608,9 +615,9 @@ def test_label_anchor_avoids_occluded_surfaces():
     import hashlib
     import os
     import tempfile
-    from PIL import Image
 
     from fal_ai.controllers.render.utils import overlay_labels
+    from PIL import Image
 
     tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
     tmp.close()
@@ -619,12 +626,13 @@ def test_label_anchor_avoids_occluded_surfaces():
         before = hashlib.md5(open(tmp.name, "rb").read()).hexdigest()
         overlay_labels(bpy.context, tmp.name, width, height)
         after = hashlib.md5(open(tmp.name, "rb").read()).hexdigest()
-        assert before == after, \
-            "Fully occluded label should not draw onto the image"
+        assert before == after, "Fully occluded label should not draw onto the image"
     finally:
         os.unlink(tmp.name)
 
-    print("✓ Label anchor picker avoids occluded surfaces and skips truly hidden labels")
+    print(
+        "✓ Label anchor picker avoids occluded surfaces and skips truly hidden labels"
+    )
 
 
 def run_all_tests():
@@ -646,14 +654,14 @@ def run_all_tests():
         test_pointer_property_for_images,
         test_label_anchor_avoids_occluded_surfaces,
     ]
-    
+
     passed = 0
     failed = 0
-    
+
     print("\n" + "=" * 60)
     print("fal.ai Blender Extension - Integration Tests")
     print("=" * 60 + "\n")
-    
+
     for test in tests:
         try:
             test()
@@ -665,11 +673,11 @@ def run_all_tests():
             print(f"✗ {test.__name__}: Unexpected error")
             traceback.print_exc()
             failed += 1
-    
+
     print("\n" + "-" * 60)
     print(f"Results: {passed} passed, {failed} failed")
     print("-" * 60 + "\n")
-    
+
     return failed == 0
 
 

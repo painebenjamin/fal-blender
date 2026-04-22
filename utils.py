@@ -550,7 +550,6 @@ def has_usable_compositor(scene: bpy.types.Scene) -> bool:
     time. Check up front so we can skip compositing for fresh 5.x scenes
     (which default to ``use_compositing=True`` with an empty group).
     """
-    import bpy
 
     tree = get_compositor_node_tree(scene)
     if tree is None:

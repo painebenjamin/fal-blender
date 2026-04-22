@@ -81,7 +81,11 @@ class FalRenderPropertyGroup(bpy.types.PropertyGroup):
             ),
             ("SKETCH", "Sketch", "Render scene and reimagine via image generation"),
             ("REFINE", "Refine", "Render normally then refine via image-to-image AI"),
-            ("EDGE", "Edge", "Render normally then detect edges for edge-conditioned generation"),
+            (
+                "EDGE",
+                "Edge",
+                "Render normally then detect edges for edge-conditioned generation",
+            ),
         ],
         default="DEPTH",
     )
@@ -91,7 +95,11 @@ class FalRenderPropertyGroup(bpy.types.PropertyGroup):
         name="Video Mode",
         items=[
             ("DEPTH", "Depth", "Render depth animation for depth-conditioned video"),
-            ("EDGE", "Edge", "Render animation then detect edges for edge-conditioned video"),
+            (
+                "EDGE",
+                "Edge",
+                "Render animation then detect edges for edge-conditioned video",
+            ),
         ],
         default="DEPTH",
     )
@@ -239,4 +247,3 @@ class FalRenderPropertyGroup(bpy.types.PropertyGroup):
         description="Blender image to use as first frame",
         type=bpy.types.Image,
     )
-

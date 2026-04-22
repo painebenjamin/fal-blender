@@ -18,12 +18,13 @@ from .refinement import (
     ZImageTurboImageRefinementModel,
 )
 from .sketch_guided import (
-    GPTImage15EditModel,
+    GPTImage2Model,
+    GPTImage15Model,
     NanoBanana2SketchGuidedImageGenerationModel,
     NanoBananaProSketchGuidedImageGenerationModel,
     NanoBananaSketchGuidedImageGenerationModel,
-    Seedream45EditModel,
-    Seedream5LiteEditModel,
+    Seedream5LiteModel,
+    Seedream45Model,
     SketchGuidedImageGenerationModel,
 )
 
@@ -32,9 +33,10 @@ __all__ = [
     "NanoBananaSketchGuidedImageGenerationModel",
     "NanoBananaProSketchGuidedImageGenerationModel",
     "NanoBanana2SketchGuidedImageGenerationModel",
-    "GPTImage15EditModel",
-    "Seedream45EditModel",
-    "Seedream5LiteEditModel",
+    "GPTImage15Model",
+    "GPTImage2Model",
+    "Seedream45Model",
+    "Seedream5LiteModel",
     "DepthGuidedImageGenerationModel",
     "ZImageTurboDepthGuidedImageGenerationModel",
     "FLUX1DevDepthGuidedImageGenerationModel",

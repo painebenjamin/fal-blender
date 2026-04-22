@@ -4,7 +4,6 @@ from ..ui import FalControllerPanel
 from .operator import FalUpscaleOperator
 from .props import FalUpscalePropertyGroup
 
-
 # Shared panel config for both 3D view and VSE
 _UPSCALE_PANEL = FalControllerPanel(
     field_orders=[
