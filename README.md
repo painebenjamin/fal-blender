@@ -192,7 +192,7 @@ Available in the Video Sequence Editor sidebar under the **fal.ai** tab. Results
 
 ### Audio
 
-One controller, three modes.
+https://github.com/user-attachments/assets/f1f087c3-c867-4aad-bf52-cc505944f740
 
 #### Text-to-Speech (Presets)
 
@@ -241,7 +241,11 @@ Generate music from a text prompt with duration control.
 
 ### Video
 
-One controller, two modes. Before submitting a video job you'll see a confirm dialog with the effective size, duration, and cost-relevant settings.
+https://github.com/user-attachments/assets/b0255483-bcac-4f18-969f-5209cee85ef0
+
+Before submitting a video job you'll see a confirm dialog with the effective size, duration, and cost-relevant settings.
+
+*Note: The above video has processing time truncated.*
 
 #### Text-to-Video
 
