@@ -280,13 +280,13 @@ Animate a still image. Same catalog of video endpoints (those that support image
 | [LTX 2.3 22B Distilled](https://fal.ai/models/fal-ai/ltx-2.3-22b/distilled/image-to-video) | Newer LTX, faster |
 | [Seedance 2.0](https://fal.ai/models/bytedance/seedance-2.0/image-to-video) | ByteDance |
 | [Seedance 2.0 Fast](https://fal.ai/models/bytedance/seedance-2.0/fast/image-to-video) | ByteDance, faster |
-| [Kling v3 Standard](https://fal.ai/models/fal-ai/kling-video/v3/standard/image-to-video) | Size inferred from input image |
-| [Kling v3 Pro](https://fal.ai/models/fal-ai/kling-video/v3/pro/image-to-video) | Higher quality; size inferred from input image |
+| [Kling v3 Standard](https://fal.ai/models/fal-ai/kling-video/v3/standard/image-to-video) | |
+| [Kling v3 Pro](https://fal.ai/models/fal-ai/kling-video/v3/pro/image-to-video) | Higher quality |
 | [Veo 3.1](https://fal.ai/models/fal-ai/veo3.1/image-to-video) | Google |
 | [Veo 3.1 Fast](https://fal.ai/models/fal-ai/veo3.1/fast/image-to-video) | Google, faster |
 | [Wan 2.2](https://fal.ai/models/fal-ai/wan/v2.2-a14b/image-to-video) | |
 | [Wan 2.2 Turbo](https://fal.ai/models/fal-ai/wan/v2.2-a14b/image-to-video/turbo) | Faster |
-| [Wan 2.7](https://fal.ai/models/fal-ai/wan/v2.7/image-to-video) | Newer; aspect ratio inferred from input image |
+| [Wan 2.7](https://fal.ai/models/fal-ai/wan/v2.7/image-to-video) | Newer |
 
 ---
 
