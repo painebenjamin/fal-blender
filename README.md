@@ -87,13 +87,13 @@ There's also a **Tiling Texture** sub-mode if you just want a seamless base colo
 
 ---
 
-### Image Rendering (Neural Render)
+### Image Rendering
 
 Each mode does a quick technical render of the scene (depth, edges, sketch, or a normal render), then hands that off to fal as conditioning for an AI image.
 
 #### Depth-to-Image
 
-<!-- video: depth-to-image -->
+https://github.com/user-attachments/assets/b7646563-6361-4b2c-b573-17977e1d0e33
 
 Renders a Mist depth pass, then generates an AI image guided by scene depth. Great for preserving spatial layout while restyling.
 
@@ -104,7 +104,7 @@ Renders a Mist depth pass, then generates an AI image guided by scene depth. Gre
 
 #### Edge-to-Image
 
-<!-- video: edge-to-image -->
+https://github.com/user-attachments/assets/48f1c5bc-9684-4312-8360-a8805b65a978
 
 Runs Canny edge detection on a scene render and uses the edges as structural guidance for the AI image.
 
@@ -115,7 +115,7 @@ Runs Canny edge detection on a scene render and uses the edges as structural gui
 
 #### Sketch-to-Image
 
-<!-- video: sketch-to-image -->
+https://github.com/user-attachments/assets/65923871-ce5d-4f6b-a258-d541fa1c51f4
 
 Renders a Freestyle line drawing (optionally with object-name labels overlaid) and reimagines it as a finished image. Label overlays let the model ground parts of the sketch to specific concepts.
 
@@ -124,21 +124,24 @@ Renders a Freestyle line drawing (optionally with object-name labels overlaid) a
 | [Nano Banana](https://fal.ai/models/fal-ai/nano-banana/edit) | Google's image-edit |
 | [Nano Banana Pro](https://fal.ai/models/fal-ai/nano-banana-pro/edit) | Google's image-edit, higher quality |
 | [Nano Banana 2](https://fal.ai/models/fal-ai/nano-banana-2/edit) | Google's image-edit, newer |
-| [GPT Image 1.5 Edit](https://fal.ai/models/fal-ai/gpt-image-1.5/edit) | OpenAI's image-edit |
-| [Seedream 4.5 Edit](https://fal.ai/models/fal-ai/bytedance/seedream/v4.5/edit) | ByteDance's image-edit |
-| [Seedream 5 Lite Edit](https://fal.ai/models/fal-ai/bytedance/seedream/v5/lite/edit) | ByteDance's image-edit, lite variant |
+| [GPT Image 1.5](https://fal.ai/models/fal-ai/gpt-image-1.5/edit) | OpenAI's image-edit |
+| [GPT Image 2](https://fal.ai/models/openai/gpt-image-2/edit) | OpenAI's latest image-edit |
+| [Seedream 4.5](https://fal.ai/models/fal-ai/bytedance/seedream/v4.5/edit) | ByteDance's image-edit |
+| [Seedream 5 Lite](https://fal.ai/models/fal-ai/bytedance/seedream/v5/lite/edit) | ByteDance's image-edit, lite variant |
 
-#### Render-to-Image
+#### Render-to-Image (Refine)
 
-<!-- video: render-to-image -->
+https://github.com/user-attachments/assets/24077dae-da98-41a8-bfa5-91c35080252d
 
-Renders the scene normally and refines the result with img2img. A strength slider controls how far the model drifts from the input render.
+Renders the scene normally and refines the result with img2img or an edit model. A strength slider controls how far the model drifts from the input render.
 
 | Endpoint | Notes |
 |----------|-------|
 | [Nano Banana](https://fal.ai/models/fal-ai/nano-banana/edit) | Image-edit style |
 | [Nano Banana Pro](https://fal.ai/models/fal-ai/nano-banana-pro/edit) | Image-edit style, higher quality |
 | [Nano Banana 2](https://fal.ai/models/fal-ai/nano-banana-2/edit) | Image-edit style, newer |
+| [GPT Image 1.5](https://fal.ai/models/fal-ai/gpt-image-1.5/edit) | OpenAI's image-edit |
+| [GPT Image 2](https://fal.ai/models/openai/gpt-image-2/edit) | OpenAI's latest image-edit |
 | [Z-Image Turbo](https://fal.ai/models/fal-ai/z-image/turbo/image-to-image) | Img2img with strength control, fast |
 | [FLUX.1 \[dev\]](https://fal.ai/models/fal-ai/flux/dev/image-to-image) | Img2img with strength control |
 | [FLUX.2 Klein 9B](https://fal.ai/models/fal-ai/flux-2/klein/9b/edit) | Img2img with strength control |
@@ -147,11 +150,11 @@ Renders the scene normally and refines the result with img2img. A strength slide
 
 ### Video Rendering (Neural Render)
 
+https://github.com/user-attachments/assets/5645a408-225b-4d67-b1f6-934c456d5f2a
+
 Same controller as image rendering, but the mode switcher is set to **Video**. Renders an animation sequence as depth or edges, then generates a video conditioned on that sequence.
 
 #### Depth-to-Video
-
-<!-- video: depth-to-video -->
 
 Exports a depth animation across the scene's frame range and generates a depth-guided video. Optionally supply a first-frame reference image.
 
@@ -165,8 +168,6 @@ Exports a depth animation across the scene's frame range and generates a depth-g
 | [Wan Fun 2.2 A14B](https://fal.ai/models/fal-ai/wan-22-vace-fun-a14b/depth) | Stylized |
 
 #### Edge-to-Video
-
-<!-- video: edge-to-video -->
 
 Canny edges are computed per frame (in parallel threads) and fed to the model as structural conditioning.
 
