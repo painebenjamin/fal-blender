@@ -334,29 +334,12 @@ Every workflow has a collapsible **Advanced Parameters** section that lets you s
 
 ## Installation
 
-### From Release (coming soon)
+### From Release
 
 1. Download the latest `.zip` from Releases
-2. In Blender: `Edit → Preferences → Add-ons → Install from Disk`
-3. Select the `.zip` file
-4. Enable **fal.ai — AI Generation Suite**
-5. Set your API key in the addon preferences
+2. Open Blender, then either a.) use `Edit → Preferences → Add-ons → Install from Disk`, then select the `.zip` file, or b.) drag and drop the `.zip` into the interface anywhere
+3. Set your API key in the addon preferences
 
-### Development Install
-
-```bash
-git clone https://github.com/painebenjamin/fal-blender.git
-cd fal-blender
-
-# Download wheels and generate blender_manifest.toml
-make all
-
-# Option A: symlink into Blender's extensions directory
-ln -s $(pwd) ~/.config/blender/4.5/extensions/fal_ai
-
-# Option B: zip and install via Blender preferences
-zip -r fal_ai.zip . -x ".*" -x "__pycache__/*" -x "scripts/*" -x "tests/*"
-```
 
 ## Architecture
 
