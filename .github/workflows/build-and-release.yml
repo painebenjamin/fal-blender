@@ -46,6 +46,12 @@ jobs:
         run: |
           WHEEL_FRESH=1 make wheels
 
+      - name: Derive extension version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          # refs/tags/v0.2.0 → 0.2.0
+          echo "EXTENSION_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+
       - name: Generate manifest
         run: make sync-manifest
 
